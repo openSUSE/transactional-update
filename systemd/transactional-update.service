@@ -1,0 +1,10 @@
+[Unit]
+Description=Update the system
+Documentation=man:transactional-update(8)
+ConditionACPower=true
+
+[Service]
+Type=oneshot
+ExecStart=/usr/sbin/transactional-update up
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7

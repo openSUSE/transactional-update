@@ -1,0 +1,109 @@
+#!/bin/bash
+#
+# update_snapshot - update a snapshot of the current system
+#
+# Copyright (C) 2016 by Thorsten Kukuk <kukuk@suse.com>
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 2 of the License, or
+# (at your option) any later version.
+
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+DIR_TO_MOUNT="dev sys proc opt usr/local var/log"
+EXITCODE=0
+
+SNAPSHOT_ID=`snapper create -p -d "Snapshot Update"`
+if [ $? -ne 0 ]; then
+  echo "ERROR: snapper create failed!"
+  exit 1
+fi
+
+SNAPSHOT_DIR=/.snapshots/${SNAPSHOT_ID}/snapshot
+
+# Make the snapshot read-write:
+btrfs property set  ${SNAPSHOT_DIR} ro false
+if [ $? -ne 0 ]; then
+   echo "ERROR: changing ${SNAPSHOT_DIR} to read-write failed!"
+   exit 1;
+fi
+
+# Check if installed with SLES12
+touch ${SNAPSHOT_DIR}/var/tmp/update_snapshot.test
+if [ $? -ne 0 ]; then
+   echo "ERROR: System installation is too old!"
+   exit 1;
+fi
+rm -f ${SNAPSHOT_DIR}/var/tmp/update_snapshot.test
+
+# Mount everything we need:
+for directory in $DIR_TO_MOUNT ; do
+  mount -o bind /$directory ${SNAPSHOT_DIR}/$directory
+  if [ $? -ne 0 ]; then
+    echo "ERROR: mount of $directory failed!"
+    exit 1;
+  fi
+done
+
+# Do we need to cleanup the /var/cache directory?
+if [ -d ${SNAPSHOT_DIR}/var/cache/zypp ]; then
+  VAR_CACHE_CLEANUP=0
+else
+  VAR_CACHE_CLEANUP=1
+fi
+
+# Create bind mount, else grub2 will fail
+MOUNT_DIR=`mktemp -d`
+mount -o rbind ${SNAPSHOT_DIR} ${MOUNT_DIR}
+
+zypper -R ${MOUNT_DIR} up
+if [ $? -ne 0 ]; then
+   echo "ERROR: zypper up on $directory failed!"
+   EXITCODE=1;
+fi
+
+umount ${MOUNT_DIR}
+rmdir ${MOUNT_DIR}
+
+# Unmount everything we don't need anymore:
+for directory in $DIR_TO_MOUNT ; do
+  umount ${SNAPSHOT_DIR}/$directory
+  if [ $? -ne 0 ]; then
+    echo "ERROR: umount of $directory failed!"
+    EXITCODE=1;
+  fi
+done
+
+# cleanup other stuff
+# cleanup cache directory
+if [ $VAR_CACHE_CLEANUP -eq 1 ]; then
+  rm -rf ${SNAPSHOT_DIR}/var/cache/*
+fi
+# systemd-tmpfiles creates directories/files even if /run is no tmpfs:
+rm -rf ${SNAPSHOT_DIR}/run/*
+# WARNING: /var/spool/ can contain changes through RPM!
+rm -rf ${SNAPSHOT_DIR}/var/spool/*
+
+# Make the snapshot read-only again:
+btrfs property set  ${SNAPSHOT_DIR} ro true
+if [ $? -ne 0 ]; then
+   echo "ERROR: changing ${SNAPSHOT_DIR} to read-only failed!"
+   EXITCODE=1
+fi
+
+# Regenerate grub menu in case of kernel update, etc:
+# XXX missing
+
+# Somersault:
+if [ $EXITCODE -eq 0 ]; then
+   snapper rollback ${SNAPSHOT_ID}
+fi
+
+exit $EXITCODE

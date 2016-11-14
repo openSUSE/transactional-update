@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook XML V4.4//EN"
+                   "http://www.oasis-open.org/docbook/xml/4.4/docbookx.dtd">
+
+<!--  \-*\- nroff \-*\- -->
+<!--  Copyright 2016 Thorsten Kukuk &lt;kukuk@suse.de&gt; -->
+
+<!--  This file is part of issue\-generator. -->
+
+<!--  issue\-generator is free software; you can redistribute it and/or -->
+<!--  modify it under the terms of the GNU General Public License as -->
+<!--  published by the Free Software Foundation; either version 2 of the -->
+<!--  License, or (at your option) any later version. -->
+
+<!--  issue\-generator is distributed in the hope that it will be useful, -->
+<!--  but WITHOUT ANY WARRANTY; without even the implied warranty of -->
+<!--  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU -->
+<!--  General Public License for more details. -->
+
+<!--  You should have received a copy of the GNU General Public -->
+<!--  License along with issue\-generator; see the file COPYING.  If not, -->
+<!--  write to the Free Software Foundation, Inc., 51 Franklin Street \- Suite 500, -->
+<!--  Boston, MA 02111\-1307, USA. -->
+
+<refentry id='issue-generator8'>
+
+  <refmeta>
+    <refentrytitle>issue-generator</refentrytitle>
+    <manvolnum>8</manvolnum>
+    <refmiscinfo class='setdesc'>issue-generator</refmiscinfo>
+  </refmeta>
+
+  <refnamediv id='name'>
+    <refname>issue-generator</refname>
+    <refname>issue-add-ssh-keys.service</refname>
+    <refname>issue-generator.service</refname>
+    <refname>90-issue-generator.rules</refname>
+    <refname>issue-generator.conf</refname>
+    <refpurpose>Creates a volatile and temporary issue file</refpurpose>
+  </refnamediv>
+
+<!-- body begins here -->
+  <refsynopsisdiv id='synopsis'>
+    <cmdsynopsis>
+      <command>/usr/sbin/issue-generator</command>
+      <arg choice='opt'>--prefix <replaceable>path</replaceable></arg>
+      <arg choice='opt'>--help</arg>
+    </cmdsynopsis>
+    <cmdsynopsis>
+      <command>/usr/sbin/issue-generator</command>
+      <arg choice='plain'>network <group choice='plain'><arg
+      choice='plain'>add</arg><arg choice='plain'>remove</arg></group>
+      <replaceable>interface</replaceable></arg>
+    </cmdsynopsis>
+    <cmdsynopsis>
+      <command>/usr/sbin/issue-generator</command>
+      <arg choice='plain'>ssh<group choice='plain'><arg
+      choice='plain'>add</arg><arg choice='plain'>remove</arg></group></arg>
+    </cmdsynopsis>
+    <cmdsynopsis>
+      <command>/usr/sbin/issue-generator</command>
+      <arg choice='plain'>--version </arg>
+    </cmdsynopsis>
+    <para><filename>issue-add-ssh-keys.service</filename></para>
+    <para><filename>issue-generator.service</filename></para>
+  </refsynopsisdiv>
+
+
+<refsect1 id='description'><title>DESCRIPTION</title>
+<para><emphasis remap='B'>issue-generator</emphasis>
+creates a volatile and temporary
+<citerefentry><refentrytitle>issue</refentrytitle><manvolnum>5</manvolnum></citerefentry>
+file based on the input files and location specified in
+<citerefentry><refentrytitle>issue.d</refentrytitle><manvolnum>5</manvolnum></citerefentry>.
+</para>
+<para>If invoked with no arguments, it applies all input files and creates a
+temporary <filename>issue</filename> file as <filename>/run/issue</filename>.
+<filename>/etc/issue</filename> should be symlink to this file.</para>
+</refsect1>
+
+<refsect1 id='options'><title>OPTIONS</title>
+<variablelist remap='TP'>
+  <varlistentry>
+    <term><option>--prefix</option> <replaceable>path</replaceable></term>
+    <listitem>
+      <para>Add the prefix <filename>path</filename> to all used directories and files.</para>
+    </listitem>
+  </varlistentry>
+  <varlistentry>
+    <term><option>network add|remove</option> <replaceable>interface</replaceable></term>
+    <listitem>
+      <para>Creates a deletes files of the format
+      <filename>/run/issue.d/70-<replaceable>interface</replaceable>.conf</filename>. This
+      files contains the name of the <replaceable>interface</replaceable> and
+      the escape codes for
+      <citerefentry><refentrytitle>agetty</refentrytitle><manvolnum>8</manvolnum></citerefentry>
+      to insert the IPv4 and IPv6 addresses.</para>
+    </listitem>
+  </varlistentry>
+  <varlistentry>
+    <term><option>ssh add|remove</option></term>
+    <listitem>
+      <para>Creates or deletes the file
+      <filename>/run/issue.d/60-ssh_host_keys.conf</filename> which contains
+      fingerprints of the public ssh keys of the host.</para>
+    </listitem>
+  </varlistentry>
+</variablelist>
+</refsect1>
+
+<refsect1 id='see_also'><title>SEE ALSO</title>
+<para><citerefentry><refentrytitle>issue</refentrytitle><manvolnum>5</manvolnum></citerefentry>,
+<citerefentry><refentrytitle>issue.d</refentrytitle><manvolnum>5</manvolnum></citerefentry>,
+<citerefentry><refentrytitle>agetty</refentrytitle><manvolnum>8</manvolnum></citerefentry></para>
+</refsect1>
+
+  <refsect1 id='author'>
+    <title>AUTHOR</title>
+    <para>
+      <command>issue-generator</command> was written by
+      Thorsten Kukuk &lt;kukuk@suse.com&gt;.
+    </para>
+  </refsect1>
+</refentry>
