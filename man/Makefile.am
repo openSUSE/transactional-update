@@ -4,7 +4,8 @@
 # Author: Thorsten Kukuk <kukuk@suse.de>
 #
 
-CLEANFILES = transactional-update.8
+CLEANFILES = transactional-update.8 transactional-update.timer.8 \
+	transactional-update.service.8
 
 EXTRA_DIST = $(MANS) $(XMLS)
 

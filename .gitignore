@@ -26,4 +26,7 @@ test-driver
 test-suite.log
 check-output.*
 sbin/transactional-update
+man/transactional-update.8
+man/transactional-update.service.8
+man/transactional-update.timer.8
 transactional-update-*.tar.*

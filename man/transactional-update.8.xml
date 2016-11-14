@@ -5,7 +5,7 @@
 <!--  \-*\- nroff \-*\- -->
 <!--  Copyright 2016 Thorsten Kukuk &lt;kukuk@suse.de&gt; -->
 
-<!--  This file is part of issue\-generator. -->
+<!--  This file is part of transactional\-update. -->
 
 <!--  issue\-generator is free software; you can redistribute it and/or -->
 <!--  modify it under the terms of the GNU General Public License as -->
@@ -22,52 +22,45 @@
 <!--  write to the Free Software Foundation, Inc., 51 Franklin Street \- Suite 500, -->
 <!--  Boston, MA 02111\-1307, USA. -->
 
-<refentry id='issue-generator8'>
+<refentry id='transactional-update8'>
 
   <refmeta>
-    <refentrytitle>issue-generator</refentrytitle>
+    <refentrytitle>transactional-update</refentrytitle>
     <manvolnum>8</manvolnum>
-    <refmiscinfo class='setdesc'>issue-generator</refmiscinfo>
+    <refmiscinfo class='setdesc'>transactional-update</refmiscinfo>
   </refmeta>
 
   <refnamediv id='name'>
-    <refname>issue-generator</refname>
-    <refname>issue-add-ssh-keys.service</refname>
-    <refname>issue-generator.service</refname>
-    <refname>90-issue-generator.rules</refname>
-    <refname>issue-generator.conf</refname>
-    <refpurpose>Creates a volatile and temporary issue file</refpurpose>
+    <refname>transactional-update</refname>
+    <refname>transactional-update.service</refname>
+    <refname>transactional-update.timer</refname>
+    <refpurpose>Apply updates to the system in an atomic way via transactional
+    updates.</refpurpose>
   </refnamediv>
 
 <!-- body begins here -->
   <refsynopsisdiv id='synopsis'>
     <cmdsynopsis>
-      <command>/usr/sbin/issue-generator</command>
-      <arg choice='opt'>--prefix <replaceable>path</replaceable></arg>
+      <command>/usr/sbin/transactional-update</command>
       <arg choice='opt'>--help</arg>
+      <arg choice='opt'>--version</arg>
     </cmdsynopsis>
     <cmdsynopsis>
-      <command>/usr/sbin/issue-generator</command>
-      <arg choice='plain'>network <group choice='plain'><arg
-      choice='plain'>add</arg><arg choice='plain'>remove</arg></group>
-      <replaceable>interface</replaceable></arg>
+      <command>/usr/sbin/transactional-update</command>
+      <group choice='plain'>
+	<arg choice='plain'>up</arg>
+	<arg choice='plain'>dup</arg>
+	<arg choice='plain'>patch</arg>
+	<arg choice='plain'>ptf</arg>
+	<arg choice='plain'>bootloader</arg>
+    </group>
     </cmdsynopsis>
-    <cmdsynopsis>
-      <command>/usr/sbin/issue-generator</command>
-      <arg choice='plain'>ssh<group choice='plain'><arg
-      choice='plain'>add</arg><arg choice='plain'>remove</arg></group></arg>
-    </cmdsynopsis>
-    <cmdsynopsis>
-      <command>/usr/sbin/issue-generator</command>
-      <arg choice='plain'>--version </arg>
-    </cmdsynopsis>
-    <para><filename>issue-add-ssh-keys.service</filename></para>
-    <para><filename>issue-generator.service</filename></para>
+    <para><filename>transactional-update.service</filename></para>
+    <para><filename>transactional-update.timer</filename></para>
   </refsynopsisdiv>
 
-
 <refsect1 id='description'><title>DESCRIPTION</title>
-<para><emphasis remap='B'>issue-generator</emphasis>
+<para><emphasis remap='B'>transactional-update</emphasis>
 creates a volatile and temporary
 <citerefentry><refentrytitle>issue</refentrytitle><manvolnum>5</manvolnum></citerefentry>
 file based on the input files and location specified in
@@ -109,15 +102,14 @@ temporary <filename>issue</filename> file as <filename>/run/issue</filename>.
 </refsect1>
 
 <refsect1 id='see_also'><title>SEE ALSO</title>
-<para><citerefentry><refentrytitle>issue</refentrytitle><manvolnum>5</manvolnum></citerefentry>,
-<citerefentry><refentrytitle>issue.d</refentrytitle><manvolnum>5</manvolnum></citerefentry>,
-<citerefentry><refentrytitle>agetty</refentrytitle><manvolnum>8</manvolnum></citerefentry></para>
+<para><citerefentry><refentrytitle>systemd.timer</refentrytitle><manvolnum>5</manvolnum></citerefentry>,
+<citerefentry><refentrytitle>systemd.time</refentrytitle><manvolnum>7</manvolnum></citerefentry></para>
 </refsect1>
 
   <refsect1 id='author'>
     <title>AUTHOR</title>
     <para>
-      <command>issue-generator</command> was written by
+      <command>transactional-update</command> was written by
       Thorsten Kukuk &lt;kukuk@suse.com&gt;.
     </para>
   </refsect1>
