@@ -17,10 +17,13 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+export LANG=C
+
 DIR_TO_MOUNT="dev sys proc opt usr/local var/log"
 EXITCODE=0
 ZYPPER_ARG=""
 REWRITE_BOOTLOADER=0
+REWRITE_GRUB_CFG=0
 LOGFILE="/var/log/transactional-update.log"
 
 usage() {
@@ -59,8 +62,13 @@ while [ 1 ]; do
 	    ;;
         bootloader)
 	    REWRITE_BOOTLOADER=1
+	    REWRITE_GRUB_CFG=1
             shift;
             ;;
+	grub.cfg)
+	    REWRITE_GRUB_CFG=1
+	    shift;
+	    ;;
         -h|--help)
             usage 0
             ;;
@@ -79,11 +87,23 @@ if [ $# -ne 0 ]; then
     usage 1;
 fi
 
-if [ ${REWRITE_BOOTLOADER} -eq 0 -a -z "${ZYPPER_ARG}" ]; then
+if [ ${REWRITE_BOOTLOADER} -eq 0 -a ${REWRITE_GRUB_CFG} -eq 0 -a \
+	-z "${ZYPPER_ARG}" ]; then
   ZYPPER_ARG="up"
 fi
 
 log_info "transactional-update @VERSION@ started"
+
+ORIG_SNAPSHOT_ID=`btrfs subvolume get / | sed -e 's|.*.snapshots/\(.*\)/snapshot|\1|g'`
+RO_ROOT=`btrfs property get / ro | sed -e 's|ro=||'`
+
+if [ ${RO_ROOT} == "false" ]; then
+    SECOND_SNAPSHOT_ID=`snapper create -p -c number -d "RO-Clone of #${ORIG_SNAPSHOT_ID}"`
+    if [ $? -ne 0 ]; then
+	log_error "ERROR: snapper create failed!"
+	exit 1
+    fi
+fi
 
 SNAPSHOT_ID=`snapper create -p -d "Snapshot Update"`
 if [ $? -ne 0 ]; then
@@ -137,14 +157,16 @@ if [ -n "${ZYPPER_ARG}" ]; then
     fi
 fi
 
-if [ ${REWRITE_BOOTLOADER} -eq 1 ]; then
-    log_info "Write new bootloader"
-    # Create a new grub2 config
+if [ ${REWRITE_GRUB_CFG} -eq 1 ]; then
+    log_info "Create a new grub2 config"
     chroot ${MOUNT_DIR} /usr/sbin/grub2-mkconfig > ${MOUNT_DIR}/boot/grub2/grub.cfg
     if [ $? -ne 0 ]; then
 	log_error "ERROR: grub2-mkconfig failed!"
 	EXITCODE=1;
     fi
+fi
+if [ ${REWRITE_BOOTLOADER} -eq 1 ]; then
+    log_info "Write new bootloader"
     chroot ${MOUNT_DIR} /usr/sbin/grub2-install
     if [ $? -ne 0 ]; then
 	log_error "ERROR: grub2-install failed!"
@@ -190,17 +212,30 @@ if [ $EXITCODE -eq 0 ]; then
     fi
 fi
 
+if [ $EXITCODE -eq 0 ]; then
+    # Mark current root for deletion
+    snapper modify -c number ${ORIG_SNAPSHOT_ID}
+    if [ $? -ne 0 ]; then
+	log_error "ERROR: adding cleanup algorithm to #${ORIG_SNAPSHOT_ID} failed!"
+	EXITCODE=1
+    fi
+fi
 
-# Make the snapshot read-only again:
-btrfs property set  ${SNAPSHOT_DIR} ro true
+# Make the snapshot ro flag identical to current root:
+btrfs property set  ${SNAPSHOT_DIR} ro ${RO_ROOT}
 if [ $? -ne 0 ]; then
-   log_error "ERROR: changing ${SNAPSHOT_DIR} to read-only failed!"
+   log_error "ERROR: changing ${SNAPSHOT_DIR} to ro=${RO_ROOT} failed!"
    EXITCODE=1
 fi
 
 if [ $EXITCODE -ne 0 ]; then
     log_error "Removing snapshot..."
-    snapper delete ${SNAPSHOT_ID}
+    if [ -n ${SNAPSHOT_ID} ] ; then
+	snapper delete ${SNAPSHOT_ID}
+    fi
+    if [ -n ${SECOND_SNAPSHOT_ID} ] ; then
+	snapper delete ${SECOND_SNAPSHOT_ID}
+    fi
 fi
 
 log_info "transactional-update finished"
