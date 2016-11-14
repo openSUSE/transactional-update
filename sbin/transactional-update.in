@@ -19,10 +19,75 @@
 
 DIR_TO_MOUNT="dev sys proc opt usr/local var/log"
 EXITCODE=0
+ZYPPER_ARG=""
+REWRITE_BOOTLOADER=0
+LOGFILE="/var/log/transactional-update.log"
+
+usage() {
+    echo "Usage: transactional-update --help|--version"
+    echo "       transactional-update [up|dup|patch|ptf|bootloader]"
+    exit $1
+}
+
+print_version() {
+    echo "transactional-update @VERSION@"
+    exit 0;
+}
+
+log_info() {
+    echo `date "+%Y-%m-%d %H:%M"` "$@" >> ${LOGFILE}
+}
+
+log_error() {
+    echo `date "+%Y-%m-%d %H:%M "` "$@" >> ${LOGFILE}
+    echo "$@" 1>&2
+}
+
+while [ 1 ]; do
+    if [ $# -eq 0 ]; then
+        break
+    fi
+
+    case "$1" in
+        up|dup|patch)
+	    ZYPPER_ARG=$1;
+            shift;
+            ;;
+	ptf)
+	    ZYPPER_ARG="in XXX"
+	    shift;
+	    ;;
+        bootloader)
+	    REWRITE_BOOTLOADER=1
+            shift;
+            ;;
+        -h|--help)
+            usage 0
+            ;;
+        --version)
+            print_version
+            ;;
+        *)
+            if [ $# -ge 1 ]; then
+                usage 1;
+            fi
+            ;;
+    esac
+done
+
+if [ $# -ne 0 ]; then
+    usage 1;
+fi
+
+if [ ${REWRITE_BOOTLOADER} -eq 0 -a -z "${ZYPPER_ARG}" ]; then
+  ZYPPER_ARG="up"
+fi
+
+log_info "transactional-update @VERSION@ started"
 
 SNAPSHOT_ID=`snapper create -p -d "Snapshot Update"`
 if [ $? -ne 0 ]; then
-  echo "ERROR: snapper create failed!"
+  log_error "ERROR: snapper create failed!"
   exit 1
 fi
 
@@ -31,14 +96,14 @@ SNAPSHOT_DIR=/.snapshots/${SNAPSHOT_ID}/snapshot
 # Make the snapshot read-write:
 btrfs property set  ${SNAPSHOT_DIR} ro false
 if [ $? -ne 0 ]; then
-   echo "ERROR: changing ${SNAPSHOT_DIR} to read-write failed!"
+   log_error "ERROR: changing ${SNAPSHOT_DIR} to read-write failed!"
    exit 1;
 fi
 
 # Check if installed with SLES12
 touch ${SNAPSHOT_DIR}/var/tmp/update_snapshot.test
 if [ $? -ne 0 ]; then
-   echo "ERROR: System installation is too old!"
+   log_error "ERROR: System installation is too old!"
    exit 1;
 fi
 rm -f ${SNAPSHOT_DIR}/var/tmp/update_snapshot.test
@@ -47,7 +112,7 @@ rm -f ${SNAPSHOT_DIR}/var/tmp/update_snapshot.test
 for directory in $DIR_TO_MOUNT ; do
   mount -o bind /$directory ${SNAPSHOT_DIR}/$directory
   if [ $? -ne 0 ]; then
-    echo "ERROR: mount of $directory failed!"
+    log_error "ERROR: mount of $directory failed!"
     exit 1;
   fi
 done
@@ -63,23 +128,42 @@ fi
 MOUNT_DIR=`mktemp -d`
 mount -o rbind ${SNAPSHOT_DIR} ${MOUNT_DIR}
 
-zypper -R ${MOUNT_DIR} up
-if [ $? -ne 0 ]; then
-   echo "ERROR: zypper up on $directory failed!"
-   EXITCODE=1;
+if [ -n "${ZYPPER_ARG}" ]; then
+    log_info "Calling zypper ${ZYPPER_ARG}"
+    env DISABLE_RESTART_ON_UPDATE=yes zypper -R ${MOUNT_DIR} ${ZYPPER_ARG}
+    if [ $? -ne 0 ]; then
+	log_error "ERROR: zypper ${ZYPPER_ARG} on $directory failed!"
+	EXITCODE=1;
+    fi
 fi
 
-umount ${MOUNT_DIR}
-rmdir ${MOUNT_DIR}
+if [ ${REWRITE_BOOTLOADER} -eq 1 ]; then
+    log_info "Write new bootloader"
+    # Create a new grub2 config
+    chroot ${MOUNT_DIR} /usr/sbin/grub2-mkconfig > ${MOUNT_DIR}/boot/grub2/grub.cfg
+    if [ $? -ne 0 ]; then
+	log_error "ERROR: grub2-mkconfig failed!"
+	EXITCODE=1;
+    fi
+    chroot ${MOUNT_DIR} /usr/sbin/grub2-install
+    if [ $? -ne 0 ]; then
+	log_error "ERROR: grub2-install failed!"
+	EXITCODE=1;
+    fi
+fi
 
 # Unmount everything we don't need anymore:
 for directory in $DIR_TO_MOUNT ; do
   umount ${SNAPSHOT_DIR}/$directory
   if [ $? -ne 0 ]; then
-    echo "ERROR: umount of $directory failed!"
+    log_error "ERROR: umount of $directory failed!"
     EXITCODE=1;
   fi
 done
+umount ${MOUNT_DIR}
+
+# Cleanup of temporary mount point
+rmdir ${MOUNT_DIR}
 
 # cleanup other stuff
 # cleanup cache directory
@@ -91,19 +175,34 @@ rm -rf ${SNAPSHOT_DIR}/run/*
 # WARNING: /var/spool/ can contain changes through RPM!
 rm -rf ${SNAPSHOT_DIR}/var/spool/*
 
+# Somersault:
+if [ $EXITCODE -eq 0 ]; then
+    BTRFS_ID=`btrfs subvolume list / |grep ${SNAPSHOT_DIR} | awk '{print $2}'`
+    if [ -z $BTRFS_ID ]; then
+	log_error "ERROR: couldn't determine btrfs subvolume ID"
+	EXITCODE=1
+    else
+	btrfs subvolume set-default $BTRFS_ID ${SNAPSHOT_DIR}
+	if [ $? -ne 0 ]; then
+	    log_error "ERROR: umount of $directory failed!"
+	    EXITCODE=1;
+	fi
+    fi
+fi
+
+
 # Make the snapshot read-only again:
 btrfs property set  ${SNAPSHOT_DIR} ro true
 if [ $? -ne 0 ]; then
-   echo "ERROR: changing ${SNAPSHOT_DIR} to read-only failed!"
+   log_error "ERROR: changing ${SNAPSHOT_DIR} to read-only failed!"
    EXITCODE=1
 fi
 
-# Regenerate grub menu in case of kernel update, etc:
-# XXX missing
-
-# Somersault:
-if [ $EXITCODE -eq 0 ]; then
-   snapper rollback ${SNAPSHOT_ID}
+if [ $EXITCODE -ne 0 ]; then
+    log_error "Removing snapshot..."
+    snapper delete ${SNAPSHOT_ID}
 fi
+
+log_info "transactional-update finished"
 
 exit $EXITCODE
