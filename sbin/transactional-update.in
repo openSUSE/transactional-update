@@ -22,13 +22,17 @@ export LANG=C
 DIR_TO_MOUNT="dev sys proc opt usr/local var/log"
 EXITCODE=0
 ZYPPER_ARG=""
+ZYPPER_NONINTERACTIVE=--non-interactive
 REWRITE_BOOTLOADER=0
 REWRITE_GRUB_CFG=0
+DO_CLEANUP=0
+REBOOT_AFTERWARDS=0
 LOGFILE="/var/log/transactional-update.log"
+STATE_FILE="/var/lib/misc/transactional-update.state"
 
 usage() {
     echo "Usage: transactional-update --help|--version"
-    echo "       transactional-update [up|dup|patch|ptf|bootloader]"
+    echo "       transactional-update [cleanup][up|dup|patch|ptf|bootloader][reboot]"
     exit $1
 }
 
@@ -46,28 +50,51 @@ log_error() {
     echo "$@" 1>&2
 }
 
+save_state_file() {
+    if [ $1 -eq 0 ]; then
+        LOCAL_STATE_FILE=${STATE_FILE}
+    else
+	LOCAL_STATE_FILE="/.snapshots/$1/snapshot${STATE_FILE}"
+    fi
+    echo "LAST_WORKING_SNAPSHOT_ID=${LAST_WORKING_SNAPSHOT_ID}" > ${LOCAL_STATE_FILE}
+    echo "UNUSED_SNAPSHOTS=${UNUSED_SNAPSHOTS}" >>  ${LOCAL_STATE_FILE}
+}
+
+# load old state file
+if [ -f ${STATE_FILE} ]; then
+    . ${STATE_FILE}
+fi
+
 while [ 1 ]; do
     if [ $# -eq 0 ]; then
         break
     fi
 
     case "$1" in
+	cleanup)
+	    DO_CLEANUP=1
+	    shift
+	    ;;
         up|dup|patch)
-	    ZYPPER_ARG=$1;
-            shift;
+	    ZYPPER_ARG=$1
+            shift
             ;;
 	ptf)
 	    ZYPPER_ARG="in XXX"
-	    shift;
+	    shift
 	    ;;
         bootloader)
 	    REWRITE_BOOTLOADER=1
 	    REWRITE_GRUB_CFG=1
-            shift;
+            shift
             ;;
 	grub.cfg)
 	    REWRITE_GRUB_CFG=1
-	    shift;
+	    shift
+	    ;;
+	reboot)
+	    REBOOT_AFTERWARDS=1
+	    shift
 	    ;;
         -h|--help)
             usage 0
@@ -88,153 +115,223 @@ if [ $# -ne 0 ]; then
 fi
 
 if [ ${REWRITE_BOOTLOADER} -eq 0 -a ${REWRITE_GRUB_CFG} -eq 0 -a \
-	-z "${ZYPPER_ARG}" ]; then
+	-z "${ZYPPER_ARG}" -a ${DO_CLEANUP} -eq 0 ]; then
   ZYPPER_ARG="up"
 fi
 
 log_info "transactional-update @VERSION@ started"
 
-ORIG_SNAPSHOT_ID=`btrfs subvolume get / | sed -e 's|.*.snapshots/\(.*\)/snapshot|\1|g'`
-RO_ROOT=`btrfs property get / ro | sed -e 's|ro=||'`
-
-if [ ${RO_ROOT} == "false" ]; then
-    SECOND_SNAPSHOT_ID=`snapper create -p -c number -d "RO-Clone of #${ORIG_SNAPSHOT_ID}"`
-    if [ $? -ne 0 ]; then
-	log_error "ERROR: snapper create failed!"
-	exit 1
-    fi
-fi
-
-SNAPSHOT_ID=`snapper create -p -d "Snapshot Update"`
-if [ $? -ne 0 ]; then
-  log_error "ERROR: snapper create failed!"
+if [ "`stat -f -c %T /`" != "btrfs" ]; then
+  log_error "ERROR: no btrfs as root filesystem!"
+  log_info "transactional-update finished"
   exit 1
 fi
 
-SNAPSHOT_DIR=/.snapshots/${SNAPSHOT_ID}/snapshot
+if [ ! -d /.snapshots ]; then
+  log_error "ERROR: no snapshots for root filesystem configured!"
+  log_info "transactional-update finished"
+  exit 1
+fi
 
-# Make the snapshot read-write:
-btrfs property set  ${SNAPSHOT_DIR} ro false
+grep -q var.cache /proc/mounts
 if [ $? -ne 0 ]; then
-   log_error "ERROR: changing ${SNAPSHOT_DIR} to read-write failed!"
-   exit 1;
+  log_error "WARNING: it looks like your installation isn't recent enough."
 fi
 
-# Check if installed with SLES12
-touch ${SNAPSHOT_DIR}/var/tmp/update_snapshot.test
-if [ $? -ne 0 ]; then
-   log_error "ERROR: System installation is too old!"
-   exit 1;
-fi
-rm -f ${SNAPSHOT_DIR}/var/tmp/update_snapshot.test
+ORIG_SNAPSHOT_ID=`grep subvol=/@/.snapshots/ /proc/mounts | grep "/ btrfs" | sed -e 's|.*.snapshots/\(.*\)/snapshot.*|\1|g'`
+DEFAULT_SNAPSHOT_ID=`btrfs subvolume get-default / | sed -e 's|.*.snapshots/\(.*\)/snapshot|\1|g'`
+RO_ROOT=`btrfs property get / ro | sed -e 's|ro=||'`
 
-# Mount everything we need:
-for directory in $DIR_TO_MOUNT ; do
-  mount -o bind /$directory ${SNAPSHOT_DIR}/$directory
-  if [ $? -ne 0 ]; then
-    log_error "ERROR: mount of $directory failed!"
-    exit 1;
-  fi
-done
-
-# Do we need to cleanup the /var/cache directory?
-if [ -d ${SNAPSHOT_DIR}/var/cache/zypp ]; then
-  VAR_CACHE_CLEANUP=0
-else
-  VAR_CACHE_CLEANUP=1
-fi
-
-# Create bind mount, else grub2 will fail
-MOUNT_DIR=`mktemp -d`
-mount -o rbind ${SNAPSHOT_DIR} ${MOUNT_DIR}
-
-if [ -n "${ZYPPER_ARG}" ]; then
-    log_info "Calling zypper ${ZYPPER_ARG}"
-    env DISABLE_RESTART_ON_UPDATE=yes zypper -R ${MOUNT_DIR} ${ZYPPER_ARG}
-    if [ $? -ne 0 ]; then
-	log_error "ERROR: zypper ${ZYPPER_ARG} on $directory failed!"
-	EXITCODE=1;
-    fi
-fi
-
-if [ ${REWRITE_GRUB_CFG} -eq 1 ]; then
-    log_info "Create a new grub2 config"
-    chroot ${MOUNT_DIR} /usr/sbin/grub2-mkconfig > ${MOUNT_DIR}/boot/grub2/grub.cfg
-    if [ $? -ne 0 ]; then
-	log_error "ERROR: grub2-mkconfig failed!"
-	EXITCODE=1;
-    fi
-fi
-if [ ${REWRITE_BOOTLOADER} -eq 1 ]; then
-    log_info "Write new bootloader"
-    chroot ${MOUNT_DIR} /usr/sbin/grub2-install
-    if [ $? -ne 0 ]; then
-	log_error "ERROR: grub2-install failed!"
-	EXITCODE=1;
-    fi
-fi
-
-# Unmount everything we don't need anymore:
-for directory in $DIR_TO_MOUNT ; do
-  umount ${SNAPSHOT_DIR}/$directory
-  if [ $? -ne 0 ]; then
-    log_error "ERROR: umount of $directory failed!"
-    EXITCODE=1;
-  fi
-done
-umount ${MOUNT_DIR}
-
-# Cleanup of temporary mount point
-rmdir ${MOUNT_DIR}
-
-# cleanup other stuff
-# cleanup cache directory
-if [ $VAR_CACHE_CLEANUP -eq 1 ]; then
-  rm -rf ${SNAPSHOT_DIR}/var/cache/*
-fi
-# systemd-tmpfiles creates directories/files even if /run is no tmpfs:
-rm -rf ${SNAPSHOT_DIR}/run/*
-# WARNING: /var/spool/ can contain changes through RPM!
-rm -rf ${SNAPSHOT_DIR}/var/spool/*
-
-# Somersault:
-if [ $EXITCODE -eq 0 ]; then
-    BTRFS_ID=`btrfs subvolume list / |grep ${SNAPSHOT_DIR} | awk '{print $2}'`
-    if [ -z $BTRFS_ID ]; then
-	log_error "ERROR: couldn't determine btrfs subvolume ID"
-	EXITCODE=1
-    else
-	btrfs subvolume set-default $BTRFS_ID ${SNAPSHOT_DIR}
-	if [ $? -ne 0 ]; then
-	    log_error "ERROR: umount of $directory failed!"
-	    EXITCODE=1;
+#
+# Cleanup part: make sure old root filesystem will be removed after it is no longer active.
+#
+if [ ${DO_CLEANUP} -eq 1 ]; then
+    # if our current snapshot is identical to the original snapshot, we did a reboot after the
+    # last transactional snapshot and try to cleanup old snapshots
+    if [ ${ORIG_SNAPSHOT_ID} -eq ${DEFAULT_SNAPSHOT_ID} ]; then
+	if [ -n "${LAST_WORKING_SNAPSHOT_ID}" ]; then
+	    log_info "Add cleanup algorithm to snapshot #${LAST_WORKING_SNAPSHOT_ID}"
+	    snapper modify -c number ${LAST_WORKING_SNAPSHOT_ID} |& tee -a ${LOGFILE}
+	    if [ $? -ne 0 ]; then
+		log_error "ERROR: cannot set cleanup algorithm for snapshot #${LAST_WORKING_SNAPSHOT_ID}"
+	    fi
+	    # if the old snapshot is read-write, we have already a mandatory snapshot and this one can deleted
+	    # earlier. If not, mark is as important, so that it will not get deleted to fast.
+	    if [ ${RO_ROOT} == "true" ]; then
+		log_info "Add \"important=yes\" to snapshot #${LAST_WORKING_SNAPSHOT_ID}"
+		snapper modify -u "important=yes" ${LAST_WORKING_SNAPSHOT_ID} |& tee -a ${LOGFILE}
+		if [ $? -ne 0 ]; then
+		    log_error "ERROR: cannot set \"important=yes for snapshot\" #${LAST_WORKING_SNAPSHOT_ID}"
+		fi
+	    fi
+	    LAST_WORKING_SNAPSHOT_ID=""
+	    save_state_file 0
+	fi
+	if [ -n "${UNUSED_SNAPSHOTS}" ]; then
+	    for snap in ${UNUSED_SNAPSHOTS}; do
+		# Don't mark our current in use snapshot for deletion
+		if [ ${snap} -ne ${ORIG_SNAPSHOT_ID} ]; then
+		    log_info "Mark not used snapshot #${snap} for deletion"
+		    snapper modify -c number ${snap} |& tee -a ${LOGFILE}
+		    if [ $? -ne 0 ]; then
+			log_error "ERROR: cannot set cleanup algorithm for snapshot #${LAST_WORKING_SNAPSHOT_ID}"
+		    fi
+		fi
+	    done
+	    UNUSED_SNAPSHOTS=""
+	    save_state_file 0
 	fi
     fi
 fi
 
-if [ $EXITCODE -eq 0 ]; then
-    # Mark current root for deletion
-    snapper modify -c number ${ORIG_SNAPSHOT_ID}
+if [ -n "${ZYPPER_ARG}" -o ${REWRITE_BOOTLOADER} -eq 1 -o ${REWRITE_GRUB_CFG} -eq 1 ]; then
+
+    if [ ${RO_ROOT} == "false" ]; then
+	log_info "Create read-only snapshot of current read-write root filesystem (#${ORIG_SNAPSHOT_ID})"
+	SECOND_SNAPSHOT_ID=`snapper create -p -c number -u "important=yes" -d "RO-Clone of #${ORIG_SNAPSHOT_ID}"`
+	if [ $? -ne 0 ]; then
+	    log_error "ERROR: snapper create failed!"
+	    log_info "transactional-update finished"
+	    exit 1
+	fi
+    fi
+
+    SNAPSHOT_ID=`snapper create -p -d "Snapshot Update"`
     if [ $? -ne 0 ]; then
-	log_error "ERROR: adding cleanup algorithm to #${ORIG_SNAPSHOT_ID} failed!"
+	log_error "ERROR: snapper create failed!"
+	log_info "transactional-update finished"
+	exit 1
+    fi
+    UNUSED_SNAPSHOTS="${SNAPSHOT_ID} ${UNUSED_SNAPSHOTS}"
+    save_state_file ${SNAPSHOT_ID}
+
+    SNAPSHOT_DIR=/.snapshots/${SNAPSHOT_ID}/snapshot
+
+    # Make the snapshot read-write:
+    btrfs property set  ${SNAPSHOT_DIR} ro false
+    if [ $? -ne 0 ]; then
+	log_error "ERROR: changing ${SNAPSHOT_DIR} to read-write failed!"
+	log_info "transactional-update finished"
+	exit 1;
+    fi
+
+    # Check if installed with SLES12
+    touch ${SNAPSHOT_DIR}/var/tmp/update_snapshot.test
+    if [ $? -ne 0 ]; then
+	log_error "ERROR: System installation is too old!"
+	log_info "transactional-update finished"
+	exit 1;
+    fi
+    rm -f ${SNAPSHOT_DIR}/var/tmp/update_snapshot.test
+
+    # Mount everything we need:
+    for directory in $DIR_TO_MOUNT ; do
+	mount -o bind /$directory ${SNAPSHOT_DIR}/$directory
+	if [ $? -ne 0 ]; then
+	    log_error "ERROR: mount of $directory failed!"
+	    exit 1;
+	fi
+    done
+
+    # Do we need to cleanup the /var/cache directory?
+    if [ -d ${SNAPSHOT_DIR}/var/cache/zypp ]; then
+	VAR_CACHE_CLEANUP=0
+    else
+	VAR_CACHE_CLEANUP=1
+    fi
+
+    # Create bind mount, else grub2 will fail
+    MOUNT_DIR=`mktemp -d`
+    mount -o rbind ${SNAPSHOT_DIR} ${MOUNT_DIR}
+
+    if [ -n "${ZYPPER_ARG}" ]; then
+	log_info "Calling zypper ${ZYPPER_ARG}"
+	env DISABLE_RESTART_ON_UPDATE=yes zypper ${ZYPPER_NONINTERACTIVE} -R ${MOUNT_DIR} ${ZYPPER_ARG} |& tee -a ${LOGFILE}
+	if [ $? -ne 0 ]; then
+	    log_error "ERROR: zypper ${ZYPPER_ARG} on $directory failed!"
+	    EXITCODE=1;
+	fi
+    fi
+
+    if [ ${REWRITE_GRUB_CFG} -eq 1 ]; then
+	log_info "Create a new grub2 config"
+	chroot ${MOUNT_DIR} /usr/sbin/grub2-mkconfig > ${MOUNT_DIR}/boot/grub2/grub.cfg
+	if [ $? -ne 0 ]; then
+	    log_error "ERROR: grub2-mkconfig failed!"
+	    EXITCODE=1;
+	fi
+    fi
+    if [ ${REWRITE_BOOTLOADER} -eq 1 ]; then
+	log_info "Write new bootloader"
+	chroot ${MOUNT_DIR} /usr/sbin/grub2-install
+	if [ $? -ne 0 ]; then
+	    log_error "ERROR: grub2-install failed!"
+	    EXITCODE=1;
+	fi
+    fi
+
+    # Unmount everything we don't need anymore:
+    for directory in $DIR_TO_MOUNT ; do
+	umount ${SNAPSHOT_DIR}/$directory
+	if [ $? -ne 0 ]; then
+	    log_error "ERROR: umount of $directory failed!"
+	    EXITCODE=1;
+	fi
+    done
+    umount ${MOUNT_DIR}
+
+    # Cleanup of temporary mount point
+    rmdir ${MOUNT_DIR}
+
+    # cleanup other stuff
+    # cleanup cache directory
+    if [ $VAR_CACHE_CLEANUP -eq 1 ]; then
+	rm -rf ${SNAPSHOT_DIR}/var/cache/*
+    fi
+    # systemd-tmpfiles creates directories/files even if /run is no tmpfs:
+    rm -rf ${SNAPSHOT_DIR}/run/*
+    # WARNING: /var/spool/ can contain changes through RPM!
+    rm -rf ${SNAPSHOT_DIR}/var/spool/*
+
+    # Somersault:
+    if [ $EXITCODE -eq 0 ]; then
+	BTRFS_ID=`btrfs subvolume list / |grep ${SNAPSHOT_DIR} | awk '{print $2}'`
+	if [ -z $BTRFS_ID ]; then
+	    log_error "ERROR: couldn't determine btrfs subvolume ID"
+	    EXITCODE=1
+	else
+	    btrfs subvolume set-default $BTRFS_ID ${SNAPSHOT_DIR}
+	    if [ $? -ne 0 ]; then
+		log_error "ERROR: umount of $directory failed!"
+		EXITCODE=1;
+	    else
+		LAST_WORKING_SNAPSHOT_ID=${ORIG_SNAPSHOT_ID}
+		save_state_file ${SNAPSHOT_ID} 
+	    fi
+	fi
+    fi
+
+    # Make the snapshot ro flag identical to current root:
+    btrfs property set  ${SNAPSHOT_DIR} ro ${RO_ROOT}
+    if [ $? -ne 0 ]; then
+	log_error "ERROR: changing ${SNAPSHOT_DIR} to ro=${RO_ROOT} failed!"
 	EXITCODE=1
     fi
-fi
 
-# Make the snapshot ro flag identical to current root:
-btrfs property set  ${SNAPSHOT_DIR} ro ${RO_ROOT}
-if [ $? -ne 0 ]; then
-   log_error "ERROR: changing ${SNAPSHOT_DIR} to ro=${RO_ROOT} failed!"
-   EXITCODE=1
-fi
-
-if [ $EXITCODE -ne 0 ]; then
-    log_error "Removing snapshot..."
-    if [ -n ${SNAPSHOT_ID} ] ; then
-	snapper delete ${SNAPSHOT_ID}
+    if [ ${EXITCODE} -ne 0 ]; then
+	log_error "Removing snapshot..."
+	if [ -n ${SNAPSHOT_ID} ] ; then
+	    snapper delete ${SNAPSHOT_ID} |& tee -a ${LOGFILE}
+	fi
+	if [ -n ${SECOND_SNAPSHOT_ID} ] ; then
+	    snapper delete ${SECOND_SNAPSHOT_ID} |& tee -a ${LOGFILE}
+	fi
     fi
-    if [ -n ${SECOND_SNAPSHOT_ID} ] ; then
-	snapper delete ${SECOND_SNAPSHOT_ID}
+fi
+
+if [ ${EXITCODE} -eq 0 ]; then
+    if [ $REBOOT_AFTERWARDS -eq 1 ]; then
+	systemctl reboot |& tee -a ${LOGFILE}
     fi
 fi
 
