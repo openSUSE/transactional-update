@@ -32,6 +32,8 @@ AC_SUBST(TMPFILESDIR)
 AC_SUBST(ISSUEDIR)
 AC_SUBST(UDEVRULESDIR)
 AC_SUBST(SYSTEMDDIR)
+LOGROTATEDDIR=/etc/logrotate.d
+AC_SUBST(LOGROTATEDDIR)
 
 AC_PROG_INSTALL
 
@@ -52,4 +54,4 @@ JH_CHECK_XML_CATALOG([http://docbook.sourceforge.net/release/xsl/current/manpage
 AM_CONDITIONAL(ENABLE_REGENERATE_MAN, test x$enable_man != xno)
 
 AC_OUTPUT([Makefile sbin/Makefile man/Makefile systemd/Makefile \
-	sbin/transactional-update])
+	logrotate/Makefile sbin/transactional-update])

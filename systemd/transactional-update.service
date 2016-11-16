@@ -5,6 +5,6 @@ ConditionACPower=true
 
 [Service]
 Type=oneshot
-ExecStart=/usr/sbin/transactional-update up
+ExecStart=/usr/sbin/transactional-update cleanup up reboot
 IOSchedulingClass=best-effort
 IOSchedulingPriority=7

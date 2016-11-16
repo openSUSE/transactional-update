@@ -1,0 +1,11 @@
+/var/log/transactional.log {
+    compress
+    dateext
+    notifempty
+    missingok
+    nocreate
+
+    maxage 90
+    rotate 5
+    size 10M
+}
