@@ -9,7 +9,8 @@ CLEANFILES = transactional-update.8 transactional-update.timer.8 \
 
 EXTRA_DIST = $(MANS) $(XMLS)
 
-man_MANS = transactional-update.8
+man_MANS = transactional-update.8 transactional-update.service.8 \
+	transactional-update.timer.8
 XMLS = transactional-update.8.xml
 
 if ENABLE_REGENERATE_MAN
