@@ -23,12 +23,16 @@ DIR_TO_MOUNT="dev sys proc opt usr/local var/log"
 EXITCODE=0
 ZYPPER_ARG=""
 ZYPPER_NONINTERACTIVE=--non-interactive
+ZYPPER_ARG_PKGS=""
 REWRITE_BOOTLOADER=0
 REWRITE_GRUB_CFG=0
 DO_CLEANUP=0
 REBOOT_AFTERWARDS=0
 LOGFILE="/var/log/transactional-update.log"
 STATE_FILE="/var/lib/misc/transactional-update.state"
+PACKAGE_UPDATES=0
+SNAPSHOT_ID=""
+SECOND_SNAPSHOT_ID=""
 
 usage() {
     echo "Usage: transactional-update --help|--version"
@@ -51,14 +55,34 @@ log_error() {
 }
 
 save_state_file() {
-    if [ $1 -eq 0 ]; then
-        LOCAL_STATE_FILE=${STATE_FILE}
-    else
-	LOCAL_STATE_FILE="/.snapshots/$1/snapshot${STATE_FILE}"
+    LOCAL_STATE_FILE=${STATE_FILE}
+    if [ $1 -ne 0 ]; then
+	# if /var/lib/misc is not a seperate partition/subvolume, write
+	# into the new snapshot
+	grep -q var.lib.misc /proc/mounts
+	if [ $? -ne 0 ]; then
+	    LOCAL_STATE_FILE="/.snapshots/$1/snapshot${STATE_FILE}"
+	fi
     fi
     echo "LAST_WORKING_SNAPSHOT_ID=${LAST_WORKING_SNAPSHOT_ID}" > ${LOCAL_STATE_FILE}
-    echo "UNUSED_SNAPSHOTS=${UNUSED_SNAPSHOTS}" >>  ${LOCAL_STATE_FILE}
+    echo "UNUSED_SNAPSHOTS=\"${UNUSED_SNAPSHOTS}\"" >>  ${LOCAL_STATE_FILE}
 }
+
+quit() {
+    if [ -n "${SNAPSHOT_ID}" ] ; then
+	log_error "Removing snapshot #${SNAPSHOT_ID}..."
+	snapper delete ${SNAPSHOT_ID} |& tee -a ${LOGFILE}
+    fi
+    if [ -n "${SECOND_SNAPSHOT_ID}" ] ; then
+	log_error "Removing snapshot #${SECOND_SNAPSHOT_ID}..."
+	snapper delete ${SECOND_SNAPSHOT_ID} |& tee -a ${LOGFILE}
+    fi
+    log_info "transactional-update finished"
+    exit $1
+}
+
+log_info "transactional-update @VERSION@ started"
+log_info "Options: $@"
 
 # load old state file
 if [ -f ${STATE_FILE} ]; then
@@ -80,8 +104,19 @@ while [ 1 ]; do
             shift
             ;;
 	ptf)
-	    ZYPPER_ARG="in XXX"
 	    shift
+	    if [ $# -eq 0 ]; then
+		usage 1
+	    fi
+	    ZYPPER_ARG="in"
+	    while [ 1 ]; do
+		if [ $# -eq 0 ]; then
+		    break;
+		else
+		    ZYPPER_ARG_PKGS="${ZYPPER_ARG_PKGS} $1";
+		    shift
+		fi
+	    done
 	    ;;
         bootloader)
 	    REWRITE_BOOTLOADER=1
@@ -118,8 +153,6 @@ if [ ${REWRITE_BOOTLOADER} -eq 0 -a ${REWRITE_GRUB_CFG} -eq 0 -a \
 	-z "${ZYPPER_ARG}" -a ${DO_CLEANUP} -eq 0 ]; then
   ZYPPER_ARG="up"
 fi
-
-log_info "transactional-update @VERSION@ started"
 
 if [ "`stat -f -c %T /`" != "btrfs" ]; then
   log_error "ERROR: no btrfs as root filesystem!"
@@ -186,12 +219,30 @@ fi
 
 if [ -n "${ZYPPER_ARG}" -o ${REWRITE_BOOTLOADER} -eq 1 -o ${REWRITE_GRUB_CFG} -eq 1 ]; then
 
+    #check if there are updates at all
+    TMPFILE=`mktemp transactional-update.XXXXXXXXXX`
+    zypper --xml ${ZYPPER_NONINTERACTIVE} ${ZYPPER_ARG} --dry-run ${ZYPPER_ARG_PKGS} > ${TMPFILE}
+    if [ $? -ne 0 ]; then
+	log_error "ERROR: zypper failed!"
+	cat ${TMPFILE} | tr '\n' 'XXX' | sed -e 's|.*description>\(.*\)</description>.*|\1|g'| tr 'XXX' '\n' |& tee -a ${LOGFILE}
+	rm -f ${TMPFILE}
+	quit 1
+    fi
+    PACKAGE_UPDATES=`grep "install-summary download-size" ${TMPFILE} | sed -e 's|.*install-summary download-size=\"\(.*\)\" space-usage-diff.*|\1|g'`
+    rm -f ${TMPFILE}
+    if [ ${PACKAGE_UPDATES} -eq 0 ]; then
+	log_info "zypper: nothing to update"
+	log_info "transactional-update finished"
+	exit 0
+    fi
+
+    # If the current root filesystem is not read-only, we need to create a read-only copy for rollback.
+    # The rw subvolume is not shown in grub2.
     if [ ${RO_ROOT} == "false" ]; then
 	log_info "Create read-only snapshot of current read-write root filesystem (#${ORIG_SNAPSHOT_ID})"
 	SECOND_SNAPSHOT_ID=`snapper create -p -c number -u "important=yes" -d "RO-Clone of #${ORIG_SNAPSHOT_ID}"`
 	if [ $? -ne 0 ]; then
 	    log_error "ERROR: snapper create failed!"
-	    log_info "transactional-update finished"
 	    exit 1
 	fi
     fi
@@ -199,11 +250,8 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_BOOTLOADER} -eq 1 -o ${REWRITE_GRUB_CFG} -e
     SNAPSHOT_ID=`snapper create -p -d "Snapshot Update"`
     if [ $? -ne 0 ]; then
 	log_error "ERROR: snapper create failed!"
-	log_info "transactional-update finished"
-	exit 1
+	quit 1
     fi
-    UNUSED_SNAPSHOTS="${SNAPSHOT_ID} ${UNUSED_SNAPSHOTS}"
-    save_state_file ${SNAPSHOT_ID}
 
     SNAPSHOT_DIR=/.snapshots/${SNAPSHOT_ID}/snapshot
 
@@ -211,16 +259,20 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_BOOTLOADER} -eq 1 -o ${REWRITE_GRUB_CFG} -e
     btrfs property set  ${SNAPSHOT_DIR} ro false
     if [ $? -ne 0 ]; then
 	log_error "ERROR: changing ${SNAPSHOT_DIR} to read-write failed!"
-	log_info "transactional-update finished"
-	exit 1;
+	quit 1;
     fi
+
+    # Save all snapshots we create for update. If transactional-update is
+    # run several times before a reboot, we need to cleanup the not used
+    # snapshots. Else we would have a big disk space leak.
+    UNUSED_SNAPSHOTS="${SNAPSHOT_ID} ${UNUSED_SNAPSHOTS}"
+    save_state_file ${SNAPSHOT_ID}
 
     # Check if installed with SLES12
     touch ${SNAPSHOT_DIR}/var/tmp/update_snapshot.test
     if [ $? -ne 0 ]; then
 	log_error "ERROR: System installation is too old!"
-	log_info "transactional-update finished"
-	exit 1;
+	quit 1;
     fi
     rm -f ${SNAPSHOT_DIR}/var/tmp/update_snapshot.test
 
@@ -229,7 +281,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_BOOTLOADER} -eq 1 -o ${REWRITE_GRUB_CFG} -e
 	mount -o bind /$directory ${SNAPSHOT_DIR}/$directory
 	if [ $? -ne 0 ]; then
 	    log_error "ERROR: mount of $directory failed!"
-	    exit 1;
+	    quit 1;
 	fi
     done
 
@@ -246,7 +298,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_BOOTLOADER} -eq 1 -o ${REWRITE_GRUB_CFG} -e
 
     if [ -n "${ZYPPER_ARG}" ]; then
 	log_info "Calling zypper ${ZYPPER_ARG}"
-	env DISABLE_RESTART_ON_UPDATE=yes zypper ${ZYPPER_NONINTERACTIVE} -R ${MOUNT_DIR} ${ZYPPER_ARG} |& tee -a ${LOGFILE}
+	env DISABLE_RESTART_ON_UPDATE=yes zypper ${ZYPPER_NONINTERACTIVE} -R ${MOUNT_DIR} ${ZYPPER_ARG} ${ZYPPER_ARG_PKGS} |& tee -a ${LOGFILE}
 	if [ $? -ne 0 ]; then
 	    log_error "ERROR: zypper ${ZYPPER_ARG} on $directory failed!"
 	    EXITCODE=1;
@@ -306,7 +358,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_BOOTLOADER} -eq 1 -o ${REWRITE_GRUB_CFG} -e
 		EXITCODE=1;
 	    else
 		LAST_WORKING_SNAPSHOT_ID=${ORIG_SNAPSHOT_ID}
-		save_state_file ${SNAPSHOT_ID} 
+		save_state_file ${SNAPSHOT_ID}
 	    fi
 	fi
     fi
@@ -331,7 +383,11 @@ fi
 
 if [ ${EXITCODE} -eq 0 ]; then
     if [ $REBOOT_AFTERWARDS -eq 1 ]; then
+	log_info "transactional-update finished - rebooting machine"
+	sync
 	systemctl reboot |& tee -a ${LOGFILE}
+    elif [ $PACKAGE_UPDATES -gt 1 ]; then
+	echo "Please reboot your machine to activate the changes and avoid data lossage"
     fi
 fi
 
