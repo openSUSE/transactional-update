@@ -383,6 +383,15 @@ fi
 
 if [ ${EXITCODE} -eq 0 ]; then
     if [ $REBOOT_AFTERWARDS -eq 1 ]; then
+	if [ -x /usr/sbin/rebootmgrctl ]; then
+	    /usr/sbin/rebootmgrctl is-active --quiet
+	    if [ $? -eq 0 ]; then
+		# rebootmgrctl is running
+		/usr/sbin/rebootmgrctl reboot
+		log_info "transactional-update finished - informed rebootmgr"
+		exit 0
+	    fi
+	fi
 	log_info "transactional-update finished - rebooting machine"
 	sync
 	systemctl reboot |& tee -a ${LOGFILE}
