@@ -7,12 +7,12 @@
 
 <!--  This file is part of transactional\-update. -->
 
-<!--  issue\-generator is free software; you can redistribute it and/or -->
+<!--  transactional\-update is free software; you can redistribute it and/or -->
 <!--  modify it under the terms of the GNU General Public License as -->
 <!--  published by the Free Software Foundation; either version 2 of the -->
 <!--  License, or (at your option) any later version. -->
 
-<!--  issue\-generator is distributed in the hope that it will be useful, -->
+<!--  transactional\-update is distributed in the hope that it will be useful, -->
 <!--  but WITHOUT ANY WARRANTY; without even the implied warranty of -->
 <!--  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU -->
 <!--  General Public License for more details. -->
@@ -47,12 +47,14 @@
     </cmdsynopsis>
     <cmdsynopsis>
       <command>/usr/sbin/transactional-update</command>
-      <group choice='plain'>
+      <arg choice='opt'>cleanup</arg>
+      <group choice='opt'>
 	<arg choice='plain'>up</arg>
 	<arg choice='plain'>dup</arg>
 	<arg choice='plain'>patch</arg>
 	<arg choice='plain'>ptf</arg>
 	<arg choice='plain'>bootloader</arg>
+	<arg choice='opt'>reboot</arg>
     </group>
     </cmdsynopsis>
     <para><filename>transactional-update.service</filename></para>
@@ -60,45 +62,144 @@
   </refsynopsisdiv>
 
 <refsect1 id='description'><title>DESCRIPTION</title>
-<para><emphasis remap='B'>transactional-update</emphasis>
-creates a volatile and temporary
-<citerefentry><refentrytitle>issue</refentrytitle><manvolnum>5</manvolnum></citerefentry>
-file based on the input files and location specified in
-<citerefentry><refentrytitle>issue.d</refentrytitle><manvolnum>5</manvolnum></citerefentry>.
+<para><command>transactional-update</command> updates the system
+in a transactional way, which means: it is atomic, so either the patches are
+fully applied or nothing is changed. The update does not influence your
+running system and it can be rolled back. To activate the changes, the system
+needs to be rebooted.
 </para>
-<para>If invoked with no arguments, it applies all input files and creates a
-temporary <filename>issue</filename> file as <filename>/run/issue</filename>.
-<filename>/etc/issue</filename> should be symlink to this file.</para>
+<para>
+  This is archived by creating at first a snapshot of the system. Afterwards,
+  this snapshot is updated with zypper. Only if there were updates and they
+  could be applied without error, the snapshot will be the default with the
+  next reboot.
+</para>
+<para>Changes made to the running root filesystem after
+<command>transactional-update</command> was started are lost after the next
+reboot. For this reason, after an successfull update, the system should be
+rebooted as fast as possible. </para>
+<para>For easier maintenance of big clusters,
+<command>transactional-update</command> is regular run by
+<citerefentry><refentrytitle>systemd.timer</refentrytitle><manvolnum>5</manvolnum></citerefentry>.
+The time, at which the command is run, can be modified by a configuration file
+<filename>/etc/systemd/system/transactional-update.timer.d/local.conf</filename>. See
+<citerefentry><refentrytitle>systemd.unit</refentrytitle><manvolnum>5</manvolnum></citerefentry>
+for more informations.
+</para>
 </refsect1>
 
 <refsect1 id='options'><title>OPTIONS</title>
 <variablelist remap='TP'>
   <varlistentry>
-    <term><option>--prefix</option> <replaceable>path</replaceable></term>
+    <term><option>--help</option></term>
     <listitem>
-      <para>Add the prefix <filename>path</filename> to all used directories and files.</para>
+      <para>Display help and exit</para>
     </listitem>
   </varlistentry>
   <varlistentry>
-    <term><option>network add|remove</option> <replaceable>interface</replaceable></term>
+    <term><option>--version</option></term>
     <listitem>
-      <para>Creates a deletes files of the format
-      <filename>/run/issue.d/70-<replaceable>interface</replaceable>.conf</filename>. This
-      files contains the name of the <replaceable>interface</replaceable> and
-      the escape codes for
-      <citerefentry><refentrytitle>agetty</refentrytitle><manvolnum>8</manvolnum></citerefentry>
-      to insert the IPv4 and IPv6 addresses.</para>
+      <para>Output version information and exit</para>
     </listitem>
   </varlistentry>
   <varlistentry>
-    <term><option>ssh add|remove</option></term>
+    <term><option>cleanup</option></term>
     <listitem>
-      <para>Creates or deletes the file
-      <filename>/run/issue.d/60-ssh_host_keys.conf</filename> which contains
-      fingerprints of the public ssh keys of the host.</para>
+      <para>If the current root filesystem is identical to the active root
+      filesystem (means after a reboot, before
+      <command>transactional-update</command> creates a new snapshot with
+      updates), all old snapshots without a cleanup algorithm get a cleanup
+      algorithm set. This is to make sure, that old snapshots will be deleted
+      by snapper. See the section about cleanup algorithms in
+      <citerefentry><refentrytitle>snapper</refentrytitle><manvolnum>8</manvolnum></citerefentry>.
+      </para>
+    </listitem>
+  </varlistentry>
+  <varlistentry>
+    <term><option>up</option></term>
+    <listitem>
+      <para>
+	If new updates are available, a new snapshot is created and
+	<command>zypper up</command> is used to update the snapshot.
+	Afterwards, the snapshot is activated and will be used as the new root
+	filesystem during next boot.
+      </para>
+    </listitem>
+  </varlistentry>
+  <varlistentry>
+    <term><option>dup</option></term>
+    <listitem>
+      <para>
+	If new updates are available, a new snapshot is created and
+	<command>zypper dup</command> is used to update the snapshot.
+	Afterwards, the snapshot is activated and will be used as the new root
+	filesystem during next boot.
+      </para>
+    </listitem>
+  </varlistentry>
+  <varlistentry>
+    <term><option>patch</option></term>
+    <listitem>
+      <para>
+	If new updates are available, a new snapshot is created and
+	<command>zypper patch</command> is used to update the snapshot.
+	Afterwards, the snapshot is activated and will be used as the new root
+	filesystem during next boot.
+      </para>
+    </listitem>
+  </varlistentry>
+  <varlistentry>
+    <term><option>ptf install</option> <replaceable>&lt;RPM&gt; ... &lt;RPM&gt;</replaceable></term>
+    <listitem>
+      <para>
+	A PTF consist of several RPMs can be installed in the system.
+      </para>
+    </listitem>
+  </varlistentry>
+  <varlistentry>
+    <term><option>ptf remove</option> <replaceable>&lt;RPM&gt; ... &lt;RPM&gt;</replaceable></term>
+    <listitem>
+      <para>
+	A PTF consist of several RPMs can be removed from the system.
+      </para>
+    </listitem>
+  </varlistentry>
+  <varlistentry>
+    <term><option>bootloader</option></term>
+    <listitem>
+      <para>
+	A new snapshot is created, the bootloader configuration updated and
+	the boorloader newly written.
+      </para>
+    </listitem>
+  </varlistentry>
+  <varlistentry>
+    <term><option>reboot</option></term>
+    <listitem>
+      <para>
+	If a new snapshot with updates was created, the system should be
+	rebooted. This option will trigger the necessary reboot. If the
+	<citerefentry><refentrytitle>rebootmgrd</refentrytitle><manvolnum>8</manvolnum></citerefentry>
+	is running, <command>transactional-update</command> will tell the
+	daemon to reboot the system according to the configured policies. Else
+	<command>systemctl reboot</command> is called.
+      </para>
     </listitem>
   </varlistentry>
 </variablelist>
+</refsect1>
+
+<refsect1 id='important'><title>IMPORTANT</title>
+<para>
+  Only RPMs, which are fully part of the snapshot of the root filesystem, can
+  be updated. If RPMs contains files outside of the snapshot, the update
+  itself can break or can break the system.
+</para>
+<para>
+  Since all changes to the root filesystem will go lost after creating the
+  snapshot for the update, the system should be rebooted as fast as possible
+  after the update finished.
+</para>
 </refsect1>
 
 <refsect1 id='see_also'><title>SEE ALSO</title>
