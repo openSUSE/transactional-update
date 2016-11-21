@@ -2,6 +2,9 @@ transactional-update NEWS -- history of user-visible changes.
 
 Copyright (C) 2016 Thorsten Kukuk
 
+Version 0.99
+* Write real manual page
+
 Version 0.90
 * Finish normal options
 * Implement PTF option
