@@ -81,8 +81,7 @@ quit() {
     exit $1
 }
 
-log_info "transactional-update @VERSION@ started"
-log_info "Options: $@"
+ORIG_ARGS="$@"
 
 # load old state file
 if [ -f ${STATE_FILE} ]; then
@@ -148,6 +147,9 @@ done
 if [ $# -ne 0 ]; then
     usage 1;
 fi
+
+log_info "transactional-update @VERSION@ started"
+log_info "Options: $ORIG_ARGS"
 
 if [ ${REWRITE_BOOTLOADER} -eq 0 -a ${REWRITE_GRUB_CFG} -eq 0 -a \
 	-z "${ZYPPER_ARG}" -a ${DO_CLEANUP} -eq 0 ]; then
@@ -383,6 +385,15 @@ fi
 
 if [ ${EXITCODE} -eq 0 ]; then
     if [ $REBOOT_AFTERWARDS -eq 1 ]; then
+	if [ -x /usr/sbin/rebootmgrctl ]; then
+	    /usr/sbin/rebootmgrctl is-active --quiet
+	    if [ $? -eq 0 ]; then
+		# rebootmgrctl is running
+		/usr/sbin/rebootmgrctl reboot
+		log_info "transactional-update finished - informed rebootmgr"
+		exit 0
+	    fi
+	fi
 	log_info "transactional-update finished - rebooting machine"
 	sync
 	systemctl reboot |& tee -a ${LOGFILE}

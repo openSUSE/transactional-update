@@ -1,5 +1,5 @@
 dnl Process this file with autoconf to produce a configure script.
-AC_INIT(transactional-update, 0.90)
+AC_INIT(transactional-update, 0.99)
 AM_INIT_AUTOMAKE
 AC_CONFIG_SRCDIR([sbin/transactional-update.in])
 AC_PREFIX_DEFAULT(/usr)
@@ -32,7 +32,7 @@ AC_SUBST(TMPFILESDIR)
 AC_SUBST(ISSUEDIR)
 AC_SUBST(UDEVRULESDIR)
 AC_SUBST(SYSTEMDDIR)
-LOGROTATEDDIR=/etc/logrotate.d
+LOGROTATEDDIR=${sysconfdir}/logrotate.d
 AC_SUBST(LOGROTATEDDIR)
 
 AC_PROG_INSTALL
