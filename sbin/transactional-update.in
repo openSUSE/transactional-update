@@ -36,7 +36,8 @@ SECOND_SNAPSHOT_ID=""
 
 usage() {
     echo "Usage: transactional-update --help|--version"
-    echo "       transactional-update [cleanup][up|dup|patch|ptf|bootloader][reboot]"
+    echo "       transactional-update [cleanup][up|dup|patch|bootloader][reboot]"
+    echo "       transactional-update [cleanup] ptr install|remove [reboot]"
     exit $1
 }
 
@@ -107,7 +108,24 @@ while [ 1 ]; do
 	    if [ $# -eq 0 ]; then
 		usage 1
 	    fi
-	    ZYPPER_ARG="in"
+	    case "$1" in
+		install|in)
+		    ZYPPER_ARG="install"
+		    shift
+		    ;;
+		remove|rm)
+		    ZYPPER_ARG="remove"
+		    shift
+		    ;;
+		*)
+		    usage 1;
+		    ;;
+	    esac
+
+	    if [ $# -eq 0 ]; then
+		usage 1
+	    fi
+
 	    while [ 1 ]; do
 		if [ $# -eq 0 ]; then
 		    break;
@@ -231,8 +249,9 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_BOOTLOADER} -eq 1 -o ${REWRITE_GRUB_CFG} -e
 	quit 1
     fi
     PACKAGE_UPDATES=`grep "install-summary download-size" ${TMPFILE} | sed -e 's|.*install-summary download-size=\"\(.*\)\" space-usage-diff.*|\1|g'`
+    SIZE_OF_UPDATES=`grep "install-summary.space-usage-diff" ${TMPFILE} | sed -e 's|.*install-summary.*space-usage-diff=\"\(.*\)\">.*|\1|g'`
     rm -f ${TMPFILE}
-    if [ ${PACKAGE_UPDATES} -eq 0 ]; then
+    if [ ${PACKAGE_UPDATES} -eq 0 -a ${SIZE_OF_UPDATES} -eq 0 ]; then
 	log_info "zypper: nothing to update"
 	log_info "transactional-update finished"
 	exit 0

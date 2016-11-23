@@ -200,6 +200,13 @@ for more informations.
   snapshot for the update, the system should be rebooted as fast as possible
   after the update finished.
 </para>
+<para>
+  If PTFs get installed or removed, and
+  <command>transactional-update</command> is called again before the next
+  reboot and updates packages, the changes to the PTFs are lost and need to be
+  redone with the next reboot. After installing or removing PTFs, the system
+  should be immeaditly rebooted.
+</para>
 </refsect1>
 
 <refsect1 id='see_also'><title>SEE ALSO</title>
