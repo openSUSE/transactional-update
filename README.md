@@ -9,7 +9,7 @@ A "transactional update" is a kind of update that:
 
 
 ## Prerequires
-* SLES12 SP2, openSUSE Leap 42.1 or a current openSUSE Tumbleweed
+* SLES12 SP2, openSUSE Leap 42.2 or a current openSUSE Tumbleweed
  * The installation needs to be done with at least this versions, updating older versions to this version is not enough!
 * btrfs with snapshots and rollback enabled by default
 * snapper
