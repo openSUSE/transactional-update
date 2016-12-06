@@ -114,7 +114,7 @@ quit() {
 ORIG_ARGS="$@"
 
 bashlock "/var/run/transactional-update.pid"
-if [ $? - ne 0 ]; then
+if [ $? -ne 0 ]; then
   echo "Couldn't get lock, another instance is already running?"
   exit 1;
 fi
@@ -284,7 +284,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_BOOTLOADER} -eq 1 -o ${REWRITE_GRUB_CFG} -e
 	quit 1
     fi
     PACKAGE_UPDATES=`grep "install-summary download-size" ${TMPFILE} | sed -e 's|.*install-summary download-size=\"\(.*\)\" space-usage-diff.*|\1|g'`
-    SIZE_OF_UPDATES=`grep "install-summary.space-usage-diff" ${TMPFILE} | sed -e 's|.*install-summary.*space-usage-diff=\"\(.*\)\">.*|\1|g'`
+    SIZE_OF_UPDATES=`grep "install-summary.*space-usage-diff" ${TMPFILE} | sed -e 's|.*install-summary.*space-usage-diff=\"\(.*\)\">.*|\1|g'`
     rm -f ${TMPFILE}
     if [ ${PACKAGE_UPDATES} -eq 0 -a ${SIZE_OF_UPDATES} -eq 0 ]; then
 	log_info "zypper: nothing to update"
