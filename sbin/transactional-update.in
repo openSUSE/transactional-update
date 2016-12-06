@@ -275,7 +275,7 @@ fi
 if [ -n "${ZYPPER_ARG}" -o ${REWRITE_BOOTLOADER} -eq 1 -o ${REWRITE_GRUB_CFG} -eq 1 ]; then
 
     #check if there are updates at all
-    TMPFILE=`/tmp/mktemp transactional-update.XXXXXXXXXX`
+    TMPFILE=`mktemp /tmp/transactional-update.XXXXXXXXXX`
     zypper --xml ${ZYPPER_NONINTERACTIVE} ${ZYPPER_ARG} --dry-run ${ZYPPER_ARG_PKGS} > ${TMPFILE}
     if [ $? -ne 0 ]; then
 	log_error "ERROR: zypper failed!"
