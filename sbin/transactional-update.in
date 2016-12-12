@@ -332,6 +332,13 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_BOOTLOADER} -eq 1 -o ${REWRITE_GRUB_CFG} -e
     fi
     rm -f ${SNAPSHOT_DIR}/var/tmp/update_snapshot.test
 
+    # On a read only system, make sure that /etc/zypp in the
+    # snapshot is current, could come from a overlayfs which
+    # means not part of the snapshot itself
+    if [ ${RO_ROOT} == "true" ]; then
+	DIR_TO_MOUNT="${DIR_TO_MOUNT} etc/zypp"
+    fi
+
     # Mount everything we need:
     for directory in $DIR_TO_MOUNT ; do
 	mount -o bind /$directory ${SNAPSHOT_DIR}/$directory
