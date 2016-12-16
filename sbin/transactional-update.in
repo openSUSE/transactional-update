@@ -124,6 +124,11 @@ if [ -f ${STATE_FILE} ]; then
     . ${STATE_FILE}
 fi
 
+# if no option is given, assume "up"
+if [ $# -eq 0 ]; then
+    ZYPPER_ARG="up"
+fi
+
 while [ 1 ]; do
     if [ $# -eq 0 ]; then
         break
@@ -204,11 +209,6 @@ fi
 log_info "transactional-update @VERSION@ started"
 log_info "Options: $ORIG_ARGS"
 
-if [ ${REWRITE_BOOTLOADER} -eq 0 -a ${REWRITE_GRUB_CFG} -eq 0 -a \
-	-z "${ZYPPER_ARG}" -a ${DO_CLEANUP} -eq 0 ]; then
-  ZYPPER_ARG="up"
-fi
-
 if [ "`stat -f -c %T /`" != "btrfs" ]; then
   log_error "ERROR: no btrfs as root filesystem!"
   log_info "transactional-update finished"
@@ -274,22 +274,24 @@ fi
 
 if [ -n "${ZYPPER_ARG}" -o ${REWRITE_BOOTLOADER} -eq 1 -o ${REWRITE_GRUB_CFG} -eq 1 ]; then
 
-    #check if there are updates at all
-    TMPFILE=`mktemp /tmp/transactional-update.XXXXXXXXXX`
-    zypper --xml ${ZYPPER_NONINTERACTIVE} ${ZYPPER_ARG} --dry-run ${ZYPPER_ARG_PKGS} > ${TMPFILE}
-    if [ $? -ne 0 ]; then
-	log_error "ERROR: zypper failed!"
-	cat ${TMPFILE} | tr '\n' 'XXX' | sed -e 's|.*description>\(.*\)</description>.*|\1|g'| tr 'XXX' '\n' |& tee -a ${LOGFILE}
+    if [ -n "${ZYPPER_ARG}" ]; then
+	#check if there are updates at all
+	TMPFILE=`mktemp /tmp/transactional-update.XXXXXXXXXX`
+	zypper --xml ${ZYPPER_NONINTERACTIVE} ${ZYPPER_ARG} --dry-run ${ZYPPER_ARG_PKGS} > ${TMPFILE}
+	if [ $? -ne 0 ]; then
+	    log_error "ERROR: zypper failed!"
+	    cat ${TMPFILE} | tr '\n' 'XXX' | sed -e 's|.*description>\(.*\)</description>.*|\1|g'| tr 'XXX' '\n' |& tee -a ${LOGFILE}
+	    rm -f ${TMPFILE}
+	    quit 1
+	fi
+	PACKAGE_UPDATES=`grep "install-summary download-size" ${TMPFILE} | sed -e 's|.*install-summary download-size=\"\(.*\)\" space-usage-diff.*|\1|g'`
+	SIZE_OF_UPDATES=`grep "install-summary.*space-usage-diff" ${TMPFILE} | sed -e 's|.*install-summary.*space-usage-diff=\"\(.*\)\">.*|\1|g'`
 	rm -f ${TMPFILE}
-	quit 1
-    fi
-    PACKAGE_UPDATES=`grep "install-summary download-size" ${TMPFILE} | sed -e 's|.*install-summary download-size=\"\(.*\)\" space-usage-diff.*|\1|g'`
-    SIZE_OF_UPDATES=`grep "install-summary.*space-usage-diff" ${TMPFILE} | sed -e 's|.*install-summary.*space-usage-diff=\"\(.*\)\">.*|\1|g'`
-    rm -f ${TMPFILE}
-    if [ ${PACKAGE_UPDATES} -eq 0 -a ${SIZE_OF_UPDATES} -eq 0 ]; then
-	log_info "zypper: nothing to update"
-	log_info "transactional-update finished"
-	exit 0
+	if [ ${PACKAGE_UPDATES} -eq 0 -a ${SIZE_OF_UPDATES} -eq 0 ]; then
+	    log_info "zypper: nothing to update"
+	    log_info "transactional-update finished"
+	    exit 0
+	fi
     fi
 
     # If the current root filesystem is not read-only, we need to create a read-only copy for rollback.
@@ -434,13 +436,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_BOOTLOADER} -eq 1 -o ${REWRITE_GRUB_CFG} -e
     fi
 
     if [ ${EXITCODE} -ne 0 ]; then
-	log_error "Removing snapshot..."
-	if [ -n ${SNAPSHOT_ID} ] ; then
-	    snapper delete ${SNAPSHOT_ID} |& tee -a ${LOGFILE}
-	fi
-	if [ -n ${SECOND_SNAPSHOT_ID} ] ; then
-	    snapper delete ${SECOND_SNAPSHOT_ID} |& tee -a ${LOGFILE}
-	fi
+	quit ${EXITCODE}
     fi
 fi
 
