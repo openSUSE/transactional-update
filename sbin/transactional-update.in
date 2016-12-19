@@ -27,6 +27,7 @@ ZYPPER_NONINTERACTIVE=--non-interactive
 ZYPPER_ARG_PKGS=""
 REWRITE_BOOTLOADER=0
 REWRITE_GRUB_CFG=0
+REWRITE_INITRD=0
 DO_CLEANUP=0
 REBOOT_AFTERWARDS=0
 LOGFILE="/var/log/transactional-update.log"
@@ -37,7 +38,7 @@ SECOND_SNAPSHOT_ID=""
 
 usage() {
     echo "Usage: transactional-update --help|--version"
-    echo "       transactional-update [cleanup][up|dup|patch|bootloader][reboot]"
+    echo "       transactional-update [cleanup][up|dup|patch|bootloader|initrd][reboot]"
     echo "       transactional-update [cleanup] [reboot] ptf install|remove PKG1..PKGN"
     exit $1
 }
@@ -184,6 +185,10 @@ while [ 1 ]; do
 	    REWRITE_GRUB_CFG=1
 	    shift
 	    ;;
+	initrd)
+	    REWRITE_INITRD=1
+	    shift
+	    ;;
 	reboot)
 	    REBOOT_AFTERWARDS=1
 	    shift
@@ -272,7 +277,7 @@ if [ ${DO_CLEANUP} -eq 1 ]; then
     fi
 fi
 
-if [ -n "${ZYPPER_ARG}" -o ${REWRITE_BOOTLOADER} -eq 1 -o ${REWRITE_GRUB_CFG} -eq 1 ]; then
+if [ -n "${ZYPPER_ARG}" -o ${REWRITE_BOOTLOADER} -eq 1 -o ${REWRITE_GRUB_CFG} -eq 1 -o ${REWRITE_INITRD} -eq 1 ]; then
 
     if [ -n "${ZYPPER_ARG}" ]; then
 	#check if there are updates at all
@@ -370,6 +375,14 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_BOOTLOADER} -eq 1 -o ${REWRITE_GRUB_CFG} -e
 	fi
     fi
 
+    if [ ${REWRITE_INITRD} -eq 1 ]; then
+	log_info "Create new initrd"
+	chroot ${MOUNT_DIR} /sbin/mkinitrd
+	if [ $? -ne 0 ]; then
+	    log_error "ERROR: mkinitrd failed!"
+	    EXITCODE=1;
+	fi
+    fi
     if [ ${REWRITE_GRUB_CFG} -eq 1 ]; then
 	log_info "Create a new grub2 config"
 	chroot ${MOUNT_DIR} /usr/sbin/grub2-mkconfig > ${MOUNT_DIR}/boot/grub2/grub.cfg

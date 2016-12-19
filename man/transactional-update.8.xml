@@ -54,6 +54,7 @@
 	<arg choice='plain'>patch</arg>
 	<arg choice='plain'>ptf</arg>
 	<arg choice='plain'>bootloader</arg>
+	<arg choice='plain'>initrd</arg>
 	<arg choice='opt'>reboot</arg>
     </group>
     </cmdsynopsis>
@@ -170,6 +171,14 @@ for more informations.
       <para>
 	A new snapshot is created, the bootloader configuration updated and
 	the boorloader newly written.
+      </para>
+    </listitem>
+  </varlistentry>
+  <varlistentry>
+    <term><option>initrd</option></term>
+    <listitem>
+      <para>
+	A new initrd is created in a new snapshot.
       </para>
     </listitem>
   </varlistentry>
