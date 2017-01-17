@@ -407,7 +407,13 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_BOOTLOADER} -eq 1 -o ${REWRITE_GRUB_CFG} -e
 	    log_error "ERROR: umount of $directory failed!"
 	    fuser -v ${SNAPSHOT_DIR}/$directory >> ${LOGFILE}
 	    lsof ${SNAPSHOT_DIR}/$directory >> ${LOGFILE}
-	    EXITCODE=1;
+            # Try again after some time
+            sleep 30
+            umount ${SNAPSHOT_DIR}/$directory
+            if [ $? -ne 0 ]; then
+                log_error "ERROR 2nd try: umount of $directory failed!"
+	        EXITCODE=1;
+            fi
 	fi
     done
     umount ${MOUNT_DIR}
