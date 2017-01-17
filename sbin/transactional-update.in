@@ -405,6 +405,8 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_BOOTLOADER} -eq 1 -o ${REWRITE_GRUB_CFG} -e
 	umount ${SNAPSHOT_DIR}/$directory
 	if [ $? -ne 0 ]; then
 	    log_error "ERROR: umount of $directory failed!"
+	    fuser -v ${SNAPSHOT_DIR}/$directory >> ${LOGFILE}
+	    lsof ${SNAPSHOT_DIR}/$directory >> ${LOGFILE}
 	    EXITCODE=1;
 	fi
     done
@@ -432,7 +434,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_BOOTLOADER} -eq 1 -o ${REWRITE_GRUB_CFG} -e
 	else
 	    btrfs subvolume set-default $BTRFS_ID ${SNAPSHOT_DIR}
 	    if [ $? -ne 0 ]; then
-		log_error "ERROR: umount of $directory failed!"
+		log_error "ERROR: btrfs set-default $BTRFS_ID failed!"
 		EXITCODE=1;
 	    else
 		LAST_WORKING_SNAPSHOT_ID=${ORIG_SNAPSHOT_ID}
