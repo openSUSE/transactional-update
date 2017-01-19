@@ -20,7 +20,7 @@
 
 export LANG=C
 
-DIR_TO_MOUNT="dev sys proc opt usr/local var/log"
+DIR_TO_MOUNT="dev opt usr/local var/log"
 EXITCODE=0
 ZYPPER_ARG=""
 ZYPPER_NONINTERACTIVE=--non-interactive
@@ -350,6 +350,16 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_BOOTLOADER} -eq 1 -o ${REWRITE_GRUB_CFG} -e
     fi
 
     # Mount everything we need:
+    mount -t proc none ${SNAPSHOT_DIR}/proc
+    if [ $? -ne 0 ]; then
+        log_error "ERROR: mount of proc failed!"
+        quit 1;
+    fi
+    mount -t sysfs sys ${SNAPSHOT_DIR}/sys
+    if [ $? -ne 0 ]; then
+        log_error "ERROR: mount of sys failed!"
+        quit 1;
+    fi
     for directory in $DIR_TO_MOUNT ; do
 	mount -o bind /$directory ${SNAPSHOT_DIR}/$directory
 	if [ $? -ne 0 ]; then
@@ -404,7 +414,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_BOOTLOADER} -eq 1 -o ${REWRITE_GRUB_CFG} -e
     fi
 
     # Unmount everything we don't need anymore:
-    for directory in $DIR_TO_MOUNT ; do
+    for directory in proc sys $DIR_TO_MOUNT ; do
 	umount ${SNAPSHOT_DIR}/$directory
 	if [ $? -ne 0 ]; then
 	    log_error "ERROR: umount of $directory failed!"
