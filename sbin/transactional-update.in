@@ -86,17 +86,18 @@ function bashlock {
   }
 
 save_state_file() {
-    LOCAL_STATE_FILE=${STATE_FILE}
+    echo "LAST_WORKING_SNAPSHOT_ID=${LAST_WORKING_SNAPSHOT_ID}" > ${STATE_FILE}
+    echo "UNUSED_SNAPSHOTS=\"${UNUSED_SNAPSHOTS}\"" >>  ${STATE_FILE}
+
     if [ $1 -ne 0 ]; then
-	# if /var/lib/misc is not a seperate partition/subvolume, write
-	# into the new snapshot
+	# if /var/lib/misc is not a seperate partition/subvolume, 
+	# copy it additional into the new snapshot. This will else
+        # an outdated version from before taking the snapshot
 	grep -q var.lib.misc /proc/mounts
 	if [ $? -ne 0 ]; then
-	    LOCAL_STATE_FILE="/.snapshots/$1/snapshot${STATE_FILE}"
+	    cp -a ${STATE_FILE} "/.snapshots/$1/snapshot${STATE_FILE}"
 	fi
     fi
-    echo "LAST_WORKING_SNAPSHOT_ID=${LAST_WORKING_SNAPSHOT_ID}" > ${LOCAL_STATE_FILE}
-    echo "UNUSED_SNAPSHOTS=\"${UNUSED_SNAPSHOTS}\"" >>  ${LOCAL_STATE_FILE}
 }
 
 quit() {
