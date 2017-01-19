@@ -1,6 +1,10 @@
 transactional-update NEWS -- history of user-visible changes.
 
-Copyright (C) 2016 Thorsten Kukuk
+Copyright (C) 2016, 2017 Thorsten Kukuk
+
+Version 1.5
+* Install PTFs in interactive mode
+* Make sure state file is in sync between snapshots
 
 Version 1.4
 * More debug output in case umount fails
