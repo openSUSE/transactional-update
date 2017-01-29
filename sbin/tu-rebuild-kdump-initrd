@@ -1,0 +1,54 @@
+#! /bin/bash
+#
+#  Copyright Thorsten Kukuk <kukuk@suse.com>
+#  Copyright Petr Tesarik <ptesarik@suse.com>
+#
+# Based on load.sh --update from kdump package
+
+KDUMPTOOL=/usr/sbin/kdumptool
+
+EFI_SYSTAB=/sys/firmware/efi/systab
+FADUMP_ENABLED=/sys/kernel/fadump_enabled
+FADUMP_REGISTERED=/sys/kernel/fadump_registered
+
+#
+# Find the desired kernel and initrd
+function find_kernel()
+{
+    local output=$($KDUMPTOOL find_kernel)
+    test $? -eq 0 || return 1
+
+    kdump_kernel=$(echo "$output" | grep ^Kernel | cut -f 2)
+    kdump_initrd=$(echo "$output" | grep ^Initrd | cut -f 2)
+
+    return 0
+}
+
+#
+# Rebuild the kdump initramfs if necessary
+function rebuild_kdumprd()
+{
+    local output=$(mkdumprd -K "$kdump_kernel" -I "$kdump_initrd" 2>&1)
+    if [ $? -ne 0 ] ; then
+	echo "$output"
+	return 1
+    fi
+    if [ ! -e "$kdump_kernel" ]; then
+        echo "$kdump_kernel does not exist!"
+	return 1
+    fi
+    if [ ! -e "$kdump_initrd" ]; then
+        echo "$kdump_initrd does not exist!"
+        return 1
+    fi
+
+    return 0
+}
+
+############################################################
+# MAIN PROGRAM STARTS HERE
+#
+
+find_kernel || exit 6
+rebuild_kdumprd || exit 1
+exit 0

@@ -3,7 +3,7 @@
 # update_snapshot - update a snapshot of the current system
 #
 # Author: Thorsten Kukuk <kukuk@suse.com>
-# Copyright (C) 2016 SUSE Linux GmbH
+# Copyright (C) 2016, 2017 SUSE Linux GmbH
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -28,6 +28,7 @@ ZYPPER_ARG_PKGS=""
 REWRITE_BOOTLOADER=0
 REWRITE_GRUB_CFG=0
 REWRITE_INITRD=0
+REBUILD_KDUMP_INITRD=0
 DO_CLEANUP=0
 REBOOT_AFTERWARDS=0
 LOGFILE="/var/log/transactional-update.log"
@@ -35,10 +36,11 @@ STATE_FILE="/var/lib/misc/transactional-update.state"
 PACKAGE_UPDATES=0
 SNAPSHOT_ID=""
 SECOND_SNAPSHOT_ID=""
+KDUMP_SYSCONFIG="/etc/sysconfig/kdump"
 
 usage() {
     echo "Usage: transactional-update --help|--version"
-    echo "       transactional-update [cleanup][up|dup|patch|bootloader|initrd][reboot]"
+    echo "       transactional-update [cleanup][up|dup|patch|bootloader|initrd][kdump][reboot]"
     echo "       transactional-update [cleanup] [reboot] ptf install|remove PKG1..PKGN"
     exit $1
 }
@@ -90,13 +92,25 @@ save_state_file() {
     echo "UNUSED_SNAPSHOTS=\"${UNUSED_SNAPSHOTS}\"" >>  ${STATE_FILE}
 
     if [ $1 -ne 0 ]; then
-	# if /var/lib/misc is not a seperate partition/subvolume, 
+	# if /var/lib/misc is not a seperate partition/subvolume,
 	# copy it additional into the new snapshot. This will else
         # an outdated version from before taking the snapshot
 	grep -q var.lib.misc /proc/mounts
 	if [ $? -ne 0 ]; then
 	    cp -a ${STATE_FILE} "/.snapshots/$1/snapshot${STATE_FILE}"
 	fi
+    fi
+}
+
+rebuild_kdump_initrd() {
+    local MOUNT_DIR=$1
+
+    systemctl is-enabled kdump.service
+    if [ $? = 0 ]; then
+	if [ ${KDUMP_SYSCONFIG} -nt ${MOUNT_DIR}/${KDUMP_SYSCONFIG} ]; then
+	    cp -a ${KDUMP_SYSCONFIG} ${MOUNT_DIR}/${KDUMP_SYSCONFIG}
+	fi
+	chroot ${MOUNT_DIR} /usr/sbin/tu-rebuild-kdump-initrd
     fi
 }
 
@@ -192,6 +206,10 @@ while [ 1 ]; do
 	    REWRITE_INITRD=1
 	    shift
 	    ;;
+	kdump)
+	    REBUILD_KDUMP_INITRD=1
+	    shift
+	    ;;
 	reboot)
 	    REBOOT_AFTERWARDS=1
 	    shift
@@ -280,7 +298,9 @@ if [ ${DO_CLEANUP} -eq 1 ]; then
     fi
 fi
 
-if [ -n "${ZYPPER_ARG}" -o ${REWRITE_BOOTLOADER} -eq 1 -o ${REWRITE_GRUB_CFG} -eq 1 -o ${REWRITE_INITRD} -eq 1 ]; then
+if [ -n "${ZYPPER_ARG}" -o ${REWRITE_BOOTLOADER} -eq 1 \
+    -o ${REWRITE_GRUB_CFG} -eq 1 -o ${REWRITE_INITRD} -eq 1 \
+    -o ${REBUILD_KDUMP_INITRD} -eq 1 ]; then
 
     if [ -n "${ZYPPER_ARG}" ]; then
 	#check if there are updates at all
@@ -384,7 +404,9 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_BOOTLOADER} -eq 1 -o ${REWRITE_GRUB_CFG} -e
 	env DISABLE_RESTART_ON_UPDATE=yes zypper ${ZYPPER_NONINTERACTIVE} -R ${MOUNT_DIR} ${ZYPPER_ARG} ${ZYPPER_ARG_PKGS} |& tee -a ${LOGFILE}
 	if [ $? -ne 0 ]; then
 	    log_error "ERROR: zypper ${ZYPPER_ARG} on $directory failed!"
-	    EXITCODE=1;
+	    EXITCODE=1
+	else
+	    REBUILD_KDUMP_INITRD=1
 	fi
     fi
 
@@ -393,9 +415,17 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_BOOTLOADER} -eq 1 -o ${REWRITE_GRUB_CFG} -e
 	chroot ${MOUNT_DIR} /sbin/mkinitrd
 	if [ $? -ne 0 ]; then
 	    log_error "ERROR: mkinitrd failed!"
-	    EXITCODE=1;
+	    EXITCODE=1
+	else
+	    REBUILD_KDUMP_INITRD=1
 	fi
     fi
+
+    if [ ${REBUILD_KDUMP_INITRD} -eq 1 ]; then
+	log_info "Try to rebuild kdump initrd"
+	rebuild_kdump_initrd ${MOUNT_DIR}
+    fi
+
     if [ ${REWRITE_GRUB_CFG} -eq 1 ]; then
 	log_info "Create a new grub2 config"
 	chroot ${MOUNT_DIR} /usr/sbin/grub2-mkconfig > ${MOUNT_DIR}/boot/grub2/grub.cfg
