@@ -2,6 +2,9 @@ transactional-update NEWS -- history of user-visible changes.
 
 Copyright (C) 2016, 2017 Thorsten Kukuk
 
+Version 1.6
+* Add support for kdump
+
 Version 1.5
 * Install PTFs in interactive mode
 * Make sure state file is in sync between snapshots
