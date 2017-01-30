@@ -1,6 +1,7 @@
 #  -*- Mode: python; coding: utf-8; indent-tabs-mode: nil -*- */
 #
-#  The original file is part of systemd. This one was modified for rebootmgr.
+#  The original file is part of systemd. This one was modified for
+#  transactional-update
 #
 #  Copyright 2012 Lennart Poettering
 #  Copyright 2013 Zbigniew Jędrzejewski-Szmek
@@ -26,21 +27,21 @@ from xml_helper import *
 MDASH = ' — ' if sys.version_info.major >= 3 else ' -- '
 
 TEMPLATE = '''\
-<refentry id="rebootmgr.index" conditional="HAVE_PYTHON">
+<refentry id="transactional-update.index" conditional="HAVE_PYTHON">
 
   <refentryinfo>
-    <title>rebootmgr.index</title>
-    <productname>rebootmgr</productname>
+    <title>transactional-update.index</title>
+    <productname>transactional-updater</productname>
   </refentryinfo>
 
   <refmeta>
-    <refentrytitle>rebootmgr.index</refentrytitle>
+    <refentrytitle>transactional-update.index</refentrytitle>
     <manvolnum>7</manvolnum>
   </refmeta>
 
   <refnamediv>
-    <refname>rebootmgr.index</refname>
-    <refpurpose>List all manpages from the rebootmgr project</refpurpose>
+    <refname>transactional-update.index</refname>
+    <refpurpose>List all manpages from the transactional-update project</refpurpose>
   </refnamediv>
 </refentry>
 '''
