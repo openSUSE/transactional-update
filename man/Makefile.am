@@ -13,7 +13,7 @@ man_MANS = transactional-update.8 transactional-update.service.8 \
 	transactional-update.timer.8
 
 noinst_DATA = transactional-update.8.html transactional-update.service.8.html \
-	transactional-update.timer.8.html
+	transactional-update.timer.8.html transactional-update.index.html
 
 XMLS = transactional-update.8.xml
 
@@ -41,10 +41,13 @@ transactional-update.8: transactional-update.8.xml
 transactional-update.8.html: transactional-update.8.xml custom-html.xsl
 	$(XSLTPROC) -o $(srcdir)/$@ --path $(srcdir) $(XSLTPROC_FLAGS_HTML) $<
 
-transactional-update.service.8.html: transactional-update.8.xml
+transactional-update.service.8.html: transactional-update.8.html
 	$(html-alias)
 
-transactional-update.timer.8.html: transactional-update.8.xml
+transactional-update.timer.8.html: transactional-update.8.html
 	$(html-alias)
+
+transactional-update.index.html: transactional-update.index.xml custom-html.xsl
+	$(XSLTPROC) -o $(srcdir)/$@ --path $(srcdir) $(XSLTPROC_FLAGS_HTML) $<
 
 endif
