@@ -19,6 +19,7 @@ config.h
 *~
 *.rej
 *.orig
+*.pyc
 core
 config.log
 config.status
@@ -29,4 +30,8 @@ sbin/transactional-update
 man/transactional-update.8
 man/transactional-update.service.8
 man/transactional-update.timer.8
+man/transactional-update.8.html
+man/transactional-update.index.xml
+man/transactional-update.service.8.html
+man/transactional-update.timer.8.html
 transactional-update-*.tar.*

@@ -3,7 +3,7 @@
                    "http://www.oasis-open.org/docbook/xml/4.4/docbookx.dtd">
 
 <!--  \-*\- nroff \-*\- -->
-<!--  Copyright 2016 Thorsten Kukuk &lt;kukuk@suse.de&gt; -->
+<!--  Copyright 2016, 2017 Thorsten Kukuk &lt;kukuk@suse.de&gt; -->
 
 <!--  This file is part of transactional\-update. -->
 
@@ -22,7 +22,20 @@
 <!--  write to the Free Software Foundation, Inc., 51 Franklin Street \- Suite 500, -->
 <!--  Boston, MA 02111\-1307, USA. -->
 
-<refentry id='transactional-update8'>
+<refentry id='transactional-update.8'>
+  <refentryinfo>
+    <title>transactional-update</title>
+    <productname>transactional-update</productname>
+
+    <authorgroup>
+      <author>
+        <contrib></contrib>
+        <firstname>Thorsten</firstname>
+        <surname>Kukuk</surname>
+        <email>kukuk@suse.com</email>
+      </author>
+    </authorgroup>
+  </refentryinfo>
 
   <refmeta>
     <refentrytitle>transactional-update</refentrytitle>
@@ -81,10 +94,10 @@ reboot. For this reason, after an successfull update, the system should be
 rebooted as fast as possible. </para>
 <para>For easier maintenance of big clusters,
 <command>transactional-update</command> is regular run by
-<citerefentry><refentrytitle>systemd.timer</refentrytitle><manvolnum>5</manvolnum></citerefentry>.
+<citerefentry project='systemd'><refentrytitle>systemd.timer</refentrytitle><manvolnum>5</manvolnum></citerefentry>.
 The time, at which the command is run, can be modified by a configuration file
 <filename>/etc/systemd/system/transactional-update.timer.d/local.conf</filename>. See
-<citerefentry><refentrytitle>systemd.unit</refentrytitle><manvolnum>5</manvolnum></citerefentry>
+<citerefentry project='systemd'><refentrytitle>systemd.unit</refentrytitle><manvolnum>5</manvolnum></citerefentry>
 for more informations.
 </para>
 </refsect1>
@@ -112,7 +125,7 @@ for more informations.
       updates), all old snapshots without a cleanup algorithm get a cleanup
       algorithm set. This is to make sure, that old snapshots will be deleted
       by snapper. See the section about cleanup algorithms in
-      <citerefentry><refentrytitle>snapper</refentrytitle><manvolnum>8</manvolnum></citerefentry>.
+      <citerefentry project='snapper'><refentrytitle>snapper</refentrytitle><manvolnum>8</manvolnum></citerefentry>.
       </para>
     </listitem>
   </varlistentry>
@@ -219,15 +232,7 @@ for more informations.
 </refsect1>
 
 <refsect1 id='see_also'><title>SEE ALSO</title>
-<para><citerefentry><refentrytitle>systemd.timer</refentrytitle><manvolnum>5</manvolnum></citerefentry>,
-<citerefentry><refentrytitle>systemd.time</refentrytitle><manvolnum>7</manvolnum></citerefentry></para>
+<para><citerefentry project='systemd'><refentrytitle>systemd.timer</refentrytitle><manvolnum>5</manvolnum></citerefentry>,
+<citerefentry project='systemd'><refentrytitle>systemd.time</refentrytitle><manvolnum>7</manvolnum></citerefentry></para>
 </refsect1>
-
-  <refsect1 id='author'>
-    <title>AUTHOR</title>
-    <para>
-      <command>transactional-update</command> was written by
-      Thorsten Kukuk &lt;kukuk@suse.com&gt;.
-    </para>
-  </refsect1>
 </refentry>

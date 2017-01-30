@@ -36,6 +36,7 @@ LOGROTATEDDIR=${sysconfdir}/logrotate.d
 AC_SUBST(LOGROTATEDDIR)
 
 AC_PROG_INSTALL
+AC_PROG_LN_S
 
 dnl
 dnl Check for xsltproc
