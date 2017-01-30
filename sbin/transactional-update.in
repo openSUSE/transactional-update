@@ -204,6 +204,7 @@ while [ 1 ]; do
 	    ;;
 	initrd)
 	    REWRITE_INITRD=1
+	    REBUILD_KDUMP_INITRD=1
 	    shift
 	    ;;
 	kdump)
