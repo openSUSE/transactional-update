@@ -2,6 +2,10 @@ transactional-update NEWS -- history of user-visible changes.
 
 Copyright (C) 2016, 2017 Thorsten Kukuk
 
+Version 1.7
+* Disable interactive install mode for PTFs
+* Build html version of man pages, too
+
 Version 1.6
 * Add support for kdump
 

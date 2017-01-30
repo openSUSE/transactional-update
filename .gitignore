@@ -34,4 +34,5 @@ man/transactional-update.8.html
 man/transactional-update.index.xml
 man/transactional-update.service.8.html
 man/transactional-update.timer.8.html
+man/transactional-update.index.html
 transactional-update-*.tar.*
