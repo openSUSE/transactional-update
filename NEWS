@@ -2,6 +2,10 @@ transactional-update NEWS -- history of user-visible changes.
 
 Copyright (C) 2016, 2017 Thorsten Kukuk
 
+Version 1.8
+* Fix references in html pages
+* Build kdump initrd when building standard initrd, too
+
 Version 1.7
 * Disable interactive install mode for PTFs
 * Build html version of man pages, too
