@@ -129,17 +129,6 @@ quit() {
 
 ORIG_ARGS="$@"
 
-bashlock "/var/run/transactional-update.pid"
-if [ $? -ne 0 ]; then
-  echo "Couldn't get lock, another instance is already running?"
-  exit 1;
-fi
-
-# load old state file
-if [ -f ${STATE_FILE} ]; then
-    . ${STATE_FILE}
-fi
-
 # if no option is given, assume "up"
 if [ $# -eq 0 ]; then
     ZYPPER_ARG="up"
@@ -191,7 +180,7 @@ while [ 1 ]; do
 		fi
 	    done
             # Run installing PTFs interactive
-            #ZYPPER_NONINTERACTIVE=""
+            ZYPPER_NONINTERACTIVE=""
 	    ;;
         bootloader)
 	    REWRITE_BOOTLOADER=1
@@ -231,6 +220,17 @@ done
 
 if [ $# -ne 0 ]; then
     usage 1;
+fi
+
+bashlock "/var/run/transactional-update.pid"
+if [ $? -ne 0 ]; then
+  echo "Couldn't get lock, another instance is already running?"
+  exit 1;
+fi
+
+# load old state file
+if [ -f ${STATE_FILE} ]; then
+    . ${STATE_FILE}
 fi
 
 log_info "transactional-update @VERSION@ started"
@@ -303,7 +303,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_BOOTLOADER} -eq 1 \
     -o ${REWRITE_GRUB_CFG} -eq 1 -o ${REWRITE_INITRD} -eq 1 \
     -o ${REBUILD_KDUMP_INITRD} -eq 1 ]; then
 
-    if [ -n "${ZYPPER_ARG}" ]; then
+    if [ -n "${ZYPPER_ARG}" && -n "{ZYPPER_NONINTERACTIVE}" ]; then
 	#check if there are updates at all
 	TMPFILE=`mktemp /tmp/transactional-update.XXXXXXXXXX`
 	zypper --xml ${ZYPPER_NONINTERACTIVE} ${ZYPPER_ARG} --dry-run ${ZYPPER_ARG_PKGS} > ${TMPFILE}
@@ -402,7 +402,11 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_BOOTLOADER} -eq 1 \
 
     if [ -n "${ZYPPER_ARG}" ]; then
 	log_info "Calling zypper ${ZYPPER_ARG}"
-	env DISABLE_RESTART_ON_UPDATE=yes zypper ${ZYPPER_NONINTERACTIVE} -R ${MOUNT_DIR} ${ZYPPER_ARG} ${ZYPPER_ARG_PKGS} |& tee -a ${LOGFILE}
+	if [ -n ${ZYPPER_NONINTERACTIVE} ]; then
+	    env DISABLE_RESTART_ON_UPDATE=yes zypper ${ZYPPER_NONINTERACTIVE} -R ${MOUNT_DIR} ${ZYPPER_ARG} ${ZYPPER_ARG_PKGS} |& tee -a ${LOGFILE}
+	else
+	    env DISABLE_RESTART_ON_UPDATE=yes zypper -R ${MOUNT_DIR} ${ZYPPER_ARG} ${ZYPPER_ARG_PKGS}
+	fi
 	if [ $? -ne 0 ]; then
 	    log_error "ERROR: zypper ${ZYPPER_ARG} on $directory failed!"
 	    EXITCODE=1
