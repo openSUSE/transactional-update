@@ -129,17 +129,6 @@ quit() {
 
 ORIG_ARGS="$@"
 
-bashlock "/var/run/transactional-update.pid"
-if [ $? -ne 0 ]; then
-  echo "Couldn't get lock, another instance is already running?"
-  exit 1;
-fi
-
-# load old state file
-if [ -f ${STATE_FILE} ]; then
-    . ${STATE_FILE}
-fi
-
 # if no option is given, assume "up"
 if [ $# -eq 0 ]; then
     ZYPPER_ARG="up"
@@ -231,6 +220,17 @@ done
 
 if [ $# -ne 0 ]; then
     usage 1;
+fi
+
+bashlock "/var/run/transactional-update.pid"
+if [ $? -ne 0 ]; then
+  echo "Couldn't get lock, another instance is already running?"
+  exit 1;
+fi
+
+# load old state file
+if [ -f ${STATE_FILE} ]; then
+    . ${STATE_FILE}
 fi
 
 log_info "transactional-update @VERSION@ started"
