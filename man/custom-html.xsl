@@ -229,14 +229,16 @@
 
   <a>
     <xsl:attribute name="href">
-      <xsl:text>transactional-update.index.html</xsl:text>
+      <xsl:value-of select="$package.name"/>
+      <xsl:text>.index.html</xsl:text>
     </xsl:attribute>
     <xsl:text>Index </xsl:text>
   </a>
 
   <span style="float:right">
-    <xsl:text>transactional-update </xsl:text>
-    <xsl:value-of select="$transactional-update.version"/>
+    <xsl:value-of select="$package.name"/>
+    <xsl:text> </xsl:text>
+    <xsl:value-of select="$package.version"/>
   </span>
   <hr/>
 </xsl:template>
