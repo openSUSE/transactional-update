@@ -54,22 +54,33 @@
 <!-- body begins here -->
   <refsynopsisdiv id='synopsis'>
     <cmdsynopsis>
-      <command>/usr/sbin/transactional-update</command>
+      <command>transactional-update</command>
       <arg choice='opt'>--help</arg>
       <arg choice='opt'>--version</arg>
     </cmdsynopsis>
     <cmdsynopsis>
-      <command>/usr/sbin/transactional-update</command>
+      <command>transactional-update</command>
       <arg choice='opt'>cleanup</arg>
       <group choice='opt'>
 	<arg choice='plain'>up</arg>
 	<arg choice='plain'>dup</arg>
 	<arg choice='plain'>patch</arg>
-	<arg choice='plain'>ptf</arg>
 	<arg choice='plain'>bootloader</arg>
 	<arg choice='plain'>initrd</arg>
-	<arg choice='opt'>reboot</arg>
     </group>
+    <arg choice='opt'>kdump</arg>
+    <arg choice='opt'>reboot</arg>
+    </cmdsynopsis>
+    <cmdsynopsis>
+      <command>transactional-update</command>
+      <arg choice='opt'>cleanup</arg>
+      <arg choice='plain'>ptf</arg>
+      <group choice='plain'>
+	<arg choice='plain'>install</arg>
+	<arg choice='plain'>remove</arg>
+      </group>
+      <arg choice='plain'>&lt;RPM&gt;...&lt;RPM&gt;</arg>
+      <arg choice='opt'>reboot</arg>
     </cmdsynopsis>
     <para><filename>transactional-update.service</filename></para>
     <para><filename>transactional-update.timer</filename></para>
@@ -191,7 +202,15 @@ for more informations.
     <term><option>initrd</option></term>
     <listitem>
       <para>
-	A new initrd is created in a new snapshot.
+	A new initrd is created in a snapshot.
+      </para>
+    </listitem>
+  </varlistentry>
+  <varlistentry>
+    <term><option>kdump</option></term>
+    <listitem>
+      <para>
+	A new initrd for kdump is created in a snapshot.
       </para>
     </listitem>
   </varlistentry>
