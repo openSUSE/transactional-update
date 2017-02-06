@@ -303,7 +303,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_BOOTLOADER} -eq 1 \
     -o ${REWRITE_GRUB_CFG} -eq 1 -o ${REWRITE_INITRD} -eq 1 \
     -o ${REBUILD_KDUMP_INITRD} -eq 1 ]; then
 
-    if [ -n "${ZYPPER_ARG}" && -n "{ZYPPER_NONINTERACTIVE}" ]; then
+    if [ -n "${ZYPPER_ARG}" -a -n "${ZYPPER_NONINTERACTIVE}" ]; then
 	#check if there are updates at all
 	TMPFILE=`mktemp /tmp/transactional-update.XXXXXXXXXX`
 	zypper --xml ${ZYPPER_NONINTERACTIVE} ${ZYPPER_ARG} --dry-run ${ZYPPER_ARG_PKGS} > ${TMPFILE}
@@ -450,7 +450,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_BOOTLOADER} -eq 1 \
 
     # Unmount everything we don't need anymore:
     for directory in proc sys $DIR_TO_MOUNT ; do
-	umount ${SNAPSHOT_DIR}/$directory
+	umount -R ${SNAPSHOT_DIR}/$directory
 	if [ $? -ne 0 ]; then
 	    log_error "ERROR: umount of $directory failed!"
 	    fuser -v ${SNAPSHOT_DIR}/$directory >> ${LOGFILE}
