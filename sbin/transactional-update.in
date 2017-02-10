@@ -30,6 +30,8 @@ REWRITE_GRUB_CFG=0
 REWRITE_INITRD=0
 REBUILD_KDUMP_INITRD=0
 DO_CLEANUP=0
+DO_ROLLBACK=0
+ROLLBACK_SNAPSHOT=0
 REBOOT_AFTERWARDS=0
 LOGFILE="/var/log/transactional-update.log"
 STATE_FILE="/var/lib/misc/transactional-update.state"
@@ -42,6 +44,7 @@ usage() {
     echo "Usage: transactional-update --help|--version"
     echo "       transactional-update [cleanup][up|dup|patch|bootloader|initrd][kdump][reboot]"
     echo "       transactional-update [cleanup] [reboot] ptf install|remove PKG1..PKGN"
+    echo "       transactional-update rollback [number]"
     exit $1
 }
 
@@ -204,6 +207,14 @@ while [ 1 ]; do
 	    REBOOT_AFTERWARDS=1
 	    shift
 	    ;;
+	rollback)
+	    DO_ROLLBACK=1
+	    shift
+	    if [ $# -eq 1 ]; then
+		ROLLBACK_SNAPSHOT=$1
+		shift
+	    fi
+	    ;;
         -h|--help)
             usage 0
             ;;
@@ -256,6 +267,35 @@ fi
 ORIG_SNAPSHOT_ID=`grep subvol=/@/.snapshots/ /proc/mounts | grep "/ btrfs" | sed -e 's|.*.snapshots/\(.*\)/snapshot.*|\1|g'`
 DEFAULT_SNAPSHOT_ID=`btrfs subvolume get-default / | sed -e 's|.*.snapshots/\(.*\)/snapshot|\1|g'`
 RO_ROOT=`btrfs property get / ro | sed -e 's|ro=||'`
+
+if [ ${DO_ROLLBACK} -eq 1 ]; then
+    if [ ${ROLLBACK_SNAPSHOT} -eq 0 ]; then
+	ROLLBACK_SNAPSHOT=${ORIG_SNAPSHOT_ID}
+    fi
+
+    echo "Rollback to snapshot ${ROLLBACK_SNAPSHOT} ..."
+
+    if [ ${RO_ROOT} == "true" ]; then
+	BTRFS_ID=`btrfs subvolume list / |grep /.snapshots/${ROLLBACK_SNAPSHOT}/snapshot | awk '{print $2}'`
+	if [ -z $BTRFS_ID ]; then
+	    log_error "ERROR: couldn't determine btrfs subvolume ID"
+	    exit 1
+	else
+	    btrfs subvolume set-default $BTRFS_ID /.snapshots
+	    if [ $? -ne 0 ]; then
+		log_error "ERROR: btrfs set-default $BTRFS_ID failed!"
+		exit 1
+	    fi
+	fi
+	# Remove possible cleanup algo
+	snapper modify -c '' ${ROLLBACK_SNAPSHOT}
+    else
+	snapper rollback ${ROLLBACK_SNAPSHOT}
+    fi
+
+    echo "Please reboot to finish rollback!"
+    exit 0;
+fi
 
 #
 # Cleanup part: make sure old root filesystem will be removed after it is no longer active.
