@@ -74,13 +74,13 @@
     <cmdsynopsis>
       <command>transactional-update</command>
       <arg choice='opt'>cleanup</arg>
+      <arg choice='opt'>reboot</arg>
       <arg choice='plain'>ptf</arg>
       <group choice='plain'>
 	<arg choice='plain'>install</arg>
 	<arg choice='plain'>remove</arg>
       </group>
       <arg choice='plain'>&lt;RPM&gt;...&lt;RPM&gt;</arg>
-      <arg choice='opt'>reboot</arg>
     </cmdsynopsis>
     <cmdsynopsis>
       <command>transactional-update</command>
