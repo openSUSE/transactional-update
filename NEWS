@@ -2,6 +2,11 @@ transactional-update NEWS -- history of user-visible changes.
 
 Copyright (C) 2016, 2017 Thorsten Kukuk
 
+Version 1.11
+* Use dup by default if called from systemd
+* Use --no-allow-vendor-change with "dup"
+* Update manual page
+
 Version 1.10
 * Implement rollback
 
