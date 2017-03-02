@@ -7,6 +7,6 @@ After=network.target
 
 [Service]
 Type=oneshot
-ExecStart=/usr/sbin/transactional-update cleanup up reboot
+ExecStart=/usr/sbin/transactional-update cleanup dup reboot
 IOSchedulingClass=best-effort
 IOSchedulingPriority=7
