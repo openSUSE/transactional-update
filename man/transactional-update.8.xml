@@ -161,9 +161,9 @@ for more informations.
     <listitem>
       <para>
 	If new updates are available, a new snapshot is created and
-	<command>zypper dup</command> is used to update the snapshot.
-	Afterwards, the snapshot is activated and will be used as the new root
-	filesystem during next boot.
+	<command>zypper dup --no-allow-vendor-change</command> is used to
+	update the snapshot. Afterwards, the snapshot is activated and will be
+	used as the new root filesystem during next boot.
       </para>
     </listitem>
   </varlistentry>
@@ -261,6 +261,9 @@ for more informations.
   Since all changes to the root filesystem will go lost after creating the
   snapshot for the update, the system should be rebooted as fast as possible
   after the update finished.
+</para>
+<para>
+  RPMs, where a license needs accepted for, cannot be updated.
 </para>
 <para>
   If PTFs get installed or removed, and
