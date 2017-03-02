@@ -353,7 +353,6 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_BOOTLOADER} -eq 1 \
 	zypper --xml ${ZYPPER_NONINTERACTIVE} ${ZYPPER_ARG} --dry-run ${ZYPPER_ARG_PKGS} > ${TMPFILE}
 	if [ $? -ne 0 ]; then
 	    log_error "ERROR: zypper failed!"
-	    cat ${TMPFILE} | tr '\n' 'XXX' | sed -e 's|.*description>\(.*\)</description>.*|\1|g'| tr 'XXX' '\n' |& tee -a ${LOGFILE}
 	    rm -f ${TMPFILE}
 	    quit 1
 	fi
