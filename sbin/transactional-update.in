@@ -567,7 +567,7 @@ if [ ${EXITCODE} -eq 0 ]; then
 	sync
 	systemctl reboot |& tee -a ${LOGFILE}
     elif [ $PACKAGE_UPDATES -gt 1 ]; then
-	echo "Please reboot your machine to activate the changes and avoid data lossage"
+	echo "Please reboot your machine to activate the changes and avoid data loss"
     fi
 fi
 
