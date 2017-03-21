@@ -296,9 +296,8 @@ if [ ${DO_ROLLBACK} -eq 1 ]; then
 	snapper modify -c '' ${ROLLBACK_SNAPSHOT}
     else
 	snapper rollback ${ROLLBACK_SNAPSHOT}
+	echo "Please reboot to finish rollback!"
     fi
-
-    echo "Please reboot to finish rollback!"
     exit 0;
 fi
 
