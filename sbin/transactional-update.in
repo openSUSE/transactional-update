@@ -274,8 +274,11 @@ DEFAULT_SNAPSHOT_ID=`btrfs subvolume get-default / | sed -e 's|.*.snapshots/\(.*
 RO_ROOT=`btrfs property get / ro | sed -e 's|ro=||'`
 
 if [ ${DO_ROLLBACK} -eq 1 ]; then
+    NEED_REBOOT_WARNING=1
+
     if [ ${ROLLBACK_SNAPSHOT} -eq 0 ]; then
 	ROLLBACK_SNAPSHOT=${ORIG_SNAPSHOT_ID}
+	NEED_REBOOT_WARNING=0
     fi
 
     echo "Rollback to snapshot ${ROLLBACK_SNAPSHOT} ..."
@@ -296,6 +299,9 @@ if [ ${DO_ROLLBACK} -eq 1 ]; then
 	snapper modify -c '' ${ROLLBACK_SNAPSHOT}
     else
 	snapper rollback ${ROLLBACK_SNAPSHOT}
+	NEED_REBOOT_WARNING=1
+    fi
+    if [ ${NEED_REBOOT_WARNING} -eq 1 ]; then
 	echo "Please reboot to finish rollback!"
     fi
     exit 0;
