@@ -311,7 +311,7 @@ if [ ${DO_CLEANUP} -eq 1 ]; then
 	if [ -n "${LAST_WORKING_SNAPSHOT_ID}" ]; then
 	    log_info "Add cleanup algorithm to snapshot #${LAST_WORKING_SNAPSHOT_ID}"
 	    snapper modify -c number ${LAST_WORKING_SNAPSHOT_ID} |& tee -a ${LOGFILE}
-	    if [ $? -ne 0 ]; then
+	    if [ ${PIPESTATUS[0]} -ne 0 ]; then
 		log_error "ERROR: cannot set cleanup algorithm for snapshot #${LAST_WORKING_SNAPSHOT_ID}"
 	    fi
 	    # if the old snapshot is read-write, we have already a mandatory snapshot and this one can deleted
@@ -319,7 +319,7 @@ if [ ${DO_CLEANUP} -eq 1 ]; then
 	    if [ ${RO_ROOT} == "true" ]; then
 		log_info "Add \"important=yes\" to snapshot #${LAST_WORKING_SNAPSHOT_ID}"
 		snapper modify -u "important=yes" ${LAST_WORKING_SNAPSHOT_ID} |& tee -a ${LOGFILE}
-		if [ $? -ne 0 ]; then
+		if [ ${PIPESTATUS[0]} -ne 0 ]; then
 		    log_error "ERROR: cannot set \"important=yes for snapshot\" #${LAST_WORKING_SNAPSHOT_ID}"
 		fi
 	    fi
@@ -332,7 +332,7 @@ if [ ${DO_CLEANUP} -eq 1 ]; then
 		if [ ${snap} -ne ${ORIG_SNAPSHOT_ID} ]; then
 		    log_info "Mark not used snapshot #${snap} for deletion"
 		    snapper modify -c number ${snap} |& tee -a ${LOGFILE}
-		    if [ $? -ne 0 ]; then
+		    if [ ${PIPESTATUS[0]} -ne 0 ]; then
 			log_error "ERROR: cannot set cleanup algorithm for snapshot #${LAST_WORKING_SNAPSHOT_ID}"
 		    fi
 		fi
@@ -445,10 +445,12 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	log_info "Calling zypper ${ZYPPER_ARG}"
 	if [ -n ${ZYPPER_NONINTERACTIVE} ]; then
 	    env DISABLE_RESTART_ON_UPDATE=yes zypper ${ZYPPER_NONINTERACTIVE} -R ${MOUNT_DIR} ${ZYPPER_ARG} ${ZYPPER_ARG_PKGS} |& tee -a ${LOGFILE}
+	    RETVAL=${PIPESTATUS[0]}
 	else
 	    env DISABLE_RESTART_ON_UPDATE=yes zypper -R ${MOUNT_DIR} ${ZYPPER_ARG} ${ZYPPER_ARG_PKGS}
+	    RETVAL=$?
 	fi
-	if [ $? -ne 0 ]; then
+	if [ $RETVAL -ne 0 ]; then
 	    log_error "ERROR: zypper ${ZYPPER_ARG} on $directory failed!"
 	    EXITCODE=1
 	else
