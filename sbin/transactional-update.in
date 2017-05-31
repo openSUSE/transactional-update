@@ -32,6 +32,7 @@ DO_CLEANUP=0
 DO_ROLLBACK=0
 ROLLBACK_SNAPSHOT=0
 REBOOT_AFTERWARDS=0
+USE_SALT_GRAINS=0
 LOGFILE="/var/log/transactional-update.log"
 STATE_FILE="/var/lib/misc/transactional-update.state"
 PACKAGE_UPDATES=0
@@ -42,7 +43,7 @@ KDUMP_SYSCONFIG="/etc/sysconfig/kdump"
 usage() {
     echo "Usage: transactional-update --help|--version"
     echo "       transactional-update [cleanup][up|dup|patch|initrd][kdump][reboot]"
-    echo "       transactional-update [cleanup] [reboot] ptf install|remove PKG1..PKGN"
+    echo "       transactional-update [cleanup] [reboot] pkg install|remove PKG1..PKGN"
     echo "       transactional-update rollback [number]"
     exit $1
 }
@@ -155,7 +156,7 @@ while [ 1 ]; do
 	    ZYPPER_ARG=$1
             shift
             ;;
-	ptf)
+	ptf|pkg|package)
 	    shift
 	    if [ $# -eq 0 ]; then
 		usage 1
@@ -213,6 +214,11 @@ while [ 1 ]; do
 		ROLLBACK_SNAPSHOT=$1
 		shift
 	    fi
+	    ;;
+	salt)
+	    REBOOT_AFTERWARDS=1
+	    USE_SALT_GRAINS=1
+	    shift
 	    ;;
         -h|--help)
             usage 0
@@ -546,18 +552,35 @@ fi
 
 if [ ${EXITCODE} -eq 0 ]; then
     if [ $REBOOT_AFTERWARDS -eq 1 ]; then
-	if [ -x /usr/sbin/rebootmgrctl ]; then
-	    /usr/sbin/rebootmgrctl is-active --quiet
-	    if [ $? -eq 0 ]; then
-		# rebootmgrctl is running
-		/usr/sbin/rebootmgrctl reboot
-		log_info "transactional-update finished - informed rebootmgr"
-		exit 0
+	if [ $USE_SALT_GRAINS -eq 1 ]; then
+	    log_info "transactional-update finished - created salt grains"
+	    if [ -f /etc/salt/grains ]; then
+		grep -q tx_update_reboot_needed /etc/salt/grains
+		if [ $? -ne 0 ]; then
+		    # Add variable to existing salt grains
+		    echo "tx_update_reboot_needed: true" >> /etc/salt/grains
+		else
+		    # modify variable in existing salt grains
+		    sed -i -e 's|tx_update_reboot_needed:.*|tx_update_reboot_needed: true|g' /etc/salt/grains
+		fi
+	    else
+		echo "tx_update_reboot_needed: true" > /etc/salt/grains
 	    fi
+	    exit 0
+	else
+	    if [ -x /usr/sbin/rebootmgrctl ]; then
+		/usr/sbin/rebootmgrctl is-active --quiet
+		if [ $? -eq 0 ]; then
+		    # rebootmgrctl is running
+		    /usr/sbin/rebootmgrctl reboot
+		    log_info "transactional-update finished - informed rebootmgr"
+		    exit 0
+		fi
+	    fi
+	    log_info "transactional-update finished - rebooting machine"
+	    sync
+	    systemctl reboot |& tee -a ${LOGFILE}
 	fi
-	log_info "transactional-update finished - rebooting machine"
-	sync
-	systemctl reboot |& tee -a ${LOGFILE}
     elif [ $PACKAGE_UPDATES -gt 1 ]; then
 	echo "Please reboot your machine to activate the changes and avoid data loss"
     fi
