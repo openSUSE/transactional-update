@@ -74,7 +74,7 @@
       <command>transactional-update</command>
       <arg choice='opt'>cleanup</arg>
       <arg choice='opt'>reboot</arg>
-      <arg choice='plain'>ptf</arg>
+      <arg choice='plain'>pkg</arg>
       <group choice='plain'>
 	<arg choice='plain'>install</arg>
 	<arg choice='plain'>remove</arg>
@@ -178,10 +178,10 @@ for more informations.
     </listitem>
   </varlistentry>
   <varlistentry>
-    <term><option>ptf install</option> <replaceable>&lt;RPM&gt; ... &lt;RPM&gt;</replaceable></term>
+    <term><option>pkg install</option> <replaceable>&lt;RPM&gt; ... &lt;RPM&gt;</replaceable></term>
     <listitem>
       <para>
-	A PTF consist of several RPMs can be installed in the system.
+	A PTF or other packages in RPM format can be installed in the system.
       </para>
     </listitem>
   </varlistentry>
