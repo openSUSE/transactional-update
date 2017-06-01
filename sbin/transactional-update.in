@@ -118,6 +118,7 @@ rebuild_kdump_initrd() {
     fi
 }
 
+# only called in error case
 quit() {
     if [ -n "${SNAPSHOT_ID}" ] ; then
 	log_error "Removing snapshot #${SNAPSHOT_ID}..."
@@ -126,6 +127,20 @@ quit() {
     if [ -n "${SECOND_SNAPSHOT_ID}" ] ; then
 	log_error "Removing snapshot #${SECOND_SNAPSHOT_ID}..."
 	snapper delete ${SECOND_SNAPSHOT_ID} |& tee -a ${LOGFILE}
+    fi
+    if [ $USE_SALT_GRAINS -eq 1 ]; then
+	if [ -f /etc/salt/grains ]; then
+	    grep -q tx_update_failed /etc/salt/grains
+	    if [ $? -ne 0 ]; then
+		# Add variable to existing salt grains
+		echo "tx_update_failed: true" >> /etc/salt/grains
+	    else
+		# modify variable in existing salt grains
+		sed -i -e 's|tx_update_failed:.*|tx_update_failed: true|g' /etc/salt/grains
+	    fi
+	else
+	    echo "tx_update_failed: true" > /etc/salt/grains
+	fi
     fi
     log_info "transactional-update finished"
     exit $1
@@ -566,6 +581,8 @@ if [ ${EXITCODE} -eq 0 ]; then
 	    else
 		echo "tx_update_reboot_needed: true" > /etc/salt/grains
 	    fi
+	    # Reset tx_update_failed if exist
+	    sed -i -e 's|tx_update_failed:.*|tx_update_failed: false|g' /etc/salt/grains
 	    exit 0
 	else
 	    if [ -x /usr/sbin/rebootmgrctl ]; then
