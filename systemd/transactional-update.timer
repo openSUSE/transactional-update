@@ -4,7 +4,8 @@ Documentation=man:transactional-update(8)
 
 [Timer]
 OnCalendar=daily
-AccuracySec=12h
+AccuracySec=1m
+RandomizedDelaySec=1h
 Persistent=true
 
 [Install]
