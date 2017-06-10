@@ -1,11 +1,11 @@
 [Unit]
 Description=Daily update of the system
 Documentation=man:transactional-update(8)
+After=network.target local-fs.target
 
 [Timer]
 OnCalendar=daily
 AccuracySec=1m
-RandomizedDelaySec=1h
 Persistent=true
 
 [Install]
