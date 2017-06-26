@@ -462,6 +462,10 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
     MOUNT_DIR=`mktemp -d`
     mount -o rbind ${SNAPSHOT_DIR} ${MOUNT_DIR}
 
+    # for RPM pre/post sections to detect, that we run in a
+    # transactional update
+    export TRANSACTIONAL_UPDATE=true
+
     if [ -n "${ZYPPER_ARG}" ]; then
 	log_info "Calling zypper ${ZYPPER_ARG}"
 	if [ -n ${ZYPPER_NONINTERACTIVE} ]; then
@@ -503,6 +507,9 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	    EXITCODE=1;
 	fi
     fi
+
+    # unset variable
+    unset TRANSACTIONAL_UPDATE
 
     # Unmount everything we don't need anymore:
     for directory in proc sys $DIR_TO_MOUNT ; do
