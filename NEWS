@@ -2,6 +2,10 @@ transactional-update NEWS -- history of user-visible changes.
 
 Copyright (C) 2016, 2017 Thorsten Kukuk
 
+Version 1.16
+* Set environment variable that transactional update is running
+* Some updates to the systemd units
+
 Version 1.15
 * Add support to ceate salt grains with current status
 * Rename ptf to pkg
