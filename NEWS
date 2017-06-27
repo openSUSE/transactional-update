@@ -2,6 +2,9 @@ transactional-update NEWS -- history of user-visible changes.
 
 Copyright (C) 2016, 2017 Thorsten Kukuk
 
+Version 1.17
+* Copy some modified config files for bootloader into the snapshot
+
 Version 1.16
 * Set environment variable that transactional update is running
 * Some updates to the systemd units
