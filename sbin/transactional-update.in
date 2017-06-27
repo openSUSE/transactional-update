@@ -39,6 +39,9 @@ PACKAGE_UPDATES=0
 SNAPSHOT_ID=""
 SECOND_SNAPSHOT_ID=""
 KDUMP_SYSCONFIG="/etc/sysconfig/kdump"
+# Config files, which the user could have modified and which should
+# be copied to the snapshot.
+CONFIG_FILES_TO_COPY="/etc/default/grub"
 
 usage() {
     echo "Usage: transactional-update --help|--version"
@@ -465,6 +468,13 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
     # for RPM pre/post sections to detect, that we run in a
     # transactional update
     export TRANSACTIONAL_UPDATE=true
+
+    # Copy modified config files to the snapshot
+    for CF in ${CONFIG_FILES_TO_COPY} ; do
+	if [ ${CF} -nt ${MOUNT_DIR}/${CF} ]; then
+	    cp -a ${CF} ${MOUNT_DIR}/${CF}
+	fi
+    done
 
     if [ -n "${ZYPPER_ARG}" ]; then
 	log_info "Calling zypper ${ZYPPER_ARG}"
