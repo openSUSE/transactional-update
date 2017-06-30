@@ -2,6 +2,9 @@ transactional-update NEWS -- history of user-visible changes.
 
 Copyright (C) 2016, 2017 Thorsten Kukuk
 
+Version 1.19
+* Add undocumented 'shell' option for debugging and testing
+
 Version 1.18
 * Auto accept product license in non-interactive mode
 
