@@ -32,6 +32,7 @@ DO_CLEANUP=0
 DO_ROLLBACK=0
 ROLLBACK_SNAPSHOT=0
 REBOOT_AFTERWARDS=0
+RUN_SHELL=0
 USE_SALT_GRAINS=0
 LOGFILE="/var/log/transactional-update.log"
 STATE_FILE="/var/lib/misc/transactional-update.state"
@@ -212,6 +213,10 @@ while [ 1 ]; do
 	    REWRITE_GRUB_CFG=1
 	    shift
 	    ;;
+	shell)
+	    RUN_SHELL=1
+	    shift
+	    ;;
 	initrd)
 	    REWRITE_INITRD=1
 	    REBUILD_KDUMP_INITRD=1
@@ -368,7 +373,8 @@ if [ ${DO_CLEANUP} -eq 1 ]; then
 fi
 
 if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
-    -o ${REWRITE_INITRD} -eq 1 -o ${REBUILD_KDUMP_INITRD} -eq 1 ]; then
+    -o ${REWRITE_INITRD} -eq 1 -o ${REBUILD_KDUMP_INITRD} -eq 1 \
+    -o ${RUN_SHELL} -eq 1 ]; then
 
     if [ -n "${ZYPPER_ARG}" -a -n "${ZYPPER_NONINTERACTIVE}" ]; then
 	#check if there are updates at all
@@ -516,6 +522,11 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	    log_error "ERROR: grub2-mkconfig failed!"
 	    EXITCODE=1;
 	fi
+    fi
+
+    if [ ${RUN_SHELL} -eq 1 ]; then
+	echo "Chroot in snapshot ${SNAPSHOT_ID}, continue with 'exit'"
+	env PS1="transactional update # " chroot ${MOUNT_DIR} bash
     fi
 
     # unset variable
