@@ -46,7 +46,7 @@
   </a>
 </xsl:template>
 
-<xsl:template match="citerefentry[@project='man-pages'] | citerefentry[manvolnum='2'] | citerefentry[manvolnum='4']">
+<xsl:template match="citerefentry[@project='man-pages']">
   <a>
     <xsl:attribute name="href">
       <xsl:text>http://man7.org/linux/man-pages/man</xsl:text>
@@ -55,6 +55,19 @@
       <xsl:value-of select="refentrytitle"/>
       <xsl:text>.</xsl:text>
       <xsl:value-of select="manvolnum"/>
+      <xsl:text>.html</xsl:text>
+    </xsl:attribute>
+    <xsl:call-template name="inline.charseq"/>
+  </a>
+</xsl:template>
+
+<xsl:template match="citerefentry[@project='linux.org']">
+  <a>
+    <xsl:attribute name="href">
+      <xsl:text>https://www.linux.org/docs/man</xsl:text>
+      <xsl:value-of select="manvolnum"/>
+      <xsl:text>/</xsl:text>
+      <xsl:value-of select="refentrytitle"/>
       <xsl:text>.html</xsl:text>
     </xsl:attribute>
     <xsl:call-template name="inline.charseq"/>

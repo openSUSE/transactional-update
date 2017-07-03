@@ -186,10 +186,21 @@ for more informations.
     </listitem>
   </varlistentry>
   <varlistentry>
-    <term><option>ptf remove</option> <replaceable>&lt;RPM&gt; ... &lt;RPM&gt;</replaceable></term>
+    <term><option>pkg remove</option> <replaceable>&lt;RPM&gt; ... &lt;RPM&gt;</replaceable></term>
     <listitem>
       <para>
 	A PTF consist of several RPMs can be removed from the system.
+      </para>
+    </listitem>
+  </varlistentry>
+  <varlistentry>
+    <term><option>grub.cfg</option></term>
+    <listitem>
+      <para>
+	<citerefentry
+	    project='linux.org'><refentrytitle>grub2-mkconfig</refentrytitle><manvolnum>8</manvolnum></citerefentry>
+	is called to create a new <filename>/boot/grub2/grub.cfg</filename>
+	configuration file for the bootloader.
       </para>
     </listitem>
   </varlistentry>
@@ -235,6 +246,16 @@ for more informations.
 	filesystem. Else the snapshot with <option>number</option> is made the
 	new default root filesystem. On a read-only filesystem, no additional
 	snapshots are created.
+      </para>
+    </listitem>
+  </varlistentry>
+  <varlistentry>
+    <term><option>shell</option></term>
+    <listitem>
+      <para>
+	After all actions are done, before the snapshot with the changes is
+	unmounted and switched to read-only, a shell is started in the new
+	snapshot as chroot environment for testing and debugging.
       </para>
     </listitem>
   </varlistentry>
