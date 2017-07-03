@@ -47,7 +47,7 @@ CONFIG_FILES_TO_COPY="/etc/default/grub"
 usage() {
     echo "Usage: transactional-update --help|--version"
     echo "       transactional-update [cleanup][up|dup|patch|initrd][kdump][reboot]"
-    echo "       transactional-update [cleanup] [reboot] pkg install|remove PKG1..PKGN"
+    echo "       transactional-update [cleanup] [reboot] pkg install|remove|update PKG1..PKGN"
     echo "       transactional-update rollback [number]"
     exit $1
 }
@@ -187,6 +187,10 @@ while [ 1 ]; do
 		    ;;
 		remove|rm)
 		    ZYPPER_ARG="remove"
+		    shift
+		    ;;
+		update|up)
+		    ZYPPER_ARG="up"
 		    shift
 		    ;;
 		*)

@@ -78,6 +78,7 @@
       <group choice='plain'>
 	<arg choice='plain'>install</arg>
 	<arg choice='plain'>remove</arg>
+	<arg choice='plain'>update</arg>
       </group>
       <arg choice='plain'>&lt;RPM&gt;...&lt;RPM&gt;</arg>
     </cmdsynopsis>
@@ -189,7 +190,16 @@ for more informations.
     <term><option>pkg remove</option> <replaceable>&lt;RPM&gt; ... &lt;RPM&gt;</replaceable></term>
     <listitem>
       <para>
-	A PTF consist of several RPMs can be removed from the system.
+	A PTF or other installed packages in RPM format can be removed from
+	the system.
+      </para>
+    </listitem>
+  </varlistentry>
+  <varlistentry>
+    <term><option>pkg update</option> <replaceable>&lt;RPM&gt; ... &lt;RPM&gt;</replaceable></term>
+    <listitem>
+      <para>
+	Packages installed as RPMs can be updated.
       </para>
     </listitem>
   </varlistentry>
