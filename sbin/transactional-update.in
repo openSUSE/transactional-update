@@ -496,7 +496,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	    RETVAL=$?
 	fi
 	if [ $RETVAL -ne 0 ]; then
-	    log_error "ERROR: zypper ${ZYPPER_ARG} on $directory failed!"
+	    log_error "ERROR: zypper ${ZYPPER_ARG} on ${MOUNT_DIR} failed!"
 	    EXITCODE=1
 	else
 	    REBUILD_KDUMP_INITRD=1
