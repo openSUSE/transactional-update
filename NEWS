@@ -2,6 +2,11 @@ transactional-update NEWS -- history of user-visible changes.
 
 Copyright (C) 2016, 2017 Thorsten Kukuk
 
+Version 1.20
+* Document more options
+* Add pkg update option
+* Fix output in error case
+
 Version 1.19
 * Add undocumented 'shell' option for debugging and testing
 
