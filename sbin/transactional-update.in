@@ -394,6 +394,14 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	if [ ${PACKAGE_UPDATES} -eq 0 -a ${SIZE_OF_UPDATES} -eq 0 ]; then
 	    log_info "zypper: nothing to update"
 	    log_info "transactional-update finished"
+	    if [ $USE_SALT_GRAINS -eq 1 ]; then
+		log_info "Update salt grains"
+		if [ -f /etc/salt/grains ]; then
+		    # Reset tx_update_failed if exist. Could have been set due to wrong
+		    # repository configuration or other temporary error before.
+		    sed -i -e 's|tx_update_failed:.*|tx_update_failed: false|g' /etc/salt/grains
+		fi
+	    fi
 	    exit 0
 	fi
     fi
