@@ -2,6 +2,9 @@ transactional-update NEWS -- history of user-visible changes.
 
 Copyright (C) 2016, 2017 Thorsten Kukuk
 
+Version 1.22
+* Rewrite cleanup code
+
 Version 1.21
 * Reset salt grains if no updates are available
 
