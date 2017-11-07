@@ -95,7 +95,7 @@ function bashlock {
   }
 
 save_state_file() {
-    echo "LAST_WORKING_SNAPSHOT_ID=${LAST_WORKING_SNAPSHOT_ID}" > ${STATE_FILE}
+    echo "LAST_WORKING_SNAPSHOTS=\"${LAST_WORKING_SNAPSHOTS}\"" > ${STATE_FILE}
     echo "UNUSED_SNAPSHOTS=\"${UNUSED_SNAPSHOTS}\"" >>  ${STATE_FILE}
 
     if [ $1 -ne 0 ]; then
@@ -148,6 +148,17 @@ quit() {
     fi
     log_info "transactional-update finished"
     exit $1
+}
+
+add_unique_id() {
+    local NEW_ID="$1"
+
+    for snap in ${LAST_WORKING_SNAPSHOTS}; do
+	if [ ${snap} -eq ${NEW_ID} ]; then
+	    return
+	fi
+    done
+    LAST_WORKING_SNAPSHOTS="${NEW_ID} ${LAST_WORKING_SNAPSHOTS}"
 }
 
 ORIG_ARGS="$@"
@@ -296,7 +307,7 @@ if [ $? -ne 0 ]; then
   log_error "WARNING: it looks like your installation isn't recent enough."
 fi
 
-ORIG_SNAPSHOT_ID=`grep subvol=/@/.snapshots/ /proc/mounts | grep "/ btrfs" | sed -e 's|.*.snapshots/\(.*\)/snapshot.*|\1|g'`
+CURRENT_SNAPSHOT_ID=`grep subvol=/@/.snapshots/ /proc/mounts | grep "/ btrfs" | sed -e 's|.*.snapshots/\(.*\)/snapshot.*|\1|g'`
 DEFAULT_SNAPSHOT_ID=`btrfs subvolume get-default / | sed -e 's|.*.snapshots/\(.*\)/snapshot|\1|g'`
 RO_ROOT=`btrfs property get / ro | sed -e 's|ro=||'`
 
@@ -304,7 +315,7 @@ if [ ${DO_ROLLBACK} -eq 1 ]; then
     NEED_REBOOT_WARNING=1
 
     if [ ${ROLLBACK_SNAPSHOT} -eq 0 ]; then
-	ROLLBACK_SNAPSHOT=${ORIG_SNAPSHOT_ID}
+	ROLLBACK_SNAPSHOT=${CURRENT_SNAPSHOT_ID}
 	NEED_REBOOT_WARNING=0
     fi
 
@@ -338,41 +349,56 @@ fi
 # Cleanup part: make sure old root filesystem will be removed after it is no longer active.
 #
 if [ ${DO_CLEANUP} -eq 1 ]; then
-    # if our current snapshot is identical to the original snapshot, we did a reboot after the
-    # last transactional snapshot and try to cleanup old snapshots
-    if [ ${ORIG_SNAPSHOT_ID} -eq ${DEFAULT_SNAPSHOT_ID} ]; then
-	if [ -n "${LAST_WORKING_SNAPSHOT_ID}" ]; then
-	    log_info "Add cleanup algorithm to snapshot #${LAST_WORKING_SNAPSHOT_ID}"
-	    snapper modify -c number ${LAST_WORKING_SNAPSHOT_ID} |& tee -a ${LOGFILE}
-	    if [ ${PIPESTATUS[0]} -ne 0 ]; then
-		log_error "ERROR: cannot set cleanup algorithm for snapshot #${LAST_WORKING_SNAPSHOT_ID}"
-	    fi
-	    # if the old snapshot is read-write, we have already a mandatory snapshot and this one can deleted
-	    # earlier. If not, mark is as important, so that it will not get deleted to fast.
-	    if [ ${RO_ROOT} == "true" ]; then
-		log_info "Add \"important=yes\" to snapshot #${LAST_WORKING_SNAPSHOT_ID}"
-		snapper modify -u "important=yes" ${LAST_WORKING_SNAPSHOT_ID} |& tee -a ${LOGFILE}
+    # if there is a list of working snapshots, go through it and mark any snapshot for deletion, if it is
+    # not the current used one or the active one.
+    if [ -n "${LAST_WORKING_SNAPSHOTS}" ]; then
+	for snap in ${LAST_WORKING_SNAPSHOTS}; do
+	    if [ ${CURRENT_SNAPSHOT_ID} -ne ${snap} ]; then
+		log_info "Add cleanup algorithm to snapshot #${snap}"
+		snapper modify -c number ${snap} |& tee -a ${LOGFILE}
 		if [ ${PIPESTATUS[0]} -ne 0 ]; then
-		    log_error "ERROR: cannot set \"important=yes for snapshot\" #${LAST_WORKING_SNAPSHOT_ID}"
+		    log_error "ERROR: cannot set cleanup algorithm for snapshot #${snap}"
 		fi
-	    fi
-	    LAST_WORKING_SNAPSHOT_ID=""
-	    save_state_file 0
-	fi
-	if [ -n "${UNUSED_SNAPSHOTS}" ]; then
-	    for snap in ${UNUSED_SNAPSHOTS}; do
-		# Don't mark our current in use snapshot for deletion
-		if [ ${snap} -ne ${ORIG_SNAPSHOT_ID} ]; then
-		    log_info "Mark not used snapshot #${snap} for deletion"
-		    snapper modify -c number ${snap} |& tee -a ${LOGFILE}
+		# if the old snapshot is read-write, we have already a mandatory snapshot and this one can deleted
+		# earlier. If not, mark is as important, so that it will not get deleted to fast.
+		if [ ${RO_ROOT} == "true" ]; then
+		    log_info "Add \"important=yes\" to snapshot #${snap}"
+		    snapper modify -u "important=yes" ${snap} |& tee -a ${LOGFILE}
 		    if [ ${PIPESTATUS[0]} -ne 0 ]; then
-			log_error "ERROR: cannot set cleanup algorithm for snapshot #${LAST_WORKING_SNAPSHOT_ID}"
+			log_error "ERROR: cannot set \"important=yes for snapshot\" #${snap}"
 		    fi
 		fi
-	    done
-	    UNUSED_SNAPSHOTS=""
-	    save_state_file 0
-	fi
+	    else
+		NEW_LIST="${snap} ${NEW_LIST}"
+	    fi
+	done
+	LAST_WORKING_SNAPSHOTS="${NEW_LIST}"
+	save_state_file 0
+    fi
+
+    # we try to cleanup always all snapshots. We only need to keep the current snapshot
+    # and the new default one.
+    if [ -n "${UNUSED_SNAPSHOTS}" ]; then
+	_new_unused=""
+	for snap in ${UNUSED_SNAPSHOTS}; do
+	    # Don't mark our current in use snapshot for deletion
+	    if [ ${snap} -ne ${CURRENT_SNAPSHOT_ID} ] && \
+		[ ${snap} -ne ${DEFAULT_SNAPSHOT_ID} ]; then
+		log_info "Mark not used snapshot #${snap} for deletion"
+		snapper modify -c number ${snap} |& tee -a ${LOGFILE}
+		if [ ${PIPESTATUS[0]} -ne 0 ]; then
+		    log_error "ERROR: cannot set cleanup algorithm for snapshot #${snap}"
+		    # Keep the snapshot in the list
+		    _new_unused="${snap} ${_new_unused}"
+		fi
+	    elif [ ${snap} -ne ${CURRENT_SNAPSHOT_ID} ]; then
+		# We currently still need the snapshot, so keep it in the
+		# list. Else we will never clean it up later.
+		_new_unused="${snap} ${_new_unused}"
+	    fi
+	done
+	UNUSED_SNAPSHOTS="${_new_unused}"
+	save_state_file 0
     fi
 fi
 
@@ -409,8 +435,8 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
     # If the current root filesystem is not read-only, we need to create a read-only copy for rollback.
     # The rw subvolume is not shown in grub2.
     if [ ${RO_ROOT} == "false" ]; then
-	log_info "Create read-only snapshot of current read-write root filesystem (#${ORIG_SNAPSHOT_ID})"
-	SECOND_SNAPSHOT_ID=`snapper create -p -c number -u "important=yes" -d "RO-Clone of #${ORIG_SNAPSHOT_ID}"`
+	log_info "Create read-only snapshot of current read-write root filesystem (#${CURRENT_SNAPSHOT_ID})"
+	SECOND_SNAPSHOT_ID=`snapper create -p -c number -u "important=yes" -d "RO-Clone of #${CURRENT_SNAPSHOT_ID}"`
 	if [ $? -ne 0 ]; then
 	    log_error "ERROR: snapper create failed!"
 	    exit 1
@@ -587,7 +613,8 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 		log_error "ERROR: btrfs set-default $BTRFS_ID failed!"
 		EXITCODE=1;
 	    else
-		LAST_WORKING_SNAPSHOT_ID=${ORIG_SNAPSHOT_ID}
+		# save the old snapshot, else it will go lost
+		add_unique_id ${CURRENT_SNAPSHOT_ID}
 		save_state_file ${SNAPSHOT_ID}
 	    fi
 	fi
