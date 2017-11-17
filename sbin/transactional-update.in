@@ -406,8 +406,8 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
     -o ${REWRITE_INITRD} -eq 1 -o ${REBUILD_KDUMP_INITRD} -eq 1 \
     -o ${RUN_SHELL} -eq 1 ]; then
 
+    # Check if there are updates at all.
     if [ -n "${ZYPPER_ARG}" -a -n "${ZYPPER_NONINTERACTIVE}" ]; then
-	#check if there are updates at all
 	TMPFILE=`mktemp /tmp/transactional-update.XXXXXXXXXX`
 	zypper --xml ${ZYPPER_ARG} ${ZYPPER_NONINTERACTIVE} --dry-run ${ZYPPER_ARG_PKGS} > ${TMPFILE}
 	if [ $? -ne 0 ]; then
@@ -478,6 +478,11 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
     if [ ${RO_ROOT} == "true" ]; then
 	DIR_TO_MOUNT="${DIR_TO_MOUNT} etc/zypp"
     fi
+
+    # Check which directories in /boot/grub2 needs to be mounted,
+    # else a version update of grub2 will not boot.
+    DIR_TO_MOUNT="${DIR_TO_MOUNT} `grep /boot/grub2/ /etc/fstab |grep subvol | awk '{print $2}'`"
+
 
     # Mount everything we need:
     mount -t proc none ${SNAPSHOT_DIR}/proc
