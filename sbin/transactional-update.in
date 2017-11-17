@@ -335,7 +335,7 @@ if [ ${DO_ROLLBACK} -eq 1 ]; then
 	    # Create the trigger to re-register the system as new version after next
 	    # reboot.
 	    test -d ${MOUNT_DIR}/var/lib/rollback || mkdir -p ${MOUNT_DIR}/var/lib/rollback
-	    touch ${MOUNT_DIR}/var/lib/rollback/check-registratin
+	    touch ${MOUNT_DIR}/var/lib/rollback/check-registration
 	fi
 	# Remove possible cleanup algo
 	snapper modify -c '' ${ROLLBACK_SNAPSHOT}
