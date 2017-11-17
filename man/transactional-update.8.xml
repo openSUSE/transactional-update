@@ -84,6 +84,10 @@
     </cmdsynopsis>
     <cmdsynopsis>
       <command>transactional-update</command>
+      <arg choice='plain'>migration</arg>
+    </cmdsynopsis>
+    <cmdsynopsis>
+      <command>transactional-update</command>
       <arg choice='plain'>rollback</arg>
       <arg choice='opt'>number</arg>
     </cmdsynopsis>
@@ -121,18 +125,6 @@ for more informations.
 <refsect1 id='options'><title>OPTIONS</title>
 <variablelist remap='TP'>
   <varlistentry>
-    <term><option>--help</option></term>
-    <listitem>
-      <para>Display help and exit</para>
-    </listitem>
-  </varlistentry>
-  <varlistentry>
-    <term><option>--version</option></term>
-    <listitem>
-      <para>Output version information and exit</para>
-    </listitem>
-  </varlistentry>
-  <varlistentry>
     <term><option>cleanup</option></term>
     <listitem>
       <para>If the current root filesystem is identical to the active root
@@ -146,17 +138,6 @@ for more informations.
     </listitem>
   </varlistentry>
   <varlistentry>
-    <term><option>up</option></term>
-    <listitem>
-      <para>
-	If new updates are available, a new snapshot is created and
-	<command>zypper up</command> is used to update the snapshot.
-	Afterwards, the snapshot is activated and will be used as the new root
-	filesystem during next boot.
-      </para>
-    </listitem>
-  </varlistentry>
-  <varlistentry>
     <term><option>dup</option></term>
     <listitem>
       <para>
@@ -164,6 +145,43 @@ for more informations.
 	<command>zypper dup --no-allow-vendor-change</command> is used to
 	update the snapshot. Afterwards, the snapshot is activated and will be
 	used as the new root filesystem during next boot.
+      </para>
+    </listitem>
+  </varlistentry>
+  <varlistentry>
+    <term><option>grub.cfg</option></term>
+    <listitem>
+      <para>
+	<citerefentry
+	    project='linux.org'><refentrytitle>grub2-mkconfig</refentrytitle><manvolnum>8</manvolnum></citerefentry>
+	is called to create a new <filename>/boot/grub2/grub.cfg</filename>
+	configuration file for the bootloader.
+      </para>
+    </listitem>
+  </varlistentry>
+  <varlistentry>
+    <term><option>initrd</option></term>
+    <listitem>
+      <para>
+	A new initrd is created in a snapshot.
+      </para>
+    </listitem>
+  </varlistentry>
+  <varlistentry>
+    <term><option>kdump</option></term>
+    <listitem>
+      <para>
+	A new initrd for kdump is created in a snapshot.
+      </para>
+    </listitem>
+  </varlistentry>
+  <varlistentry>
+    <term><option>migration</option></term>
+    <listitem>
+      <para>
+	On systems which are registered against the SUSE Customer Center (SCC)
+	or SMT, a migration to a new version of the installed products can be
+	made with	this option. This is done in an interactive mode.
       </para>
     </listitem>
   </varlistentry>
@@ -204,33 +222,6 @@ for more informations.
     </listitem>
   </varlistentry>
   <varlistentry>
-    <term><option>grub.cfg</option></term>
-    <listitem>
-      <para>
-	<citerefentry
-	    project='linux.org'><refentrytitle>grub2-mkconfig</refentrytitle><manvolnum>8</manvolnum></citerefentry>
-	is called to create a new <filename>/boot/grub2/grub.cfg</filename>
-	configuration file for the bootloader.
-      </para>
-    </listitem>
-  </varlistentry>
-  <varlistentry>
-    <term><option>initrd</option></term>
-    <listitem>
-      <para>
-	A new initrd is created in a snapshot.
-      </para>
-    </listitem>
-  </varlistentry>
-  <varlistentry>
-    <term><option>kdump</option></term>
-    <listitem>
-      <para>
-	A new initrd for kdump is created in a snapshot.
-      </para>
-    </listitem>
-  </varlistentry>
-  <varlistentry>
     <term><option>reboot</option></term>
     <listitem>
       <para>
@@ -267,6 +258,29 @@ for more informations.
 	unmounted and switched to read-only, a shell is started in the new
 	snapshot as chroot environment for testing and debugging.
       </para>
+    </listitem>
+  </varlistentry>
+  <varlistentry>
+    <term><option>up</option></term>
+    <listitem>
+      <para>
+	If new updates are available, a new snapshot is created and
+	<command>zypper up</command> is used to update the snapshot.
+	Afterwards, the snapshot is activated and will be used as the new root
+	filesystem during next boot.
+      </para>
+    </listitem>
+  </varlistentry>
+  <varlistentry>
+    <term><option>--help</option></term>
+    <listitem>
+      <para>Display help and exit</para>
+    </listitem>
+  </varlistentry>
+  <varlistentry>
+    <term><option>--version</option></term>
+    <listitem>
+      <para>Output version information and exit</para>
     </listitem>
   </varlistentry>
 </variablelist>

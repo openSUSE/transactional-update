@@ -29,6 +29,7 @@ REWRITE_GRUB_CFG=0
 REWRITE_INITRD=0
 REBUILD_KDUMP_INITRD=0
 DO_CLEANUP=0
+DO_MIGRATION=0
 DO_ROLLBACK=0
 ROLLBACK_SNAPSHOT=0
 REBOOT_AFTERWARDS=0
@@ -48,6 +49,7 @@ usage() {
     echo "Usage: transactional-update --help|--version"
     echo "       transactional-update [cleanup][up|dup|patch|initrd][kdump][reboot]"
     echo "       transactional-update [cleanup] [reboot] pkg install|remove|update PKG1..PKGN"
+    echo "       transactional-update migration"
     echo "       transactional-update rollback [number]"
     exit $1
 }
@@ -223,6 +225,12 @@ while [ 1 ]; do
 	    done
             # Run installing PTFs interactive
             ZYPPER_NONINTERACTIVE=""
+	    ;;
+	migration)
+	    DO_MIGRATION=1
+	    ZYPPER_NONINTERACTIVE=""
+	    ZYPPER_ARG="migration"
+	    shift
 	    ;;
 	grub.cfg)
 	    REWRITE_GRUB_CFG=1
@@ -535,8 +543,22 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	    env DISABLE_RESTART_ON_UPDATE=yes zypper -R ${MOUNT_DIR} ${ZYPPER_ARG} ${ZYPPER_NONINTERACTIVE} ${ZYPPER_ARG_PKGS} |& tee -a ${LOGFILE}
 	    RETVAL=${PIPESTATUS[0]}
 	else
-	    env DISABLE_RESTART_ON_UPDATE=yes zypper -R ${MOUNT_DIR} ${ZYPPER_ARG} ${ZYPPER_ARG_PKGS}
-	    RETVAL=$?
+	    if [ ${DO_MIGRATION} -eq 1 ]; then
+		chroot ${MOUNT_DIR} env DISABLE_RESTART_ON_UPDATE=yes zypper ${ZYPPER_ARG} ${ZYPPER_ARG_PKGS}
+		RETVAL=$?
+		# Reset registration until we reboot. Needed in both cases,
+		# if an error occured or if we had success.
+		test -x /usr/sbin/rollback-reset-registration && /usr/sbin/rollback-reset-registration
+		if [ $RETVAL -eq 0 ]; then
+		    # Create the trigger to re-register the system as new version after next
+		    # reboot.
+		    test -d ${MOUNT_DIR}/var/lib/rollback || mkdir -p ${MOUNT_DIR}/var/lib/rollback
+		    touch ${MOUNT_DIR}/var/lib/rollback/check-registration
+		fi
+	    else
+		env DISABLE_RESTART_ON_UPDATE=yes zypper -R ${MOUNT_DIR} ${ZYPPER_ARG} ${ZYPPER_ARG_PKGS}
+		RETVAL=$?
+	    fi
 	fi
 	if [ $RETVAL -ne 0 ]; then
 	    log_error "ERROR: zypper ${ZYPPER_ARG} on ${MOUNT_DIR} failed!"
