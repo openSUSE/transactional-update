@@ -2,6 +2,12 @@ transactional-update NEWS -- history of user-visible changes.
 
 Copyright (C) 2016, 2017 Thorsten Kukuk
 
+Version 1.23
+* Fix re-registration in rollback case
+* Fix problems with updating the grub2 bootloader
+* Add support for migration of products with SCC
+* Re-add support to re-write bootloader
+
 Version 1.22
 * Rewrite cleanup code
 
