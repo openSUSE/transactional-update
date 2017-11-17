@@ -65,6 +65,7 @@
 	<arg choice='plain'>up</arg>
 	<arg choice='plain'>dup</arg>
 	<arg choice='plain'>patch</arg>
+	<arg choice='plain'>bootloader</arg>
 	<arg choice='plain'>initrd</arg>
     </group>
     <arg choice='opt'>kdump</arg>
@@ -156,6 +157,15 @@ for more informations.
 	    project='linux.org'><refentrytitle>grub2-mkconfig</refentrytitle><manvolnum>8</manvolnum></citerefentry>
 	is called to create a new <filename>/boot/grub2/grub.cfg</filename>
 	configuration file for the bootloader.
+      </para>
+    </listitem>
+  </varlistentry>
+  <varlistentry>
+    <term><option>bootloader</option></term>
+    <listitem>
+      <para>
+	A new snapshot is created, the bootloader configuration updated and
+	the boorloader newly written.
       </para>
     </listitem>
   </varlistentry>

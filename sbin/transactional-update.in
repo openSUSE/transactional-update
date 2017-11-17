@@ -25,6 +25,7 @@ EXITCODE=0
 ZYPPER_ARG=""
 ZYPPER_NONINTERACTIVE="-y --auto-agree-with-product-licenses"
 ZYPPER_ARG_PKGS=""
+REWRITE_BOOTLOADER=0
 REWRITE_GRUB_CFG=0
 REWRITE_INITRD=0
 REBUILD_KDUMP_INITRD=0
@@ -232,6 +233,11 @@ while [ 1 ]; do
 	    ZYPPER_ARG="migration"
 	    shift
 	    ;;
+        bootloader)
+	    REWRITE_BOOTLOADER=1
+	    REWRITE_GRUB_CFG=1
+            shift
+            ;;
 	grub.cfg)
 	    REWRITE_GRUB_CFG=1
 	    shift
@@ -416,7 +422,7 @@ fi
 
 if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
     -o ${REWRITE_INITRD} -eq 1 -o ${REBUILD_KDUMP_INITRD} -eq 1 \
-    -o ${RUN_SHELL} -eq 1 ]; then
+    -o ${RUN_SHELL} -eq 1 -o ${REWRITE_BOOTLOADER} -eq 1 ]; then
 
     # Check if there are updates at all.
     if [ -n "${ZYPPER_ARG}" -a -n "${ZYPPER_NONINTERACTIVE}" ]; then
@@ -589,6 +595,15 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	chroot ${MOUNT_DIR} /usr/sbin/grub2-mkconfig > ${MOUNT_DIR}/boot/grub2/grub.cfg
 	if [ $? -ne 0 ]; then
 	    log_error "ERROR: grub2-mkconfig failed!"
+	    EXITCODE=1;
+	fi
+    fi
+
+    if [ ${REWRITE_BOOTLOADER} -eq 1 ]; then
+	log_info "Write new bootloader"
+	chroot ${MOUNT_DIR} /sbin/pbl --install
+	if [ $? -ne 0 ]; then
+	    log_error "ERROR: /sbin/pbl --install failed!"
 	    EXITCODE=1;
 	fi
     fi
