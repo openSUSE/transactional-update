@@ -54,5 +54,15 @@ JH_CHECK_XML_CATALOG([http://docbook.sourceforge.net/release/xsl/current/manpage
                 [DocBook XSL Stylesheets], [], enable_man=no)
 AM_CONDITIONAL(ENABLE_REGENERATE_MAN, test x$enable_man != xno)
 
+AC_PATH_PROG([BROWSER], [w3m])
+if test ! -z "$BROWSER"; then
+     BROWSER="$BROWSER -T text/html -dump"
+else
+     AC_PATH_PROG([BROWSER], [links])
+     if test ! -z "$BROWSER"; then
+          BROWSER="$BROWSER -no-numbering -no-references -dump"
+     fi
+fi
+
 AC_OUTPUT([Makefile sbin/Makefile man/Makefile systemd/Makefile \
-	logrotate/Makefile sbin/transactional-update])
+	logrotate/Makefile doc/Makefile sbin/transactional-update])

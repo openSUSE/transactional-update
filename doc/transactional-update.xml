@@ -1,0 +1,121 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook XML V4.4//EN"
+	"http://www.oasis-open.org/docbook/xml/4.5/docbookx.dtd">
+<book id="tug">
+  <bookinfo>
+    <title>The Transactional Update Guide</title>
+    <authorgroup>
+      <author>
+        <firstname>Thorsten</firstname>
+        <surname>Kukuk</surname>
+        <email>kukuk@thkukuk.de</email>
+      </author>
+    </authorgroup>
+    <releaseinfo>Version 0.1, 24. November 2017</releaseinfo>
+    <abstract>
+      <para>
+	This documentation describes how transactional update with btrfs
+	works, what an administrator needs to know about the system setup and
+	what a packager needs to know for his package.
+      </para>
+    </abstract>
+  </bookinfo>
+
+  <chapter id="tu-introduction">
+    <title>Introduction</title>
+    <section id="tu-introduction-description">
+      <title>Description</title>
+      <para>
+        <emphasis remap='B'>transactional-update</emphasis>
+	is an application that allows to apply intrusive updates to a running
+	system in an <emphasis>atomic</emphasis> way without influencing the
+	running	system, taking the system down for a longer period or blocks
+	the boot process.
+      </para>
+    </section>
+
+    <section id="tu-introduction-definition">
+      <title>Definition</title>
+      <para>
+	A <emphasis>transactional update</emphasis> is a kind of update that:
+      </para>
+      <itemizedlist>
+	<listitem>
+	  <para>
+	    is atomic - the update does not influence your running system
+	  </para>
+	</listitem>
+	<listitem>
+	  <para>
+	    can be rolled back - if the upgrade fails or if the newer software
+	    version is not compatible with your infrastructure, you can
+	    quickly  restore the situation as it was before the upgrade.
+	  </para>
+	</listitem>
+      </itemizedlist>
+    </section>
+  </chapter>
+
+  <chapter id="tu-howitworks">
+    <title>How it works</title>
+    <para>
+      Explain how transactional update works, use pictures from slides.
+    </para>
+  </chapter>
+
+  <chapter id="tu-setup">
+    <title> Setup of system </title>
+    <para>
+      Read-only root filesystem or Read-Write filesystem? Requirements for
+      RPMs, what is allowed and what not. Config files in /etc with
+      overlayfs. Special handling for passwd, shadow, group. Rollback. Strict
+      seperation from data and applications.
+    </para>
+  </chapter>
+
+  <chapter id='tu-porting'>
+    <title>Porting to other systems</title>
+    <para>
+      You need a CoW filesystem (or anything else with snapshots
+      and rollback), else this should work with every package manager.
+    </para>
+  </chapter>
+
+  <chapter id='tu-files'>
+    <title>Files</title>
+    <variablelist>
+      <varlistentry>
+        <term><filename>/usr/include/security/pam_appl.h</filename></term>
+        <listitem>
+          <para>
+            Header file with interfaces for
+            <emphasis remap='B'>Linux-PAM</emphasis> applications.
+           </para>
+        </listitem>
+      </varlistentry>
+      <varlistentry>
+        <term><filename>/usr/include/security/pam_misc.h</filename></term>
+        <listitem>
+          <para>
+            Header file for useful library functions for making
+            applications easier to write.
+          </para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+  </chapter>
+
+  <chapter id='tu-author'>
+    <title>Author/acknowledgments</title>
+    <para>
+      This document was written by Thorsten Kukuk &lt;kukuk@suse.com&gt;
+      with many contributions from ...
+    </para>
+  </chapter>
+
+  <chapter id='tu-copyright'>
+    <title>Copyright information for this document</title>
+    <para>
+    </para>
+  </chapter>
+</book>
