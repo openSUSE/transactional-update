@@ -319,6 +319,21 @@ for more informations.
 </para>
 </refsect1>
 
+<refsect1 id='notes'><title>NOTES</title>
+<para>
+  If <filename>/etc/default/grub</filename> was modified by an administrator,
+  the modified version is copied into the new snapshot.
+</para>
+<para>
+  If during the update process <filename>/etc/passwd</filename>,
+  <filename>/etc/group</filename> or <filename>/etc/shadow</filename> are
+  modified and <filename>/usr/etc</filename> exists, the modified files are
+  copied into <filename>/usr/etc</filename> and can be accessed by tools like
+  <command>libnss_usrfiles</command>. This prevents that the new accounts are
+  hidden by local modifications by the system administrator.
+</para>
+</refsect1>
+
 <refsect1 id='see_also'><title>SEE ALSO</title>
 <para><citerefentry project='systemd'><refentrytitle>systemd.timer</refentrytitle><manvolnum>5</manvolnum></citerefentry>,
 <citerefentry project='systemd'><refentrytitle>systemd.time</refentrytitle><manvolnum>7</manvolnum></citerefentry></para>

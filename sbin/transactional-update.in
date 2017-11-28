@@ -125,6 +125,37 @@ rebuild_kdump_initrd() {
     fi
 }
 
+# if the SHA256 sum of passwd, group or shadow has changed, copy the
+# files to /usr/etc as fallback source. Else, if the user did modify a password,
+# the shadow copy of this files will hide this changes. Needs libnss_usrfiles
+# installed.
+calc_user_group_sha256sum () {
+    SHA256_passwd=`sha256sum ${MOUNT_DIR}/etc/passwd | awk '{ print $1 }'`
+    SHA256_group=`sha256sum ${MOUNT_DIR}/etc/group | awk '{ print $1 }'`
+    SHA256_shadow=`sha256sum ${MOUNT_DIR}/etc/shadow | awk '{ print $1 }'`
+}
+
+copy_user_group_accounts () {
+    # check if we have usr/etc (means libnss_usrfiles is installed.
+    # if not, don't copy modified passwd, group or shadow files.
+    test -d ${MOUNT_DIR}/usr/etc || return
+
+    NEWSUM=`sha256sum ${MOUNT_DIR}/etc/passwd | awk '{ print $1 }'`
+    if [ ${NEWSUM} != ${SHA256_passwd} ]; then
+	cp -a ${MOUNT_DIR}/etc/passwd ${MOUNT_DIR}/usr/etc/
+    fi
+
+    NEWSUM=`sha256sum ${MOUNT_DIR}/etc/group | awk '{ print $1 }'`
+    if [ ${NEWSUM} != ${SHA256_group} ]; then
+	cp -a ${MOUNT_DIR}/etc/group ${MOUNT_DIR}/usr/etc/
+    fi
+
+    NEWSUM=`sha256sum ${MOUNT_DIR}/etc/shadow | awk '{ print $1 }'`
+    if [ ${NEWSUM} != ${SHA256_shadow} ]; then
+	cp -a ${MOUNT_DIR}/etc/shadow ${MOUNT_DIR}/usr/etc/
+    fi
+}
+
 # only called in error case
 quit() {
     if [ -n "${SNAPSHOT_ID}" ] ; then
@@ -544,6 +575,9 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
     done
 
     if [ -n "${ZYPPER_ARG}" ]; then
+
+	calc_user_group_sha256sum
+
 	log_info "Calling zypper ${ZYPPER_ARG}"
 	if [ -n "${ZYPPER_NONINTERACTIVE}" ]; then
 	    env DISABLE_RESTART_ON_UPDATE=yes zypper -R ${MOUNT_DIR} ${ZYPPER_ARG} ${ZYPPER_NONINTERACTIVE} ${ZYPPER_ARG_PKGS} |& tee -a ${LOGFILE}
@@ -566,10 +600,12 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 		RETVAL=$?
 	    fi
 	fi
+
 	if [ $RETVAL -ne 0 ]; then
 	    log_error "ERROR: zypper ${ZYPPER_ARG} on ${MOUNT_DIR} failed!"
 	    EXITCODE=1
 	else
+	    copy_user_group_accounts
 	    REBUILD_KDUMP_INITRD=1
 	fi
     fi
