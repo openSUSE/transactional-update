@@ -507,11 +507,11 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	quit 1;
     fi
 
-    # Save all snapshots we create for update. If transactional-update is
+    # Remember all snapshots we create for update. If transactional-update is
     # run several times before a reboot, we need to cleanup the not used
-    # snapshots. Else we would have a big disk space leak.
+    # snapshots. Else we would have a big disk space leak. But don't store it
+    # on disk yet, in error case we would delete the snapshot again.
     UNUSED_SNAPSHOTS="${SNAPSHOT_ID} ${UNUSED_SNAPSHOTS}"
-    save_state_file ${SNAPSHOT_ID}
 
     # Check if installed with SLES12
     touch ${SNAPSHOT_DIR}/var/tmp/update_snapshot.test
