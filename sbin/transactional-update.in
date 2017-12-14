@@ -526,6 +526,9 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
     # means not part of the snapshot itself
     if [ ${RO_ROOT} == "true" ]; then
 	DIR_TO_MOUNT="${DIR_TO_MOUNT} etc/zypp"
+        if [ ${RUN_SHELL} -eq 1 ]; then
+           DIR_TO_MOUNT="${DIR_TO_MOUNT} root"
+        fi
     fi
 
     # Check which directories in /boot/grub2 needs to be mounted,
