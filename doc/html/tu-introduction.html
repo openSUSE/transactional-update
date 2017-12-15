@@ -1,0 +1,68 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"><title>Chapter 1. Introduction</title><meta name="generator" content="DocBook XSL Stylesheets V1.78.1"><link rel="home" href="transactional-update.html" title="The Transactional Update Guide"><link rel="up" href="transactional-update.html" title="The Transactional Update Guide"><link rel="prev" href="transactional-update.html" title="The Transactional Update Guide"><link rel="next" href="tu-howitworks.html" title="Chapter 2. How it works"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">Chapter 1. Introduction</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="transactional-update.html">Prev</a> </td><th width="60%" align="center"> </th><td width="20%" align="right"> <a accesskey="n" href="tu-howitworks.html">Next</a></td></tr></table><hr></div><div class="chapter"><div class="titlepage"><div><div><h1 class="title"><a name="tu-introduction"></a>Chapter 1. Introduction</h1></div></div></div><div class="toc"><p><b>Table of Contents</b></p><dl class="toc"><dt><span class="section"><a href="tu-introduction.html#tu-introduction-description">1.1. Description</a></span></dt><dt><span class="section"><a href="tu-introduction.html#tu-introduction-definition">1.2. Definition</a></span></dt><dt><span class="section"><a href="tu-introduction.html#tu-introduction-reason">1.3. Why transactional updates?</a></span></dt></dl></div><div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="tu-introduction-description"></a>1.1. Description</h2></div></div></div><p>
+        <span class="emphasis"><em>transactional-update</em></span>
+	is an application that allows to apply intrusive updates to a running
+	system in an <span class="emphasis"><em>atomic</em></span> way without influencing the
+	running	system, taking the system down for a longer period or blocks
+	the boot process. It is not a package manager, while implemented for
+	zypper with RPMs, it can be changed to use other package managers
+	and package formats. The idea and reason for this is, that you can
+	continue to use your existing packages and tool chain to deliver
+	and apply updates.
+      </p><p>
+	To archive this, <span class="emphasis"><em>transactional-update</em></span>
+	creates for every update a new snapshot with
+	<span class="emphasis"><em>btrfs</em></span> and updates this to the latest version of
+	the product. Since snapshots contain only the difference between two
+	versions and thus are mostly very small, this is very space efficient.
+      </p></div><div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="tu-introduction-definition"></a>1.2. Definition</h2></div></div></div><p>
+	A <span class="emphasis"><em>transactional update</em></span> is a kind of update that:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+	    is atomic
+	  </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p>
+		the update does not influence your running system.
+	      </p></li><li class="listitem"><p>
+		you can at every time power off your machine. If you power it
+		on again, either you have your unmodified old state, or the
+		complete new one.
+	      </p></li></ul></div></li><li class="listitem"><p>
+	    can be rolled back
+	    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p>
+		if the upgrade fails or if the newer software
+		version is not compatible with your infrastructure, you can
+		quickly  restore the situation as it was before the upgrade.
+	      </p></li></ul></div></li></ul></div></div><div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="tu-introduction-reason"></a>1.3. Why transactional updates?</h2></div></div></div><p>
+	Linux distributions have working update mechanism since many, many
+	years, why do we need something new? There are different users,
+	which have different requirements. We have the Desktop user on a very
+	stable distribution, for whom the current update mechanism good
+	enough. But we also have the bleeding edge distribtuion with rolling
+	updates and the enterprise customer with critical applications, which
+	have different requirements.
+      </p><p>
+	Distributions wit "rolling" updates face the problem: how should
+	intrusive updates be applied in a running system? Without breaking the
+	update mechanism itself? Like the migration from SysV init to
+	systemd. Or the big version update of the Desktop while the Desktop is
+	running. Very likely will this update kill the currently running
+	Desktop, which would kill the update process, which leaves the system
+	in a broken, undefined state. Additional, if an update breaks such a
+	system, there needs to be a quick way to rollback the system to the
+	last working state.
+      </p><p>
+	On mission critical systems, the update is not allowed to interrupt
+	the running services. On such systems, interrupting running services
+	is more expensive than a scheduled reboot. And the system needs always
+	to be in a defined state. Which means, the updates are applied without
+	error or no change is done. E.g. if a post-install script of a RPM
+	fails, the system is in an undefined state, which should never happen.
+      </p><p>
+	Sometimes, new software versions of the kernel or software are
+	incompatible with your hardware or other software. In this case, there
+	should be a quick and easy way to rollback to the state before the
+	update was applied.
+      </p><p>
+	There are other solutions available for the above problems, like
+	downloading all RPMs upfront and apply them during the boot phase. But
+	this blocks the user from using his PC if there is something urgently
+	todo.
+      </p></div></div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="transactional-update.html">Prev</a> </td><td width="20%" align="center"> </td><td width="40%" align="right"> <a accesskey="n" href="tu-howitworks.html">Next</a></td></tr><tr><td width="40%" align="left" valign="top">The Transactional Update Guide </td><td width="20%" align="center"><a accesskey="h" href="transactional-update.html">Home</a></td><td width="40%" align="right" valign="top"> Chapter 2. How it works</td></tr></table></div></body></html>
