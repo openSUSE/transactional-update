@@ -11,7 +11,7 @@
         <email>kukuk@thkukuk.de</email>
       </author>
     </authorgroup>
-    <releaseinfo>Version 0.1, 24. November 2017</releaseinfo>
+    <releaseinfo>Version 0.1, 15. December 2017</releaseinfo>
     <abstract>
       <para>
 	This documentation describes how transactional update with btrfs
@@ -30,7 +30,18 @@
 	is an application that allows to apply intrusive updates to a running
 	system in an <emphasis>atomic</emphasis> way without influencing the
 	running	system, taking the system down for a longer period or blocks
-	the boot process.
+	the boot process. It is not a package manager, while implemented for
+	zypper with RPMs, it can be changed to use other package managers
+	and package formats. The idea and reason for this is, that you can
+	continue to use your existing packages and tool chain to deliver
+	and apply updates.
+      </para>
+      <para>
+	To archive this, <emphasis remap='B'>transactional-update</emphasis>
+	creates for every update a new snapshot with
+	<emphasis>btrfs</emphasis> and updates this to the latest version of
+	the product. Since snapshots contain only the difference between two
+	versions and thus are mostly very small, this is very space efficient.
       </para>
     </section>
 
@@ -42,25 +53,234 @@
       <itemizedlist>
 	<listitem>
 	  <para>
-	    is atomic - the update does not influence your running system
+	    is atomic
 	  </para>
+	  <itemizedlist>
+	    <listitem>
+	      <para>
+		the update does not influence your running system.
+	      </para>
+	    </listitem>
+	    <listitem>
+	      <para>
+		you can at every time power off your machine. If you power it
+		on again, either you have your unmodified old state, or the
+		complete new one.
+	      </para>
+	    </listitem>
+	  </itemizedlist>
 	</listitem>
 	<listitem>
 	  <para>
-	    can be rolled back - if the upgrade fails or if the newer software
-	    version is not compatible with your infrastructure, you can
-	    quickly  restore the situation as it was before the upgrade.
-	  </para>
+	    can be rolled back
+	    </para>
+	  <itemizedlist>
+	    <listitem>
+	      <para>
+		if the upgrade fails or if the newer software
+		version is not compatible with your infrastructure, you can
+		quickly  restore the situation as it was before the upgrade.
+	      </para>
+	    </listitem>
+	  </itemizedlist>
 	</listitem>
       </itemizedlist>
+    </section>
+
+    <section id="tu-introduction-reason">
+      <title>Why transactional updates?</title>
+      <para>
+	Linux distributions have working update mechanism since many, many
+	years, why do we need something new? There are different users,
+	which have different requirements. We have the Desktop user on a very
+	stable distribution, for whom the current update mechanism good
+	enough. But we also have the bleeding edge distribtuion with rolling
+	updates and the enterprise customer with critical applications, which
+	have different requirements.
+      </para>
+      <para>
+	Distributions wit "rolling" updates face the problem: how should
+	intrusive updates be applied in a running system? Without breaking the
+	update mechanism itself? Like the migration from SysV init to
+	systemd. Or the big version update of the Desktop while the Desktop is
+	running. Very likely will this update kill the currently running
+	Desktop, which would kill the update process, which leaves the system
+	in a broken, undefined state. Additional, if an update breaks such a
+	system, there needs to be a quick way to rollback the system to the
+	last working state.
+      </para>
+      <para>
+	On mission critical systems, the update is not allowed to interrupt
+	the running services. On such systems, interrupting running services
+	is more expensive than a scheduled reboot. And the system needs always
+	to be in a defined state. Which means, the updates are applied without
+	error or no change is done. E.g. if a post-install script of a RPM
+	fails, the system is in an undefined state, which should never happen.
+      </para>
+      <para>
+	Sometimes, new software versions of the kernel or software are
+	incompatible with your hardware or other software. In this case, there
+	should be a quick and easy way to rollback to the state before the
+	update was applied.
+      </para>
+      <para>
+	There are other solutions available for the above problems, like
+	downloading all RPMs upfront and apply them during the boot phase. But
+	this blocks the user from using his PC if there is something urgently
+	todo.
+      </para>
     </section>
   </chapter>
 
   <chapter id="tu-howitworks">
     <title>How it works</title>
-    <para>
-      Explain how transactional update works, use pictures from slides.
-    </para>
+    <section>
+      <title>Filesystem</title>
+      <para>
+	For transactional updates the snapshot functionality of
+	<emphasis>btrfs</emphasis> is used. <emphasis>Btrfs</emphasis> is a
+	general purpose Copy-on-Write (Cow) filesystem. The main feature of
+	<emphasis>btrfs</emphasis> is, that it provides subvolumes. This looks
+	like a directory, but behave like a mount point. They can be accessed
+	from the parent subvolume like a directory, or they can be mounted on
+	other directories of the same filesytem.
+	Snapshots will be created from existing subvolumes, excluding other
+	subvolumes inside of it, and are by default read-only.
+      </para>
+      <para>
+	In theory this can be implemented with any CoW filesystem, as long as
+	it provides snapshot functionality.
+      </para>
+    </section>
+    <section>
+      <title>Workflow</title>
+      <mediaobject>
+        <imageobject>
+          <imagedata fileref="png/Workflow-Start.png"/>
+        </imageobject>
+        <textobject>
+          <phrase>List of snapshots</phrase>
+        </textobject>
+	<caption>
+	  <para>
+	    At the beginning, there is a list of old snapshots, each one based
+	    on the other one, and the newest one is the current root filesystem.
+	  </para>
+	</caption>
+      </mediaobject>
+      <mediaobject>
+        <imageobject>
+          <imagedata fileref="png/Workflow-Step1.png"/>
+        </imageobject>
+        <textobject>
+          <phrase>List of snapshots with new read-only Clone of current root filesystem</phrase>
+        </textobject>
+	<caption>
+	  <para>
+	    In the first step, a new read-only snapshot of the current root
+	    filesystem will be created.
+	  </para>
+	</caption>
+      </mediaobject>
+      <mediaobject>
+        <imageobject>
+          <imagedata fileref="png/Workflow-Step2.png"/>
+        </imageobject>
+        <textobject>
+          <phrase>List of snapshots with a read-write Clone of current root filesystem</phrase>
+        </textobject>
+	<caption>
+	  <para>
+	    In the second step we switch the snapshot from read-only to
+	    read-write, so that we can update it.
+	  </para>
+	</caption>
+      </mediaobject>
+      <mediaobject>
+        <imageobject>
+          <imagedata fileref="png/Workflow-Step3.png"/>
+        </imageobject>
+        <textobject>
+          <phrase>List of snapshots with a read-write Clone of current root
+	  filesystem, which will be updated with zypper.</phrase>
+        </textobject>
+	<caption>
+	  <para>
+	    In the third step the snapshot will be updated. This can be
+	    <emphasis>zypper up</emphasis> or <emphasis>zypper dup</emphasis>.
+	  </para>
+	</caption>
+      </mediaobject>
+      <mediaobject>
+        <imageobject>
+          <imagedata fileref="png/Workflow-Step4.png"/>
+        </imageobject>
+        <textobject>
+          <phrase>List of snapshots with the clone again read-only.</phrase>
+        </textobject>
+	<caption>
+	  <para>
+	    In the fourth step the snapshot will be changed back to read-only,
+	    so that the data cannot be modified anymore.
+	  </para>
+	</caption>
+      </mediaobject>
+      <mediaobject>
+        <imageobject>
+          <imagedata fileref="png/Workflow-Step5.png"/>
+        </imageobject>
+        <textobject>
+          <phrase>List of snapshots with the read-only Clone the new default.</phrase>
+        </textobject>
+	<caption>
+	  <para>
+	    The last step is to mark the updated snapshot as new root
+	    filesystem. This is now the atomic step: If the power would have
+	    been pulled before, the unchanged old system would have been
+	    booted. Now the new, updated system will boot.
+	  </para>
+	</caption>
+      </mediaobject>
+      <mediaobject>
+        <imageobject>
+          <imagedata fileref="png/Workflow-After-Reboot.png"/>
+        </imageobject>
+        <textobject>
+          <phrase>List of snapshots with the current root filesystem as newest
+	  at the end.</phrase>
+        </textobject>
+	<caption>
+	  <para>
+	    After reboot, the newly prepared snapshot is the new root
+	    filesystem. If something bad happens, we can rollback to any of
+	    the older snapshots.
+	  </para>
+	</caption>
+      </mediaobject>
+      <mediaobject>
+        <imageobject>
+          <imagedata fileref="png/Workflow-Without-Reboot.png"/>
+        </imageobject>
+        <textobject>
+          <phrase>List of snapshots with a read-write Clone of current root
+	  filesystem, which will be updated with zypper.</phrase>
+        </textobject>
+	<caption>
+	  <para>
+	    If we don't reboot and call
+	    <emphasis>transactional-update</emphasis> again, a new snapshot
+	    will be created and updated. This new snapshot is based again on
+	    the current running root filesystem. It is not based on newer
+	    snapshots. Newer snapshots cannot be used as base for the next
+	    snapshot, since we don't know if they work or not. It could be,
+	    that the admin found out that a newer snapshot did not boot and
+	    made a rollback. If we always base our new snapshots on the latest
+	    one, it could happen that the system ends in a non-working,
+	    non-fixable state.
+	  </para>
+	</caption>
+      </mediaobject>
+    </section>
   </chapter>
 
   <chapter id="tu-setup">

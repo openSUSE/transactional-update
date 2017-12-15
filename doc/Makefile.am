@@ -26,6 +26,7 @@ html/transactional-update.html: $(XMLS) $(DEP_XMLS)
 	@test -d html || mkdir -p html
 	$(XMLLINT) --nonet --xinclude --postvalid --noent --noout $<
 	$(XSLTPROC) --stringparam base.dir html/ \
+	  --stringparam img.src.path ../ \
 	  --stringparam root.filename transactional-update \
 	  --stringparam use.id.as.filename 1 \
 	  --stringparam chunk.section.depth 0 \
