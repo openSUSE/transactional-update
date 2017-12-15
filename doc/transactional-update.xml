@@ -42,6 +42,8 @@
 	<emphasis>btrfs</emphasis> and updates this to the latest version of
 	the product. Since snapshots contain only the difference between two
 	versions and thus are mostly very small, this is very space efficient.
+        Which also means you can have more parallel installations than just
+        two bootable root partitions.
       </para>
     </section>
 
