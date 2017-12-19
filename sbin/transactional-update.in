@@ -547,12 +547,14 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
         log_error "ERROR: mount of sys failed!"
         quit 1;
     fi
-    grep -q selinux=1 /proc/cmdline
-    if [ $? -eq 0 ]; then
-        mount -t selinuxfs selinux ${SNAPSHOT_DIR}/sys/fs/selinux
-        if [ $? -ne 0 ]; then
-            log_error "ERROR: mount of sys failed!"
-            quit 1;
+    if [ -x /usr/sbin/selinuxenabled ]; then
+        /usr/sbin/selinuxenabled
+        if [ $? -eq 0 ]; then
+            mount -t selinuxfs selinux ${SNAPSHOT_DIR}/sys/fs/selinux
+            if [ $? -ne 0 ]; then
+                log_error "ERROR: mount of sys failed!"
+                quit 1;
+            fi
         fi
     fi
     for directory in $DIR_TO_MOUNT ; do
