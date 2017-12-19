@@ -20,7 +20,7 @@
 
 export LANG=C
 
-DIR_TO_MOUNT="dev opt usr/local var/log"
+DIR_TO_MOUNT="dev opt var/log"
 EXITCODE=0
 ZYPPER_ARG=""
 ZYPPER_NONINTERACTIVE="-y --auto-agree-with-product-licenses"
@@ -546,6 +546,14 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
     if [ $? -ne 0 ]; then
         log_error "ERROR: mount of sys failed!"
         quit 1;
+    fi
+    grep -q selinux=1 /proc/cmdline
+    if [ $? -eq 0 ]; then
+        mount -t selinuxfs selinux ${SNAPSHOT_DIR}/sys/fs/selinux
+        if [ $? -ne 0 ]; then
+            log_error "ERROR: mount of sys failed!"
+            quit 1;
+        fi
     fi
     for directory in $DIR_TO_MOUNT ; do
 	mount -o bind /$directory ${SNAPSHOT_DIR}/$directory

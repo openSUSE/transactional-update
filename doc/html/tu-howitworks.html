@@ -1,4 +1,4 @@
-<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"><title>Chapter 2. How it works</title><meta name="generator" content="DocBook XSL Stylesheets V1.78.1"><link rel="home" href="transactional-update.html" title="The Transactional Update Guide"><link rel="up" href="transactional-update.html" title="The Transactional Update Guide"><link rel="prev" href="tu-introduction.html" title="Chapter 1. Introduction"><link rel="next" href="tu-setup.html" title="Chapter 3.  Setup of system"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">Chapter 2. How it works</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="tu-introduction.html">Prev</a> </td><th width="60%" align="center"> </th><td width="20%" align="right"> <a accesskey="n" href="tu-setup.html">Next</a></td></tr></table><hr></div><div class="chapter"><div class="titlepage"><div><div><h1 class="title"><a name="tu-howitworks"></a>Chapter 2. How it works</h1></div></div></div><div class="toc"><p><b>Table of Contents</b></p><dl class="toc"><dt><span class="section"><a href="tu-howitworks.html#idm139902241303456">2.1. Filesystem</a></span></dt><dt><span class="section"><a href="tu-howitworks.html#idm139902241300096">2.2. Workflow</a></span></dt></dl></div><div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm139902241303456"></a>2.1. Filesystem</h2></div></div></div><p>
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"><title>Chapter 2. How it works</title><meta name="generator" content="DocBook XSL Stylesheets V1.78.1"><link rel="home" href="transactional-update.html" title="The Transactional Update Guide"><link rel="up" href="transactional-update.html" title="The Transactional Update Guide"><link rel="prev" href="tu-introduction.html" title="Chapter 1. Introduction"><link rel="next" href="tu-setup.html" title="Chapter 3.  Setup of system"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">Chapter 2. How it works</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="tu-introduction.html">Prev</a> </td><th width="60%" align="center"> </th><td width="20%" align="right"> <a accesskey="n" href="tu-setup.html">Next</a></td></tr></table><hr></div><div class="chapter"><div class="titlepage"><div><div><h1 class="title"><a name="tu-howitworks"></a>Chapter 2. How it works</h1></div></div></div><div class="toc"><p><b>Table of Contents</b></p><dl class="toc"><dt><span class="section"><a href="tu-howitworks.html#idm139742654032000">2.1. Filesystem</a></span></dt><dt><span class="section"><a href="tu-howitworks.html#idm139742654028640">2.2. Update</a></span></dt><dt><span class="section"><a href="tu-howitworks.html#idm139742654018080">2.3. Commands used</a></span></dt></dl></div><div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm139742654032000"></a>2.1. Filesystem</h2></div></div></div><p>
 	For transactional updates the snapshot functionality of
 	<span class="emphasis"><em>btrfs</em></span> is used. <span class="emphasis"><em>Btrfs</em></span> is a
 	general purpose Copy-on-Write (Cow) filesystem. The main feature of
@@ -11,7 +11,7 @@
       </p><p>
 	In theory this can be implemented with any CoW filesystem, as long as
 	it provides snapshot functionality.
-      </p></div><div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm139902241300096"></a>2.2. Workflow</h2></div></div></div><div class="mediaobject"><img src="../png/Workflow-Start.png" alt="List of snapshots"><div class="caption"><p>
+      </p></div><div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm139742654028640"></a>2.2. Update</h2></div></div></div><div class="mediaobject"><img src="../png/Workflow-Start.png" alt="List of snapshots"><div class="caption"><p>
 	    At the beginning, there is a list of old snapshots, each one based
 	    on the other one, and the newest one is the current root filesystem.
 	  </p></div></div><div class="mediaobject"><img src="../png/Workflow-Step1.png" alt="List of snapshots with new read-only Clone of current root filesystem"><div class="caption"><p>
@@ -46,4 +46,22 @@
 	    made a rollback. If we always base our new snapshots on the latest
 	    one, it could happen that the system ends in a non-working,
 	    non-fixable state.
-	  </p></div></div></div></div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="tu-introduction.html">Prev</a> </td><td width="20%" align="center"> </td><td width="40%" align="right"> <a accesskey="n" href="tu-setup.html">Next</a></td></tr><tr><td width="40%" align="left" valign="top">Chapter 1. Introduction </td><td width="20%" align="center"><a accesskey="h" href="transactional-update.html">Home</a></td><td width="40%" align="right" valign="top"> Chapter 3.  Setup of system </td></tr></table></div></body></html>
+	  </p></div></div></div><div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm139742654018080"></a>2.3. Commands used</h2></div></div></div><p>
+	In the end, creating and updating snapshots are only a few commands:
+      </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><pre class="programlisting">
+SNAPSHOT_ID=`snapper create -p -d "Snapshot Update"`
+	  </pre></li><li class="listitem"><pre class="programlisting">
+btrfs property set ${SNAPSHOT_DIR} ro false
+	  </pre></li><li class="listitem"><pre class="programlisting">
+zypper -R ${SNAPSHOT_DIR} up|patch|dup
+	  </pre></li><li class="listitem"><pre class="programlisting">
+btrfs property set ${SNAPSHOT_DIR} ro true
+	  </pre></li><li class="listitem"><pre class="programlisting">
+btrfs subvol set-default ${SNAPSHOT_DIR}
+	  </pre><p>
+	    or with a read-write root filesystem:
+	  </p><pre class="programlisting">
+snapper rollback ${SNAPSHOT_ID}
+	  </pre></li><li class="listitem"><pre class="programlisting">
+systemctl reboot
+	  </pre></li></ul></div></div></div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="tu-introduction.html">Prev</a> </td><td width="20%" align="center"> </td><td width="40%" align="right"> <a accesskey="n" href="tu-setup.html">Next</a></td></tr><tr><td width="40%" align="left" valign="top">Chapter 1. Introduction </td><td width="20%" align="center"><a accesskey="h" href="transactional-update.html">Home</a></td><td width="40%" align="right" valign="top"> Chapter 3.  Setup of system </td></tr></table></div></body></html>

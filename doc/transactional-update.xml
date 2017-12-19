@@ -153,7 +153,7 @@
       </para>
     </section>
     <section>
-      <title>Workflow</title>
+      <title>Update</title>
       <mediaobject>
         <imageobject>
           <imagedata fileref="png/Workflow-Start.png"/>
@@ -280,6 +280,50 @@
 	  </para>
 	</caption>
       </mediaobject>
+    </section>
+    <section>
+      <title>Commands used</title>
+      <para>
+	In the end, creating and updating snapshots are only a few commands:
+      </para>
+      <itemizedlist>
+	<listitem>
+	  <programlisting>
+SNAPSHOT_ID=`snapper create -p -d "Snapshot Update"`
+	  </programlisting>
+	</listitem>
+	<listitem>
+	  <programlisting>
+btrfs property set ${SNAPSHOT_DIR} ro false
+	  </programlisting>
+	</listitem>
+	<listitem>
+	  <programlisting>
+zypper -R ${SNAPSHOT_DIR} up|patch|dup
+	  </programlisting>
+	</listitem>
+	<listitem>
+	  <programlisting>
+btrfs property set ${SNAPSHOT_DIR} ro true
+	  </programlisting>
+	</listitem>
+	<listitem>
+	  <programlisting>
+btrfs subvol set-default ${SNAPSHOT_DIR}
+	  </programlisting>
+	  <para>
+	    or with a read-write root filesystem:
+	  </para>
+	  <programlisting>
+snapper rollback ${SNAPSHOT_ID}
+	  </programlisting>
+	</listitem>
+	<listitem>
+	  <programlisting>
+systemctl reboot
+	  </programlisting>
+	</listitem>
+      </itemizedlist>
     </section>
   </chapter>
 
