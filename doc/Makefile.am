@@ -37,6 +37,9 @@ html/transactional-update.html: $(XMLS) $(DEP_XMLS)
 	  --stringparam chunker.output.encoding UTF-8 \
 	  http://docbook.sourceforge.net/release/xsl/current/html/chunk.xsl $<
 
+transactional-update.md: $(XMLS) $(DEP_XMLS)
+	pandoc -f docbook -t markdown -s $< -o $@
+
 distclean-local:
 	-rm -rf html transactional-update.txt
 
