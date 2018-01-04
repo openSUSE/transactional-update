@@ -20,7 +20,7 @@
 
 export LANG=C
 
-DIR_TO_MOUNT="dev opt usr/local var/log"
+DIR_TO_MOUNT="dev opt var/log"
 EXITCODE=0
 ZYPPER_ARG=""
 ZYPPER_NONINTERACTIVE="-y --auto-agree-with-product-licenses"
