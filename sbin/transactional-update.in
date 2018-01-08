@@ -39,6 +39,7 @@ USE_SALT_GRAINS=0
 LOGFILE="/var/log/transactional-update.log"
 STATE_FILE="/var/lib/misc/transactional-update.state"
 PACKAGE_UPDATES=0
+HAS_SEPERATE_VAR=0
 SNAPSHOT_ID=""
 SECOND_SNAPSHOT_ID=""
 KDUMP_SYSCONFIG="/etc/sysconfig/kdump"
@@ -101,9 +102,9 @@ save_state_file() {
     echo "LAST_WORKING_SNAPSHOTS=\"${LAST_WORKING_SNAPSHOTS}\"" > ${STATE_FILE}
     echo "UNUSED_SNAPSHOTS=\"${UNUSED_SNAPSHOTS}\"" >>  ${STATE_FILE}
 
-    if [ $1 -ne 0 ]; then
+    if [ $1 -ne 0 -a ${HAS_SEPERATE_VAR} -eq 0 ]; then
 	# if /var/lib/misc is not a seperate partition/subvolume,
-	# copy it additional into the new snapshot. This will else
+	# copy it additional into the new snapshot. This will have else
         # an outdated version from before taking the snapshot
 	grep -q var.lib.misc /proc/mounts
 	if [ $? -ne 0 ]; then
@@ -347,9 +348,16 @@ if [ ! -d /.snapshots ]; then
   exit 1
 fi
 
-grep -q var.cache /proc/mounts
-if [ $? -ne 0 ]; then
-  log_error "WARNING: it looks like your installation isn't recent enough."
+grep -q "[[:space:]]/var[[:space:]]" /proc/mounts
+if [ $? -eq 0 ]; then
+    log_info "Seperate /var detected"
+    DIR_TO_MOUNT="${DIR_TO_MOUNT} /var/cache"
+    HAS_SEPERATE_VAR=1
+else
+    grep -q var.cache /proc/mounts
+    if [ $? -ne 0 ]; then
+	log_error "WARNING: it looks like your installation isn't recent enough."
+    fi
 fi
 
 CURRENT_SNAPSHOT_ID=`grep subvol=/@/.snapshots/ /proc/mounts | grep "/ btrfs" | sed -e 's|.*.snapshots/\(.*\)/snapshot.*|\1|g'`
@@ -514,12 +522,14 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
     UNUSED_SNAPSHOTS="${SNAPSHOT_ID} ${UNUSED_SNAPSHOTS}"
 
     # Check if installed with SLES12
-    touch ${SNAPSHOT_DIR}/var/tmp/update_snapshot.test
-    if [ $? -ne 0 ]; then
-	log_error "ERROR: System installation is too old!"
-	quit 1;
+    if [ ${HAS_SEPERATE_VAR} -eq 0 ]; then
+	touch ${SNAPSHOT_DIR}/var/tmp/update_snapshot.test
+	if [ $? -ne 0 ]; then
+	    log_error "ERROR: System installation is too old!"
+	    quit 1;
+	fi
+	rm -f ${SNAPSHOT_DIR}/var/tmp/update_snapshot.test
     fi
-    rm -f ${SNAPSHOT_DIR}/var/tmp/update_snapshot.test
 
     # On a read only system, make sure that /etc/zypp in the
     # snapshot is current, could come from a overlayfs which
@@ -567,6 +577,12 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	    quit 1;
 	fi
     done
+
+    # If we have a seperate /var, create some directories which we
+    # will delete later again.
+    if [ ${HAS_SEPERATE_VAR} -eq 1 ]; then
+	mkdir ${SNAPSHOT_DIR}/var/tmp
+    fi
 
     # check if we have /var/lib/rpm, else zypper will
     # create a new rpm database [bsc#1074598]
@@ -675,6 +691,11 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 
     # unset variable
     unset TRANSACTIONAL_UPDATE
+
+    # Delete temporary data before unmounting everything:
+    if [ ${HAS_SEPERATE_VAR} -eq 1 ]; then
+       rm -rf ${SNAPSHOT_DIR}/var/tmp
+    fi
 
     # Unmount everything we don't need anymore:
     for directory in proc sys $DIR_TO_MOUNT ; do
