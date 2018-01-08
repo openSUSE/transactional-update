@@ -3,7 +3,7 @@
 # update_snapshot - update a snapshot of the current system
 #
 # Author: Thorsten Kukuk <kukuk@suse.com>
-# Copyright (C) 2016, 2017 SUSE Linux GmbH
+# Copyright (C) 2016, 2017, 2018 SUSE Linux GmbH
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -564,6 +564,14 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	    quit 1;
 	fi
     done
+
+    # check if we have /var/lib/rpm, else zypper will
+    # create a new rpm database [bsc#1074598]
+    if [ ! -e ${SNAPSHOT_DIR}/var/lib/rpm -a \
+	-e ${SNAPSHOT_DIR}/usr/lib/sysimage/rpm ]; then
+	mkdir -p ${SNAPSHOT_DIR}/var/lib
+	ln -sf ../../usr/lib/sysimage/rpm ${SNAPSHOT_DIR}/var/lib/rpm
+    fi
 
     # Do we need to cleanup the /var/cache directory?
     if [ -d ${SNAPSHOT_DIR}/var/cache/zypp ]; then
