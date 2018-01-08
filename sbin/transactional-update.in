@@ -526,9 +526,9 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
     # means not part of the snapshot itself
     if [ ${RO_ROOT} == "true" ]; then
 	DIR_TO_MOUNT="${DIR_TO_MOUNT} etc/zypp"
-        if [ ${RUN_SHELL} -eq 1 ]; then
-           DIR_TO_MOUNT="${DIR_TO_MOUNT} root"
-        fi
+	if [ ${RUN_SHELL} -eq 1 ]; then
+	    DIR_TO_MOUNT="${DIR_TO_MOUNT} root"
+	fi
     fi
 
     # Check which directories in /boot/grub2 needs to be mounted,
@@ -558,6 +558,9 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
         fi
     fi
     for directory in $DIR_TO_MOUNT ; do
+	# Make sure mount point exists. With /var on an own subvolume, this directory
+	# is empty by default and mount points don't exist in chroot environment.
+	test -d ${SNAPSHOT_DIR}/$directory || mkdir -p ${SNAPSHOT_DIR}/$directory
 	mount -o bind /$directory ${SNAPSHOT_DIR}/$directory
 	if [ $? -ne 0 ]; then
 	    log_error "ERROR: mount of $directory failed!"
