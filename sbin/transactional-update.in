@@ -36,6 +36,7 @@ ROLLBACK_SNAPSHOT=0
 REBOOT_AFTERWARDS=0
 RUN_SHELL=0
 USE_SALT_GRAINS=0
+CONFFILE="/etc/transactional-update.conf"
 LOGFILE="/var/log/transactional-update.log"
 STATE_FILE="/var/lib/misc/transactional-update.state"
 PACKAGE_UPDATES=0
@@ -46,6 +47,11 @@ KDUMP_SYSCONFIG="/etc/sysconfig/kdump"
 # Config files, which the user could have modified and which should
 # be copied to the snapshot.
 CONFIG_FILES_TO_COPY="/etc/default/grub"
+
+# load config
+if [ -r ${CONFFILE} ]; then
+    . ${CONFFILE}
+fi
 
 usage() {
     echo "Usage: transactional-update --help|--version"
