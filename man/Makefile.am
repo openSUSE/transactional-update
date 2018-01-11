@@ -39,6 +39,10 @@ transactional-update.index.xml: make-man-index.py $(XMLS)
 transactional-update.8: transactional-update.8.xml
 	$(XSLTPROC) -o $(srcdir)/$@ --path $(srcdir) --xinclude --nonet http://docbook.sourceforge.net/release/xsl/current/manpages/docbook.xsl $<
 
+transactional-update.service.8: transactional-update.8
+
+transactional-update.timer.8: transactional-update.8
+
 transactional-update.8.html: transactional-update.8.xml custom-html.xsl
 	$(XSLTPROC) -o $(srcdir)/$@ --path $(srcdir) $(XSLTPROC_FLAGS_HTML) $<
 
