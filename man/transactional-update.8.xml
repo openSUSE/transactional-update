@@ -335,7 +335,8 @@ for more informations.
 </refsect1>
 
 <refsect1 id='see_also'><title>SEE ALSO</title>
-<para><citerefentry project='systemd'><refentrytitle>systemd.timer</refentrytitle><manvolnum>5</manvolnum></citerefentry>,
+<para><citerefentry><refentrytitle>transactional-update.conf</refentrytitle><manvolnum>5</manvolnum></citerefentry>,
+<citerefentry project='systemd'><refentrytitle>systemd.timer</refentrytitle><manvolnum>5</manvolnum></citerefentry>,
 <citerefentry project='systemd'><refentrytitle>systemd.time</refentrytitle><manvolnum>7</manvolnum></citerefentry></para>
 </refsect1>
 </refentry>
