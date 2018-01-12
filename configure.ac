@@ -65,4 +65,5 @@ else
 fi
 
 AC_OUTPUT([Makefile sbin/Makefile man/Makefile systemd/Makefile \
-	logrotate/Makefile doc/Makefile sbin/transactional-update])
+	logrotate/Makefile doc/Makefile etc/Makefile \
+	sbin/transactional-update])
