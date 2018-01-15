@@ -229,9 +229,6 @@ reboot_via_systemd() {
 }
 
 reboot_autodetect() {
-    if [ $USE_SALT_GRAINS -eq 1 ]; then
-	reboot_via_salt
-    fi
     if [ -x /usr/sbin/rebootmgrctl ]; then
 	reboot_via_rebootmgr
     fi
@@ -356,6 +353,7 @@ while [ 1 ]; do
 	salt)
 	    REBOOT_AFTERWARDS=1
 	    USE_SALT_GRAINS=1
+	    REBOOT_METHOD="salt"
 	    shift
 	    ;;
         -h|--help)
