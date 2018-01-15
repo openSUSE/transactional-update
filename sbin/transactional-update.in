@@ -520,7 +520,9 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	TMPFILE=`mktemp /tmp/transactional-update.XXXXXXXXXX`
 	zypper --xml ${ZYPPER_ARG} ${ZYPPER_NONINTERACTIVE} --dry-run ${ZYPPER_ARG_PKGS} > ${TMPFILE}
 	if [ $? -ne 0 ]; then
-	    log_error "ERROR: zypper failed! Logs could be found in ${TMPFILE}"
+	    LOG_MESSAGES=`awk -v RS='<' -v FS='>' '{if ($1 ~ /^(message|description)/) print $2}' ${TMPFILE} | perl -MHTML::Entities -pe 'decode_entities($_);'`
+	    log_error "ERROR: Zypper failed with the following message(s):"
+	    log_error "${LOG_MESSAGES}"
 	    quit 1
 	fi
 	PACKAGE_UPDATES=`grep "install-summary download-size" ${TMPFILE} | sed -e 's|.*install-summary download-size=\"\(.*\)\" space-usage-diff.*|\1|g'`
