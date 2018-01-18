@@ -136,7 +136,7 @@
 
   <chapter id="tu-howitworks">
     <title>How it works</title>
-    <section>
+    <section id="tu-howitworks-filesystem">
       <title>Filesystem</title>
       <para>
 	For transactional updates the snapshot functionality of
@@ -154,7 +154,7 @@
 	it provides snapshot functionality.
       </para>
     </section>
-    <section>
+    <section id="tu-howitworks-update">
       <title>Update</title>
       <mediaobject>
         <imageobject>
@@ -283,7 +283,7 @@
 	</caption>
       </mediaobject>
     </section>
-    <section>
+    <section id="tu-howitworks-commands">
       <title>Commands used</title>
       <para>
 	In the end, creating and updating snapshots are only a few commands:
