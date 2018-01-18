@@ -34,8 +34,10 @@ DO_MIGRATION=0
 DO_ROLLBACK=0
 ROLLBACK_SNAPSHOT=0
 REBOOT_AFTERWARDS=0
+REBOOT_METHOD="auto"
 RUN_SHELL=0
 USE_SALT_GRAINS=0
+CONFFILE="/etc/transactional-update.conf"
 LOGFILE="/var/log/transactional-update.log"
 STATE_FILE="/var/lib/misc/transactional-update.state"
 PACKAGE_UPDATES=0
@@ -46,6 +48,11 @@ KDUMP_SYSCONFIG="/etc/sysconfig/kdump"
 # Config files, which the user could have modified and which should
 # be copied to the snapshot.
 CONFIG_FILES_TO_COPY="/etc/default/grub"
+
+# load config
+if [ -r ${CONFFILE} ]; then
+    . ${CONFFILE}
+fi
 
 usage() {
     echo "Usage: transactional-update --help|--version"
@@ -185,6 +192,50 @@ quit() {
     exit $1
 }
 
+reboot_via_salt() {
+    log_info "transactional-update finished - created salt grains"
+    if [ -f /etc/salt/grains ]; then
+	grep -q tx_update_reboot_needed /etc/salt/grains
+	if [ $? -ne 0 ]; then
+	    # Add variable to existing salt grains
+	    echo "tx_update_reboot_needed: true" >> /etc/salt/grains
+	else
+	    # modify variable in existing salt grains
+	    sed -i -e 's|tx_update_reboot_needed:.*|tx_update_reboot_needed: true|g' /etc/salt/grains
+	fi
+    else
+	echo "tx_update_reboot_needed: true" > /etc/salt/grains
+    fi
+    # Reset tx_update_failed if exist
+    sed -i -e 's|tx_update_failed:.*|tx_update_failed: false|g' /etc/salt/grains
+    exit 0
+}
+
+reboot_via_rebootmgr() {
+    /usr/sbin/rebootmgrctl is-active --quiet
+    if [ $? -eq 0 ]; then
+	# rebootmgrctl is running
+	/usr/sbin/rebootmgrctl reboot
+	log_info "transactional-update finished - informed rebootmgr"
+	exit 0
+    fi
+}
+
+reboot_via_systemd() {
+    log_info "transactional-update finished - rebooting machine"
+    sync
+    systemctl reboot |& tee -a ${LOGFILE}
+    exit 0
+}
+
+reboot_autodetect() {
+    if [ -x /usr/sbin/rebootmgrctl ]; then
+	reboot_via_rebootmgr
+    fi
+    # If rebootmgr is inactive try systemd
+    reboot_via_systemd
+}
+
 add_unique_id() {
     local NEW_ID="$1"
 
@@ -302,6 +353,7 @@ while [ 1 ]; do
 	salt)
 	    REBOOT_AFTERWARDS=1
 	    USE_SALT_GRAINS=1
+	    REBOOT_METHOD="salt"
 	    shift
 	    ;;
         -h|--help)
@@ -761,37 +813,27 @@ fi
 
 if [ ${EXITCODE} -eq 0 ]; then
     if [ $REBOOT_AFTERWARDS -eq 1 ]; then
-	if [ $USE_SALT_GRAINS -eq 1 ]; then
-	    log_info "transactional-update finished - created salt grains"
-	    if [ -f /etc/salt/grains ]; then
-		grep -q tx_update_reboot_needed /etc/salt/grains
-		if [ $? -ne 0 ]; then
-		    # Add variable to existing salt grains
-		    echo "tx_update_reboot_needed: true" >> /etc/salt/grains
-		else
-		    # modify variable in existing salt grains
-		    sed -i -e 's|tx_update_reboot_needed:.*|tx_update_reboot_needed: true|g' /etc/salt/grains
-		fi
-	    else
-		echo "tx_update_reboot_needed: true" > /etc/salt/grains
-	    fi
-	    # Reset tx_update_failed if exist
-	    sed -i -e 's|tx_update_failed:.*|tx_update_failed: false|g' /etc/salt/grains
-	    exit 0
-	else
-	    if [ -x /usr/sbin/rebootmgrctl ]; then
-		/usr/sbin/rebootmgrctl is-active --quiet
-		if [ $? -eq 0 ]; then
-		    # rebootmgrctl is running
-		    /usr/sbin/rebootmgrctl reboot
-		    log_info "transactional-update finished - informed rebootmgr"
-		    exit 0
-		fi
-	    fi
-	    log_info "transactional-update finished - rebooting machine"
-	    sync
-	    systemctl reboot |& tee -a ${LOGFILE}
-	fi
+	case "$REBOOT_METHOD" in
+	    auto)
+		reboot_autodetect
+		;;
+	    salt)
+		reboot_via_salt
+		;;
+	    rebootmgr)
+		reboot_via_rebootmgr
+		;;
+	    systemd)
+		reboot_via_systemd
+		;;
+	    *)
+	        log_info "Unsupported reboot method, falling back to 'auto'; please"
+	        log_info "check your configuration in ${CONFFILE}."
+	        reboot_autodetect
+	        ;;
+	esac
+	echo "The system couldn't be rebooted using method '{$REBOOT_METHOD}'. Please reboot the system"
+	echo "manually."
     elif [ $PACKAGE_UPDATES -gt 1 ]; then
 	echo "Please reboot your machine to activate the changes and avoid data loss"
     fi

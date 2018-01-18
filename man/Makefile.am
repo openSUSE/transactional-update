@@ -10,12 +10,13 @@ EXTRA_DIST = $(MANS) $(XMLS) $(DATA) custom-html.xsl make-man-index.py \
 	xml_helper.py transactional-update.index.xml
 
 man_MANS = transactional-update.8 transactional-update.service.8 \
-	transactional-update.timer.8
+	transactional-update.timer.8 transactional-update.conf.5
 
 noinst_DATA = transactional-update.8.html transactional-update.service.8.html \
-	transactional-update.timer.8.html transactional-update.index.html
+	transactional-update.timer.8.html transactional-update.conf.5.html \
+	transactional-update.index.html
 
-XMLS = transactional-update.8.xml
+XMLS = transactional-update.8.xml transactional-update.conf.5.xml
 
 XSLTPROC_FLAGS_HTML = \
         --nonet \
@@ -39,6 +40,10 @@ transactional-update.index.xml: make-man-index.py $(XMLS)
 transactional-update.8: transactional-update.8.xml
 	$(XSLTPROC) -o $(srcdir)/$@ --path $(srcdir) --xinclude --nonet http://docbook.sourceforge.net/release/xsl/current/manpages/docbook.xsl $<
 
+transactional-update.service.8: transactional-update.8
+
+transactional-update.timer.8: transactional-update.8
+
 transactional-update.8.html: transactional-update.8.xml custom-html.xsl
 	$(XSLTPROC) -o $(srcdir)/$@ --path $(srcdir) $(XSLTPROC_FLAGS_HTML) $<
 
@@ -49,6 +54,12 @@ transactional-update.timer.8.html: transactional-update.8.html
 	$(html_alias)
 
 transactional-update.index.html: transactional-update.index.xml custom-html.xsl
+	$(XSLTPROC) -o $(srcdir)/$@ --path $(srcdir) $(XSLTPROC_FLAGS_HTML) $<
+
+transactional-update.conf.5: transactional-update.conf.5.xml
+	$(XSLTPROC) -o $(srcdir)/$@ --path $(srcdir) --xinclude --nonet http://docbook.sourceforge.net/release/xsl/current/manpages/docbook.xsl $<
+
+transactional-update.conf.5.html: transactional-update.conf.5.xml custom-html.xsl
 	$(XSLTPROC) -o $(srcdir)/$@ --path $(srcdir) $(XSLTPROC_FLAGS_HTML) $<
 
 endif

@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook XML V4.4//EN"
+"http://www.oasis-open.org/docbook/xml/4.4/docbookx.dtd">
+
+<!--  \-*\- nroff \-*\- -->
+<!--  Copyright 2018 Ignaz Forster &lt;iforster@suse.com&gt; -->
+
+<!--  This file is part of transactional-update. -->
+
+<!--  This program is free software; you can redistribute it and/or -->
+<!--  modify it under the terms of the GNU General Public License -->
+<!--  as published by the Free Software Foundation; either version 2 -->
+<!--  of the License, or (at your option) any later version. -->
+
+<!--  This program is distributed in the hope that it will be useful, -->
+<!--  but WITHOUT ANY WARRANTY; without even the implied warranty of -->
+<!--  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the -->
+<!--  GNU General Public License for more details. -->
+
+<!--  You should have received a copy of the GNU General Public License -->
+<!--  along with this program; if not, see <http://www.gnu.org/licenses/>. -->
+
+<refentry id="transactional-update.conf.5">
+  <refentryinfo>
+    <title>transactional-update.conf</title>
+    <productname>transactional-update</productname>
+
+    <authorgroup>
+      <author>
+        <contrib></contrib>
+        <firstname>Ignaz</firstname>
+        <surname>Forster</surname>
+        <email>iforster@suse.com</email>
+      </author>
+    </authorgroup>
+  </refentryinfo>
+
+  <refmeta>
+    <refentrytitle>transactional-update.conf</refentrytitle>
+    <manvolnum>5</manvolnum>
+  </refmeta>
+
+  <refnamediv>
+    <refname>transactional-update.conf</refname>
+    <refpurpose>transactional-update configuration file</refpurpose>
+  </refnamediv>
+
+  <refsynopsisdiv>
+    <para><filename>/etc/transactional-update.conf</filename></para>
+  </refsynopsisdiv>
+
+  <refsect1>
+    <title>Description</title>
+
+    <para>This configuration file controls and defines the behaviour of
+    <citerefentry>
+      <refentrytitle>transactional-update</refentrytitle>
+      <manvolnum>8</manvolnum>
+    </citerefentry>.</para>
+  </refsect1>
+
+  <refsect1>
+    <title>Options</title>
+
+    <para>The following options are available in the
+      <literal>transactional-update</literal> section:
+    </para>
+
+    <variablelist>
+      <varlistentry>
+        <term><varname>REBOOT_METHOD=&lt;auto|salt|rebootmgr|systemd&gt;</varname></term>
+        <listitem>
+	  <para>
+            Specify the reboot method to use. If the value is <literal>auto
+            </literal> rebootmgr will be used to reboot the system; if
+            rebootmgr is not installed or running systemd will be used as a
+            fallback. If the value is <literal>salt</literal>,
+            <literal>rebootmgr</literal> or <literal>systemd</literal> the
+            corresponding mechanism will be called for rebooting the system.
+            Default and fallback on unkown values is <literal>auto</literal>.
+        </para>
+	</listitem>
+      </varlistentry>
+
+    </variablelist>
+  </refsect1>
+
+  <refsect1 id='see_also'>
+    <title>See Also</title>
+    <para>
+      <citerefentry><refentrytitle>transactional-update</refentrytitle><manvolnum>8</manvolnum></citerefentry>
+    </para>
+  </refsect1>
+
+</refentry>
