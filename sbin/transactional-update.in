@@ -41,7 +41,7 @@ CONFFILE="/etc/transactional-update.conf"
 LOGFILE="/var/log/transactional-update.log"
 STATE_FILE="/var/lib/misc/transactional-update.state"
 PACKAGE_UPDATES=0
-HAS_SEPERATE_VAR=0
+HAS_SEPARATE_VAR=0
 SNAPSHOT_ID=""
 SECOND_SNAPSHOT_ID=""
 KDUMP_SYSCONFIG="/etc/sysconfig/kdump"
@@ -77,39 +77,39 @@ log_error() {
     echo "$@" 1>&2
 }
 
-function bashlock {
-     if [ "$#" -ne 1 ]; then
-        echo 'usage: bashlock [LOCKFILENAME]' 1>&2
-        return 2
-     fi
-     LOCKFILE="$1"
+bashlock() {
+    if [ "$#" -ne 1 ]; then
+	echo 'Usage: bashlock [LOCKFILENAME]' 1>&2
+	return 2
+    fi
+    LOCKFILE="$1"
 
-     echo "$$" >"$LOCKFILE.$$"
-     if ! ln "$LOCKFILE.$$" "$LOCKFILE" 2>/dev/null; then
-        PID=`head -1 "$LOCKFILE"`
-        if [ -z "$PID" ]; then
-           rm -f "$LOCKFILE"
-        else
-           kill -0 "$PID" 2>/dev/null || rm -f "$LOCKFILE"
-        fi
+    echo "$$" >"$LOCKFILE.$$"
+    if ! ln "$LOCKFILE.$$" "$LOCKFILE" 2>/dev/null; then
+	PID=`head -1 "$LOCKFILE"`
+	if [ -z "$PID" ]; then
+	    rm -f "$LOCKFILE"
+	else
+	   kill -0 "$PID" 2>/dev/null || rm -f "$LOCKFILE"
+	fi
 
-        if ! ln "$LOCKFILE.$$" "$LOCKFILE" 2>/dev/null; then
-           rm -f "$LOCKFILE.$$"
-           return 1
-        fi
-     fi
+	if ! ln "$LOCKFILE.$$" "$LOCKFILE" 2>/dev/null; then
+	    rm -f "$LOCKFILE.$$"
+	    return 1
+	fi
+    fi
 
-     rm -f "$LOCKFILE.$$"
-     trap 'rm -f "$LOCKFILE"' EXIT
+    rm -f "$LOCKFILE.$$"
+    trap 'rm -f "$LOCKFILE"' EXIT
 
-     return 0
-  }
+    return 0
+}
 
 save_state_file() {
     echo "LAST_WORKING_SNAPSHOTS=\"${LAST_WORKING_SNAPSHOTS}\"" > ${STATE_FILE}
     echo "UNUSED_SNAPSHOTS=\"${UNUSED_SNAPSHOTS}\"" >>  ${STATE_FILE}
 
-    if [ $1 -ne 0 -a ${HAS_SEPERATE_VAR} -eq 0 ]; then
+    if [ $1 -ne 0 -a ${HAS_SEPARATE_VAR} -eq 0 ]; then
 	# If /var/lib/misc is not a seperate partition / subvolume, copy the
 	# state file into the new snapshot as it will contain an outdated
 	# version from before taking the snapshot otherwise.
@@ -254,7 +254,7 @@ fi
 
 while [ 1 ]; do
     if [ $# -eq 0 ]; then
-        break
+	break
     fi
 
     case "$1" in
@@ -268,8 +268,8 @@ while [ 1 ]; do
 	    ;;
         up|patch)
 	    ZYPPER_ARG=$1
-            shift
-            ;;
+	    shift
+	    ;;
 	ptf|pkg|package)
 	    shift
 	    if [ $# -eq 0 ]; then
@@ -314,11 +314,11 @@ while [ 1 ]; do
 	    ZYPPER_ARG="migration --no-snapshots"
 	    shift
 	    ;;
-        bootloader)
+	bootloader)
 	    REWRITE_BOOTLOADER=1
 	    REWRITE_GRUB_CFG=1
-            shift
-            ;;
+	    shift
+	    ;;
 	grub.cfg)
 	    REWRITE_GRUB_CFG=1
 	    shift
@@ -354,17 +354,17 @@ while [ 1 ]; do
 	    REBOOT_METHOD="salt"
 	    shift
 	    ;;
-        -h|--help)
-            usage 0
-            ;;
-        --version)
-            print_version
-            ;;
-        *)
-            if [ $# -ge 1 ]; then
-                usage 1;
-            fi
-            ;;
+	-h|--help)
+	    usage 0
+	    ;;
+	--version)
+	    print_version
+	    ;;
+	*)
+	    if [ $# -ge 1 ]; then
+		usage 1;
+	    fi
+	    ;;
     esac
 done
 
@@ -402,7 +402,7 @@ grep -q "[[:space:]]/var[[:space:]]" /proc/mounts
 if [ $? -eq 0 ]; then
     log_info "Separate /var detected."
     DIR_TO_MOUNT="${DIR_TO_MOUNT} /var/cache"
-    HAS_SEPERATE_VAR=1
+    HAS_SEPARATE_VAR=1
 else
     grep -q var.cache /proc/mounts
     if [ $? -ne 0 ]; then
@@ -574,7 +574,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
     UNUSED_SNAPSHOTS="${SNAPSHOT_ID} ${UNUSED_SNAPSHOTS}"
 
     # Check if installed with SLES12
-    if [ ${HAS_SEPERATE_VAR} -eq 0 ]; then
+    if [ ${HAS_SEPARATE_VAR} -eq 0 ]; then
 	touch ${SNAPSHOT_DIR}/var/tmp/update_snapshot.test
 	if [ $? -ne 0 ]; then
 	    log_error "ERROR: System installation is too old!"
@@ -632,7 +632,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 
     # If we have a seperate /var, create some directories which we
     # will delete again later.
-    if [ ${HAS_SEPERATE_VAR} -eq 1 ]; then
+    if [ ${HAS_SEPARATE_VAR} -eq 1 ]; then
 	mkdir ${SNAPSHOT_DIR}/var/tmp
     fi
 
@@ -745,7 +745,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
     unset TRANSACTIONAL_UPDATE
 
     # Delete temporary data before unmounting everything:
-    if [ ${HAS_SEPERATE_VAR} -eq 1 ]; then
+    if [ ${HAS_SEPARATE_VAR} -eq 1 ]; then
        rm -rf ${SNAPSHOT_DIR}/var/tmp
     fi
 
