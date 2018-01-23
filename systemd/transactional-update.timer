@@ -4,7 +4,6 @@ Documentation=man:transactional-update(8)
 After=network.target local-fs.target
 
 [Timer]
-OnBootSec=20m
 OnCalendar=daily
 AccuracySec=1m
 RandomizedDelaySec=2h
