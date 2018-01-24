@@ -313,7 +313,7 @@ while [ 1 ]; do
 	migration)
 	    DO_MIGRATION=1
 	    ZYPPER_NONINTERACTIVE=""
-	    ZYPPER_ARG="migration"
+	    ZYPPER_ARG="migration --no-snapshots"
 	    shift
 	    ;;
         bootloader)
