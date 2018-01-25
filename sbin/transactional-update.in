@@ -125,11 +125,11 @@ rebuild_kdump_initrd() {
 
     test -f /usr/lib/systemd/system/kdump.service || return
     systemctl is-enabled --quiet kdump.service
-    if [ $? = 0 ]; then
+    if [ $? = 0 -a -x ${MOUNT_DIR}/usr/sbin/tu-rebuild-kdump-initrd ]; then
 	if [ ${KDUMP_SYSCONFIG} -nt ${MOUNT_DIR}/${KDUMP_SYSCONFIG} ]; then
 	    cp -a ${KDUMP_SYSCONFIG} ${MOUNT_DIR}/${KDUMP_SYSCONFIG}
 	fi
-	chroot ${MOUNT_DIR} /usr/sbin/tu-rebuild-kdump-initrd
+	chroot ${MOUNT_DIR} /usr/sbin/tu-rebuild-kdump-initrd |& tee -a ${LOGFILE}
     fi
 }
 
