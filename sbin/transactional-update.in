@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# update_snapshot - update a snapshot of the current system
+# transactional-update - apply updates to the system in an atomic way
 #
 # Author: Thorsten Kukuk <kukuk@suse.com>
 # Copyright (C) 2016, 2017, 2018 SUSE Linux GmbH
@@ -41,15 +41,15 @@ CONFFILE="/etc/transactional-update.conf"
 LOGFILE="/var/log/transactional-update.log"
 STATE_FILE="/var/lib/misc/transactional-update.state"
 PACKAGE_UPDATES=0
-HAS_SEPERATE_VAR=0
+HAS_SEPARATE_VAR=0
 SNAPSHOT_ID=""
 SECOND_SNAPSHOT_ID=""
 KDUMP_SYSCONFIG="/etc/sysconfig/kdump"
-# Config files, which the user could have modified and which should
+# Config files which the user could have modified and which should
 # be copied to the snapshot.
 CONFIG_FILES_TO_COPY="/etc/default/grub"
 
-# load config
+# Load config
 if [ -r ${CONFFILE} ]; then
     . ${CONFFILE}
 fi
@@ -77,42 +77,42 @@ log_error() {
     echo "$@" 1>&2
 }
 
-function bashlock {
-     if [ "$#" -ne 1 ]; then
-        echo 'usage: bashlock [LOCKFILENAME]' 1>&2
-        return 2
-     fi
-     LOCKFILE="$1"
+bashlock() {
+    if [ "$#" -ne 1 ]; then
+	echo 'Usage: bashlock [LOCKFILENAME]' 1>&2
+	return 2
+    fi
+    LOCKFILE="$1"
 
-     echo "$$" >"$LOCKFILE.$$"
-     if ! ln "$LOCKFILE.$$" "$LOCKFILE" 2>/dev/null; then
-        PID=`head -1 "$LOCKFILE"`
-        if [ -z "$PID" ]; then
-           rm -f "$LOCKFILE"
-        else
-           kill -0 "$PID" 2>/dev/null || rm -f "$LOCKFILE"
-        fi
+    echo "$$" >"$LOCKFILE.$$"
+    if ! ln "$LOCKFILE.$$" "$LOCKFILE" 2>/dev/null; then
+	PID=`head -1 "$LOCKFILE"`
+	if [ -z "$PID" ]; then
+	    rm -f "$LOCKFILE"
+	else
+	   kill -0 "$PID" 2>/dev/null || rm -f "$LOCKFILE"
+	fi
 
-        if ! ln "$LOCKFILE.$$" "$LOCKFILE" 2>/dev/null; then
-           rm -f "$LOCKFILE.$$"
-           return 1
-        fi
-     fi
+	if ! ln "$LOCKFILE.$$" "$LOCKFILE" 2>/dev/null; then
+	    rm -f "$LOCKFILE.$$"
+	    return 1
+	fi
+    fi
 
-     rm -f "$LOCKFILE.$$"
-     trap 'rm -f "$LOCKFILE"' EXIT
+    rm -f "$LOCKFILE.$$"
+    trap 'rm -f "$LOCKFILE"' EXIT
 
-     return 0
-  }
+    return 0
+}
 
 save_state_file() {
     echo "LAST_WORKING_SNAPSHOTS=\"${LAST_WORKING_SNAPSHOTS}\"" > ${STATE_FILE}
     echo "UNUSED_SNAPSHOTS=\"${UNUSED_SNAPSHOTS}\"" >>  ${STATE_FILE}
 
-    if [ $1 -ne 0 -a ${HAS_SEPERATE_VAR} -eq 0 ]; then
-	# if /var/lib/misc is not a seperate partition/subvolume,
-	# copy it additional into the new snapshot. This will have else
-        # an outdated version from before taking the snapshot
+    if [ $1 -ne 0 -a ${HAS_SEPARATE_VAR} -eq 0 ]; then
+	# If /var/lib/misc is not a seperate partition / subvolume, copy the
+	# state file into the new snapshot as it will contain an outdated
+	# version from before taking the snapshot otherwise.
 	grep -q var.lib.misc /proc/mounts
 	if [ $? -ne 0 ]; then
 	    cp -a ${STATE_FILE} "/.snapshots/$1/snapshot${STATE_FILE}"
@@ -133,10 +133,9 @@ rebuild_kdump_initrd() {
     fi
 }
 
-# if the SHA256 sum of passwd, group or shadow has changed, copy the
-# files to /usr/etc as fallback source. Else, if the user did modify a password,
-# the shadow copy of this files will hide this changes. Needs libnss_usrfiles
-# installed.
+# If the SHA256 sum of passwd, group or shadow has changed then copy the files
+# to /usr/etc. If libnss_usrfiles is installed those files will be taken into
+# account as a secondary source if an entry is not found in /etc.
 calc_user_group_sha256sum () {
     SHA256_passwd=`sha256sum ${MOUNT_DIR}/etc/passwd | awk '{ print $1 }'`
     SHA256_group=`sha256sum ${MOUNT_DIR}/etc/group | awk '{ print $1 }'`
@@ -144,8 +143,7 @@ calc_user_group_sha256sum () {
 }
 
 copy_user_group_accounts () {
-    # check if we have usr/etc (means libnss_usrfiles is installed.
-    # if not, don't copy modified passwd, group or shadow files.
+    # Only copy files to usr/etc if libnss_usrfiles is installed.
     test -d ${MOUNT_DIR}/usr/etc || return
 
     NEWSUM=`sha256sum ${MOUNT_DIR}/etc/passwd | awk '{ print $1 }'`
@@ -164,7 +162,7 @@ copy_user_group_accounts () {
     fi
 }
 
-# only called in error case
+# Only called in error case; reverts everything to previous state.
 quit() {
     if [ -n "${SNAPSHOT_ID}" ] ; then
 	log_error "Removing snapshot #${SNAPSHOT_ID}..."
@@ -249,14 +247,14 @@ add_unique_id() {
 
 ORIG_ARGS="$@"
 
-# if no option is given, assume "up"
+# If no option is given, assume "up"
 if [ $# -eq 0 ]; then
     ZYPPER_ARG="up"
 fi
 
 while [ 1 ]; do
     if [ $# -eq 0 ]; then
-        break
+	break
     fi
 
     case "$1" in
@@ -270,8 +268,8 @@ while [ 1 ]; do
 	    ;;
         up|patch)
 	    ZYPPER_ARG=$1
-            shift
-            ;;
+	    shift
+	    ;;
 	ptf|pkg|package)
 	    shift
 	    if [ $# -eq 0 ]; then
@@ -307,7 +305,7 @@ while [ 1 ]; do
 		    shift
 		fi
 	    done
-            # Run installing PTFs interactive
+            # Interactively run installing PTFs
             ZYPPER_NONINTERACTIVE=""
 	    ;;
 	migration)
@@ -316,11 +314,11 @@ while [ 1 ]; do
 	    ZYPPER_ARG="migration --no-snapshots"
 	    shift
 	    ;;
-        bootloader)
+	bootloader)
 	    REWRITE_BOOTLOADER=1
 	    REWRITE_GRUB_CFG=1
-            shift
-            ;;
+	    shift
+	    ;;
 	grub.cfg)
 	    REWRITE_GRUB_CFG=1
 	    shift
@@ -356,17 +354,17 @@ while [ 1 ]; do
 	    REBOOT_METHOD="salt"
 	    shift
 	    ;;
-        -h|--help)
-            usage 0
-            ;;
-        --version)
-            print_version
-            ;;
-        *)
-            if [ $# -ge 1 ]; then
-                usage 1;
-            fi
-            ;;
+	-h|--help)
+	    usage 0
+	    ;;
+	--version)
+	    print_version
+	    ;;
+	*)
+	    if [ $# -ge 1 ]; then
+		usage 1;
+	    fi
+	    ;;
     esac
 done
 
@@ -376,11 +374,11 @@ fi
 
 bashlock "/var/run/transactional-update.pid"
 if [ $? -ne 0 ]; then
-  echo "Couldn't get lock, another instance is already running?"
+  echo "Couldn't get lock, is another instance already running?"
   exit 1;
 fi
 
-# load old state file
+# Load old state file
 if [ -f ${STATE_FILE} ]; then
     . ${STATE_FILE}
 fi
@@ -389,22 +387,22 @@ log_info "transactional-update @VERSION@ started"
 log_info "Options: $ORIG_ARGS"
 
 if [ "`stat -f -c %T /`" != "btrfs" ]; then
-  log_error "ERROR: no btrfs as root filesystem!"
+  log_error "ERROR: not using btrfs as root file system!"
   log_info "transactional-update finished"
   exit 1
 fi
 
 if [ ! -d /.snapshots ]; then
-  log_error "ERROR: no snapshots for root filesystem configured!"
+  log_error "ERROR: no snapshots for root file system configured!"
   log_info "transactional-update finished"
   exit 1
 fi
 
 grep -q "[[:space:]]/var[[:space:]]" /proc/mounts
 if [ $? -eq 0 ]; then
-    log_info "Seperate /var detected"
+    log_info "Separate /var detected."
     DIR_TO_MOUNT="${DIR_TO_MOUNT} /var/cache"
-    HAS_SEPERATE_VAR=1
+    HAS_SEPARATE_VAR=1
 else
     grep -q var.cache /proc/mounts
     if [ $? -ne 0 ]; then
@@ -424,7 +422,7 @@ if [ ${DO_ROLLBACK} -eq 1 ]; then
 	NEED_REBOOT_WARNING=0
     fi
 
-    echo "Rollback to snapshot ${ROLLBACK_SNAPSHOT} ..."
+    echo "Rollback to snapshot ${ROLLBACK_SNAPSHOT}..."
 
     if [ ${RO_ROOT} == "true" ]; then
 	BTRFS_ID=`btrfs subvolume list / |grep /.snapshots/${ROLLBACK_SNAPSHOT}/snapshot | awk '{print $2}'`
@@ -455,23 +453,23 @@ if [ ${DO_ROLLBACK} -eq 1 ]; then
 fi
 
 #
-# Cleanup part: make sure old root filesystem will be removed after it is no longer active.
+# Cleanup part: make sure old root file systems will be removed after they are no longer active.
 #
 if [ ${DO_CLEANUP} -eq 1 ]; then
-    # if there is a list of working snapshots, go through it and mark any snapshot for deletion, if it is
-    # not the current used one or the active one.
+    # If there is a list of working snapshots, go through it and mark any snapshot for deletion, if it is
+    # not the currently used one or the active one.
     if [ -n "${LAST_WORKING_SNAPSHOTS}" ]; then
 	for snap in ${LAST_WORKING_SNAPSHOTS}; do
 	    if [ ${CURRENT_SNAPSHOT_ID} -ne ${snap} ]; then
-		log_info "Add cleanup algorithm to snapshot #${snap}"
+		log_info "Adding cleanup algorithm to snapshot #${snap}"
 		snapper modify -c number ${snap} |& tee -a ${LOGFILE}
 		if [ ${PIPESTATUS[0]} -ne 0 ]; then
 		    log_error "ERROR: cannot set cleanup algorithm for snapshot #${snap}"
 		fi
-		# if the old snapshot is read-write, we have already a mandatory snapshot and this one can deleted
+		# If the old snapshot is read-write, we have already a mandatory snapshot and this one can deleted
 		# earlier. If not, mark is as important, so that it will not get deleted to fast.
 		if [ ${RO_ROOT} == "true" ]; then
-		    log_info "Add \"important=yes\" to snapshot #${snap}"
+		    log_info "Adding \"important=yes\" to snapshot #${snap}"
 		    snapper modify -u "important=yes" ${snap} |& tee -a ${LOGFILE}
 		    if [ ${PIPESTATUS[0]} -ne 0 ]; then
 			log_error "ERROR: cannot set \"important=yes for snapshot\" #${snap}"
@@ -485,15 +483,15 @@ if [ ${DO_CLEANUP} -eq 1 ]; then
 	save_state_file 0
     fi
 
-    # we try to cleanup always all snapshots. We only need to keep the current snapshot
-    # and the new default one.
+    # Always try to cleanup all snapshots; only the current snapshot and an
+    # eventual new default one needs to be kept.
     if [ -n "${UNUSED_SNAPSHOTS}" ]; then
 	_new_unused=""
 	for snap in ${UNUSED_SNAPSHOTS}; do
 	    # Don't mark our current in use snapshot for deletion
 	    if [ ${snap} -ne ${CURRENT_SNAPSHOT_ID} ] && \
 		[ ${snap} -ne ${DEFAULT_SNAPSHOT_ID} ]; then
-		log_info "Mark not used snapshot #${snap} for deletion"
+		log_info "Mark unused snapshot #${snap} for deletion"
 		snapper modify -c number ${snap} |& tee -a ${LOGFILE}
 		if [ ${PIPESTATUS[0]} -ne 0 ]; then
 		    log_error "ERROR: cannot set cleanup algorithm for snapshot #${snap}"
@@ -501,8 +499,8 @@ if [ ${DO_CLEANUP} -eq 1 ]; then
 		    _new_unused="${snap} ${_new_unused}"
 		fi
 	    elif [ ${snap} -ne ${CURRENT_SNAPSHOT_ID} ]; then
-		# We currently still need the snapshot, so keep it in the
-		# list. Else we will never clean it up later.
+		# This is the snapshot which is currently in use, so keep it in
+		# the list. We would probably never clean it up later otherwise.
 		_new_unused="${snap} ${_new_unused}"
 	    fi
 	done
@@ -520,7 +518,9 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	TMPFILE=`mktemp /tmp/transactional-update.XXXXXXXXXX`
 	zypper --xml ${ZYPPER_ARG} ${ZYPPER_NONINTERACTIVE} --dry-run ${ZYPPER_ARG_PKGS} > ${TMPFILE}
 	if [ $? -ne 0 ]; then
-	    log_error "ERROR: zypper failed! Logs could be found in ${TMPFILE}"
+	    LOG_MESSAGES=`awk -v RS='<' -v FS='>' '{if ($1 ~ /^(message|description)/) print $2}' ${TMPFILE} | perl -MHTML::Entities -pe 'decode_entities($_);'`
+	    log_error "ERROR: Zypper failed with the following message(s):"
+	    log_error "${LOG_MESSAGES}"
 	    quit 1
 	fi
 	PACKAGE_UPDATES=`grep "install-summary download-size" ${TMPFILE} | sed -e 's|.*install-summary download-size=\"\(.*\)\" space-usage-diff.*|\1|g'`
@@ -530,10 +530,10 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	    log_info "zypper: nothing to update"
 	    log_info "transactional-update finished"
 	    if [ $USE_SALT_GRAINS -eq 1 ]; then
-		log_info "Update salt grains"
+		log_info "Updating salt grains"
 		if [ -f /etc/salt/grains ]; then
-		    # Reset tx_update_failed if exist. Could have been set due to wrong
-		    # repository configuration or other temporary error before.
+		    # Reset tx_update_failed if it exists. Could have been set due to wrong
+		    # repository configuration or another temporary error before.
 		    sed -i -e 's|tx_update_failed:.*|tx_update_failed: false|g' /etc/salt/grains
 		fi
 	    fi
@@ -541,10 +541,10 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	fi
     fi
 
-    # If the current root filesystem is not read-only, we need to create a read-only copy for rollback.
-    # The rw subvolume is not shown in grub2.
+    # If the current root file system is not read-only, a read-only copy for rollback has to be created first.
+    # Hint: The rw subvolume is not shown in grub2.
     if [ ${RO_ROOT} == "false" ]; then
-	log_info "Create read-only snapshot of current read-write root filesystem (#${CURRENT_SNAPSHOT_ID})"
+	log_info "Creating read-only snapshot of current read-write root filesystem (#${CURRENT_SNAPSHOT_ID})"
 	SECOND_SNAPSHOT_ID=`snapper create -p -c number -u "important=yes" -d "RO-Clone of #${CURRENT_SNAPSHOT_ID}"`
 	if [ $? -ne 0 ]; then
 	    log_error "ERROR: snapper create failed!"
@@ -568,13 +568,13 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
     fi
 
     # Remember all snapshots we create for update. If transactional-update is
-    # run several times before a reboot, we need to cleanup the not used
-    # snapshots. Else we would have a big disk space leak. But don't store it
-    # on disk yet, in error case we would delete the snapshot again.
+    # run several times before a reboot, we need to clean up the unused
+    # snapshots, otherwise we would have a big disk space leak. But don't store
+    # it on disk yet, in error case we would delete the snapshot again.
     UNUSED_SNAPSHOTS="${SNAPSHOT_ID} ${UNUSED_SNAPSHOTS}"
 
     # Check if installed with SLES12
-    if [ ${HAS_SEPERATE_VAR} -eq 0 ]; then
+    if [ ${HAS_SEPARATE_VAR} -eq 0 ]; then
 	touch ${SNAPSHOT_DIR}/var/tmp/update_snapshot.test
 	if [ $? -ne 0 ]; then
 	    log_error "ERROR: System installation is too old!"
@@ -593,8 +593,8 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	fi
     fi
 
-    # Check which directories in /boot/grub2 needs to be mounted,
-    # else a version update of grub2 will not boot.
+    # Check which directories in /boot/grub2 need to be mounted,
+    # otherwise grub2 will not boot after a version update.
     DIR_TO_MOUNT="${DIR_TO_MOUNT} `grep /boot/grub2/ /etc/fstab |grep subvol | awk '{print $2}'`"
 
 
@@ -631,12 +631,12 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
     done
 
     # If we have a seperate /var, create some directories which we
-    # will delete later again.
-    if [ ${HAS_SEPERATE_VAR} -eq 1 ]; then
+    # will delete again later.
+    if [ ${HAS_SEPARATE_VAR} -eq 1 ]; then
 	mkdir ${SNAPSHOT_DIR}/var/tmp
     fi
 
-    # check if we have /var/lib/rpm, else zypper will
+    # Check if we have /var/lib/rpm, otherwise zypper will
     # create a new rpm database [bsc#1074598]
     if [ ! -e ${SNAPSHOT_DIR}/var/lib/rpm -a \
 	-e ${SNAPSHOT_DIR}/usr/lib/sysimage/rpm ]; then
@@ -651,11 +651,11 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	VAR_CACHE_CLEANUP=1
     fi
 
-    # Create bind mount, else grub2 will fail
+    # Create bind mount or else grub2 will fail
     MOUNT_DIR=`mktemp -d`
     mount -o rbind ${SNAPSHOT_DIR} ${MOUNT_DIR}
 
-    # for RPM pre/post sections to detect, that we run in a
+    # Set indicator for RPM pre/post sections to detect whether we run in a
     # transactional update
     export TRANSACTIONAL_UPDATE=true
 
@@ -678,8 +678,8 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	    if [ ${DO_MIGRATION} -eq 1 ]; then
 		chroot ${MOUNT_DIR} env DISABLE_RESTART_ON_UPDATE=yes zypper ${ZYPPER_ARG} ${ZYPPER_ARG_PKGS}
 		RETVAL=$?
-		# Reset registration until we reboot. Needed in both cases,
-		# if an error occured or if we had success.
+		# Reset registration until reboot. Needed in both cases,
+		# whether an error occured or whether we had success.
 		test -x /usr/sbin/rollback-reset-registration && /usr/sbin/rollback-reset-registration
 		if [ $RETVAL -eq 0 ]; then
 		    # Create the trigger to re-register the system as new version after next
@@ -703,7 +703,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
     fi
 
     if [ ${REWRITE_INITRD} -eq 1 ]; then
-	log_info "Create new initrd"
+	log_info "Creating new initrd"
 	chroot ${MOUNT_DIR} /sbin/mkinitrd
 	if [ $? -ne 0 ]; then
 	    log_error "ERROR: mkinitrd failed!"
@@ -714,12 +714,12 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
     fi
 
     if [ ${REBUILD_KDUMP_INITRD} -eq 1 ]; then
-	log_info "Try to rebuild kdump initrd"
+	log_info "Trying to rebuild kdump initrd"
 	rebuild_kdump_initrd ${MOUNT_DIR}
     fi
 
     if [ ${REWRITE_GRUB_CFG} -eq 1 ]; then
-	log_info "Create a new grub2 config"
+	log_info "Creating a new grub2 config"
 	chroot ${MOUNT_DIR} /usr/sbin/grub2-mkconfig > ${MOUNT_DIR}/boot/grub2/grub.cfg
 	if [ $? -ne 0 ]; then
 	    log_error "ERROR: grub2-mkconfig failed!"
@@ -728,7 +728,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
     fi
 
     if [ ${REWRITE_BOOTLOADER} -eq 1 ]; then
-	log_info "Write new bootloader"
+	log_info "Writing new bootloader"
 	chroot ${MOUNT_DIR} /sbin/pbl --install
 	if [ $? -ne 0 ]; then
 	    log_error "ERROR: /sbin/pbl --install failed!"
@@ -737,15 +737,15 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
     fi
 
     if [ ${RUN_SHELL} -eq 1 ]; then
-	echo "Chroot in snapshot ${SNAPSHOT_ID}, continue with 'exit'"
+	echo "Opening chroot in snapshot ${SNAPSHOT_ID}, continue with 'exit'"
 	env PS1="transactional update # " chroot ${MOUNT_DIR} bash
     fi
 
-    # unset variable
+    # Unset variable
     unset TRANSACTIONAL_UPDATE
 
     # Delete temporary data before unmounting everything:
-    if [ ${HAS_SEPERATE_VAR} -eq 1 ]; then
+    if [ ${HAS_SEPARATE_VAR} -eq 1 ]; then
        rm -rf ${SNAPSHOT_DIR}/var/tmp
     fi
 
@@ -770,8 +770,8 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
     # Cleanup of temporary mount point
     rmdir ${MOUNT_DIR}
 
-    # cleanup other stuff
-    # cleanup cache directory
+    # Cleanup other stuff
+    # Cleanup cache directory
     if [ $VAR_CACHE_CLEANUP -eq 1 ]; then
 	rm -rf ${SNAPSHOT_DIR}/var/cache/*
     fi
@@ -792,7 +792,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 		log_error "ERROR: btrfs set-default $BTRFS_ID failed!"
 		EXITCODE=1;
 	    else
-		# save the old snapshot, else it will go lost
+		# Save the old snapshot or else it will go lost.
 		add_unique_id ${CURRENT_SNAPSHOT_ID}
 		save_state_file ${SNAPSHOT_ID}
 	    fi
