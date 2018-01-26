@@ -521,6 +521,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	    LOG_MESSAGES=`awk -v RS='<' -v FS='>' '{if ($1 ~ /^(message|description)/) print $2}' ${TMPFILE} | perl -MHTML::Entities -pe 'decode_entities($_);'`
 	    log_error "ERROR: Zypper failed with the following message(s):"
 	    log_error "${LOG_MESSAGES}"
+            rm -f ${TMPFILE}
 	    quit 1
 	fi
 	PACKAGE_UPDATES=`grep "install-summary download-size" ${TMPFILE} | sed -e 's|.*install-summary download-size=\"\(.*\)\" space-usage-diff.*|\1|g'`
