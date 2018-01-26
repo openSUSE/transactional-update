@@ -82,6 +82,18 @@
 	</listitem>
       </varlistentry>
 
+      <varlistentry>
+        <term><varname>ZYPPER_AUTO_IMPORT_KEYS=&lt;0|1&gt;</varname></term>
+        <listitem>
+          <para>
+            If set to <literal>1</literal> GPG keys will be imported
+            automatically for new repositories. If set to <literal>0</literal>
+            updates will fail if a key is unknown.
+            For security reasons this option is turned off
+            (<literal>0</literal>) by default.
+          </para>
+        </listitem>
+      </varlistentry>
     </variablelist>
   </refsect1>
 
