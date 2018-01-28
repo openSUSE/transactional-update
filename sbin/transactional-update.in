@@ -582,6 +582,15 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	    quit 1;
 	fi
 	rm -f ${SNAPSHOT_DIR}/var/tmp/update_snapshot.test
+    else
+        # Check if the btrfs subvolumes were created correct
+        # or with broken storage-ng [bsc#1077240]
+        touch ${SNAPSHOT_DIR}/var/update_snapshot.test
+        if [ $? -ne 0 ]; then
+            log_error "ERROR: System installation is broken!"
+            quit 1;
+        fi
+        rm -f ${SNAPSHOT_DIR}/var/update_snapshot.test
     fi
 
     # On a read only system, make sure that /etc/zypp in the
