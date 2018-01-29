@@ -472,7 +472,7 @@ if [ ${DO_CLEANUP} -eq 1 ]; then
 		    log_error "ERROR: cannot set cleanup algorithm for snapshot #${snap}"
 		fi
 		# If the old snapshot is read-write, we have already a mandatory snapshot and this one can deleted
-		# earlier. If not, mark is as important, so that it will not get deleted to fast.
+		# earlier. If not, mark is as important, so that it will not get deleted too fast.
 		if [ ${RO_ROOT} == "true" ]; then
 		    log_info "Adding \"important=yes\" to snapshot #${snap}"
 		    snapper modify -u "important=yes" ${snap} |& tee -a ${LOGFILE}
@@ -487,6 +487,12 @@ if [ ${DO_CLEANUP} -eq 1 ]; then
 	LAST_WORKING_SNAPSHOTS="${NEW_LIST}"
 	save_state_file 0
     fi
+
+    # Check for aborted transactional-updates (due to power outtage, killed
+    # process, forced shutdown or similar uncommon conditions).
+    for snap in `snapper list | cut -f 2,8 -d \| | grep transactional-update-in-progress=yes | cut -f 1 -d \|`; do
+	UNUSED_SNAPSHOTS="${UNUSED_SNAPSHOTS} ${snap}"
+    done
 
     # Always try to cleanup all snapshots; only the current snapshot and an
     # eventual new default one needs to be kept.
@@ -561,7 +567,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	fi
     fi
 
-    SNAPSHOT_ID=`snapper create -p -d "Snapshot Update"`
+    SNAPSHOT_ID=`snapper create -p -u "transactional-update-in-progress=yes" -d "Snapshot Update"`
     if [ $? -ne 0 ]; then
 	log_error "ERROR: snapper create failed!"
 	quit 1
@@ -810,9 +816,11 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 		log_error "ERROR: btrfs set-default $BTRFS_ID failed!"
 		EXITCODE=1;
 	    else
-		# Save the old snapshot or else it will go lost.
+		# Save the old snapshot or else it will get lost.
 		add_unique_id ${CURRENT_SNAPSHOT_ID}
 		save_state_file ${SNAPSHOT_ID}
+		# Reset in-progress flag
+		snapper modify -u "transactional-update-in-progress=" ${SNAPSHOT_ID}
 	    fi
 	fi
     fi
