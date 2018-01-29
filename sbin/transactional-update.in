@@ -500,8 +500,11 @@ if [ ${DO_CLEANUP} -eq 1 ]; then
 		snapper modify -c number ${snap} |& tee -a ${LOGFILE}
 		if [ ${PIPESTATUS[0]} -ne 0 ]; then
 		    log_error "ERROR: cannot set cleanup algorithm for snapshot #${snap}"
-		    # Keep the snapshot in the list
-		    _new_unused="${snap} ${_new_unused}"
+		    # Is the snapshot still available at all?
+		    if snapper list | cut -f 2 -d \| | grep -q ${snap}; then
+			# Keep the snapshot in the list
+			_new_unused="${snap} ${_new_unused}"
+		    fi
 		fi
 	    elif [ ${snap} -ne ${CURRENT_SNAPSHOT_ID} ]; then
 		# This is the snapshot which is currently in use, so keep it in
