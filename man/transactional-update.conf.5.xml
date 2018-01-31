@@ -57,6 +57,8 @@
       <refentrytitle>transactional-update</refentrytitle>
       <manvolnum>8</manvolnum>
     </citerefentry>.</para>
+    <para>The <refname>transactional-update.conf</refname> file uses shell
+    style assignments, e.g. <code>PARAMETER=value</code>.</para>
   </refsect1>
 
   <refsect1>
@@ -68,20 +70,66 @@
 
     <variablelist>
       <varlistentry>
-        <term><varname>REBOOT_METHOD=&lt;auto|salt|rebootmgr|systemd&gt;</varname></term>
+        <term><varname>REBOOT_METHOD</varname></term>
         <listitem>
-	  <para>
-            Specify the reboot method to use. If the value is <literal>auto
-            </literal> rebootmgr will be used to reboot the system; if
-            rebootmgr is not installed or running systemd will be used as a
-            fallback. If the value is <literal>salt</literal>,
-            <literal>rebootmgr</literal> or <literal>systemd</literal> the
-            corresponding mechanism will be called for rebooting the system.
-            Default and fallback on unkown values is <literal>auto</literal>.
-        </para>
+          <para>Specify the reboot method to use.</para>
+          <variablelist>
+            <varlistentry>
+              <term><literal>auto</literal></term>
+              <listitem>
+	        <para>
+                  Uses <literal>rebootmgr</literal> if available and active;
+                  falls back to <literal>systemd</literal> otherwise.
+                </para>
+                <para>
+                  This is the default value. If the option is invalid it will
+                  also be used as the fallback value.
+                </para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term><literal>salt</literal></term>
+              <listitem>
+                <para>
+                  Will create a Salt grain for signaling Velum to reboot the
+                  system.
+                </para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term><literal>rebootmgr</literal></term>
+              <listitem>
+                <para>
+                   <citerefentry project='rebootmgr'><refentrytitle>rebootmgrctl</refentrytitle><manvolnum>1</manvolnum></citerefentry>
+                   will be triggered to initiate a reboot.
+                </para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term><literal>systemd</literal></term>
+              <listitem>
+                <para>
+                   <citerefentry project='systemd'><refentrytitle>systemctl</refentrytitle><manvolnum>1</manvolnum></citerefentry>
+                   will be called to initiate a reboot.
+                </para>
+              </listitem>
+            </varlistentry>
+          </variablelist>
 	</listitem>
       </varlistentry>
 
+      <varlistentry>
+        <term><varname>ZYPPER_AUTO_IMPORT_KEYS</varname></term>
+        <listitem>
+          <para>
+            If set to <literal>1</literal> GPG keys will be imported
+            automatically for new repositories. If set to <literal>0</literal>
+            updates will fail if a key is unknown.
+            For security reasons this option is turned off
+            (<literal>0</literal>) by default.
+          </para>
+        </listitem>
+      </varlistentry>
     </variablelist>
   </refsect1>
 
