@@ -2,6 +2,16 @@ transactional-update NEWS -- history of user-visible changes.
 
 Copyright (C) 2016, 2017, 2018 Thorsten Kukuk
 
+Version 1.26
+* Auto accept repo keys config option
+* Detect broken snapshots after abort
+* Ignore user deleted snapshots
+* Include all error messages in main log file
+* Add configuration file
+* Correctly implement migration of major OS versions
+* Default reboot strategy is configuration option
+* Salt option is deprecated
+
 Version 1.25
 * Add support for seperate /var partition
 * Preliminary SELinux support
