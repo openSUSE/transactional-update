@@ -7,6 +7,7 @@ CLEANFILES = transactional-update
 EXTRA_DIST = transactional-update.in tu-rebuild-kdump-initrd
 
 do_subst = sed -e 's,[@]sysconfdir[@],$(sysconfdir),g' \
+	-e 's,[@]prefix[@],$(prefix),g' \
 	-e 's,[@]VERSION[@],$(VERSION),g'
 
 transactional-update: transactional-update.in Makefile

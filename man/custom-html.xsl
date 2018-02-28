@@ -35,6 +35,7 @@
  -->
 <xsl:param name="generate.consistent.ids" select="1"/>
 <xsl:param name="sysconfdir"/>
+<xsl:param name="prefix"/>
 
 <!-- translate man page references to links to html pages -->
 <xsl:template match="citerefentry[not(@project)]">
@@ -268,6 +269,7 @@
 <xsl:template match="filename">
   <xsl:variable name="replacements">
     <ss:substitution oldstring="%sysconfdir%" newstring="{$sysconfdir}" />
+    <ss:substitution oldstring="%prefix%" newstring="{$prefix}" />
   </xsl:variable>
   <xsl:call-template name="apply-string-subst-map">
     <xsl:with-param name="content" select="."/>

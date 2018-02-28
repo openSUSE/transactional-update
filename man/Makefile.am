@@ -27,12 +27,14 @@ XSLTPROC_FLAGS_HTML = \
         --stringparam package.version $(VERSION) \
         --stringparam chunker.output.encoding UTF-8 \
 	--stringparam sysconfdir $(sysconfdir) \
+	--stringparam prefix $(prefix) \
         $(srcdir)/custom-html.xsl
 
 XSLTPROC_FLAGS_MAN = \
 	--nonet \
 	--xinclude \
 	--stringparam sysconfdir $(sysconfdir) \
+	--stringparam prefix $(prefix) \
 	$(srcdir)/custom-man.xsl
 
 if ENABLE_REGENERATE_MAN
