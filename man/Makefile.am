@@ -26,8 +26,14 @@ XSLTPROC_FLAGS_HTML = \
 	--stringparam package.name $(PACKAGE) \
         --stringparam package.version $(VERSION) \
         --stringparam chunker.output.encoding UTF-8 \
+	--stringparam sysconfdir $(sysconfdir) \
         $(srcdir)/custom-html.xsl
 
+XSLTPROC_FLAGS_MAN = \
+	--nonet \
+	--xinclude \
+	--stringparam sysconfdir $(sysconfdir) \
+	$(srcdir)/custom-man.xsl
 
 if ENABLE_REGENERATE_MAN
 define html_alias
@@ -38,7 +44,7 @@ transactional-update.index.xml: make-man-index.py $(XMLS)
 	python $(srcdir)/make-man-index.py $(srcdir)/$@ $(XMLS)
 
 transactional-update.8: transactional-update.8.xml
-	$(XSLTPROC) -o $(srcdir)/$@ --path $(srcdir) --xinclude --nonet http://docbook.sourceforge.net/release/xsl/current/manpages/docbook.xsl $<
+	$(XSLTPROC) -o $(srcdir)/$@ --path $(srcdir) $(XSLTPROC_FLAGS_MAN) $<
 
 transactional-update.service.8: transactional-update.8
 
@@ -57,7 +63,7 @@ transactional-update.index.html: transactional-update.index.xml custom-html.xsl
 	$(XSLTPROC) -o $(srcdir)/$@ --path $(srcdir) $(XSLTPROC_FLAGS_HTML) $<
 
 transactional-update.conf.5: transactional-update.conf.5.xml
-	$(XSLTPROC) -o $(srcdir)/$@ --path $(srcdir) --xinclude --nonet http://docbook.sourceforge.net/release/xsl/current/manpages/docbook.xsl $<
+	$(XSLTPROC) -o $(srcdir)/$@ --path $(srcdir) $(XSLTPROC_FLAGS_MAN) $<
 
 transactional-update.conf.5.html: transactional-update.conf.5.xml custom-html.xsl
 	$(XSLTPROC) -o $(srcdir)/$@ --path $(srcdir) $(XSLTPROC_FLAGS_HTML) $<

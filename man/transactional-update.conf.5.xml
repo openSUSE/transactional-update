@@ -46,7 +46,7 @@
   </refnamediv>
 
   <refsynopsisdiv>
-    <para><filename>/etc/transactional-update.conf</filename></para>
+    <para><filename>%sysconfdir%/transactional-update.conf</filename></para>
   </refsynopsisdiv>
 
   <refsect1>
