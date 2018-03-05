@@ -46,6 +46,7 @@ ZYPPER_AUTO_IMPORT_KEYS=0
 HAS_SEPARATE_VAR=0
 SNAPSHOT_ID=""
 SECOND_SNAPSHOT_ID=""
+SNAPPER_NO_DBUS=""
 KDUMP_SYSCONFIG="/etc/sysconfig/kdump"
 # Config files which the user could have modified and which should
 # be copied to the snapshot.
@@ -171,11 +172,11 @@ copy_user_group_accounts () {
 quit() {
     if [ -n "${SNAPSHOT_ID}" ] ; then
 	log_error "Removing snapshot #${SNAPSHOT_ID}..."
-	snapper delete ${SNAPSHOT_ID} |& tee -a ${LOGFILE}
+	snapper ${SNAPPER_NO_DBUS} delete ${SNAPSHOT_ID} |& tee -a ${LOGFILE}
     fi
     if [ -n "${SECOND_SNAPSHOT_ID}" ] ; then
 	log_error "Removing snapshot #${SECOND_SNAPSHOT_ID}..."
-	snapper delete ${SECOND_SNAPSHOT_ID} |& tee -a ${LOGFILE}
+	snapper ${SNAPPER_NO_DBUS} delete ${SECOND_SNAPSHOT_ID} |& tee -a ${LOGFILE}
     fi
     if [ $USE_SALT_GRAINS -eq 1 ]; then
 	if [ -f /etc/salt/grains ]; then
@@ -450,7 +451,7 @@ if [ ${DO_ROLLBACK} -eq 1 ]; then
 	    touch ${MOUNT_DIR}/var/lib/rollback/check-registration
 	fi
 	# Remove possible cleanup algo
-	snapper modify -c '' ${ROLLBACK_SNAPSHOT}
+	snapper ${SNAPPER_NO_DBUS} modify -c '' ${ROLLBACK_SNAPSHOT}
     else
 	snapper rollback ${ROLLBACK_SNAPSHOT}
 	NEED_REBOOT_WARNING=1
@@ -566,15 +567,23 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	log_info "Creating read-only snapshot of current read-write root filesystem (#${CURRENT_SNAPSHOT_ID})"
 	SECOND_SNAPSHOT_ID=`snapper create -p -c number -u "important=yes" -d "RO-Clone of #${CURRENT_SNAPSHOT_ID}"`
 	if [ $? -ne 0 ]; then
-	    log_error "ERROR: snapper create failed!"
-	    exit 1
+	    SNAPPER_NO_DBUS="--no-dbus"
+	    SECOND_SNAPSHOT_ID=`snapper --no-dbus create -p -c number -u "important=yes" -d "RO-Clone of #${CURRENT_SNAPSHOT_ID}"`
+	    if [ $? -ne 0 ]; then
+		log_error "ERROR: snapper create failed!"
+		exit 1
+	    fi
 	fi
     fi
 
     SNAPSHOT_ID=`snapper create -p -u "transactional-update-in-progress=yes" -d "Snapshot Update"`
     if [ $? -ne 0 ]; then
-	log_error "ERROR: snapper create failed!"
-	quit 1
+	SNAPPER_NO_DBUS="--no-dbus"
+	SNAPSHOT_ID=`snapper --no-dbus create -p -u "transactional-update-in-progress=yes" -d "Snapshot Update"`
+	if [ $? -ne 0 ]; then
+	    log_error "ERROR: snapper create failed!"
+	    quit 1
+	fi
     fi
 
     SNAPSHOT_DIR=/.snapshots/${SNAPSHOT_ID}/snapshot
@@ -824,7 +833,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 		add_unique_id ${CURRENT_SNAPSHOT_ID}
 		save_state_file ${SNAPSHOT_ID}
 		# Reset in-progress flag
-		snapper modify -u "transactional-update-in-progress=" ${SNAPSHOT_ID}
+		snapper ${SNAPPER_NO_DBUS} modify -u "transactional-update-in-progress=" ${SNAPSHOT_ID}
 	    fi
 	fi
     fi
