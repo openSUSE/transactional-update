@@ -19,7 +19,9 @@
   along with systemd; If not, see <http://www.gnu.org/licenses/>.
 -->
 
-<xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform" version="1.0">
+<xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
+  xmlns:ss="http://docbook.sf.net/xmlns/string.subst/1.0"
+  xmlns:exsl="http://exslt.org/common" version="1.0">
 
 <xsl:import href="http://docbook.sourceforge.net/release/xsl/current/html/docbook.xsl"/>
 <!--
@@ -32,6 +34,8 @@
   - for this stylesheet contains its own custom ID logic (for generating permalinks) already.
  -->
 <xsl:param name="generate.consistent.ids" select="1"/>
+<xsl:param name="sysconfdir"/>
+<xsl:param name="prefix"/>
 
 <!-- translate man page references to links to html pages -->
 <xsl:template match="citerefentry[not(@project)]">
@@ -260,6 +264,17 @@
   <xsl:text>"</xsl:text>
   <xsl:call-template name="inline.monoseq"/>
   <xsl:text>"</xsl:text>
+</xsl:template>
+
+<xsl:template match="filename">
+  <xsl:variable name="replacements">
+    <ss:substitution oldstring="%sysconfdir%" newstring="{$sysconfdir}" />
+    <ss:substitution oldstring="%prefix%" newstring="{$prefix}" />
+  </xsl:variable>
+  <xsl:call-template name="apply-string-subst-map">
+    <xsl:with-param name="content" select="."/>
+    <xsl:with-param name="map.contents" select="exsl:node-set($replacements)/*" />
+  </xsl:call-template>
 </xsl:template>
 
 <!-- Switch things to UTF-8, ISO-8859-1 is soo yesteryear -->

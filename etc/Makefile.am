@@ -5,3 +5,7 @@
 sysconf_DATA = transactional-update.conf
 
 EXTRA_DIST = $(DATA)
+
+install-data-local:
+	$(mkinstalldirs) $(DESTDIR)$(prefix)/etc
+	$(INSTALL_DATA) $(srcdir)/$(DATA) $(DESTDIR)$(prefix)/etc
