@@ -623,7 +623,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 
     # Check which directories in /boot/grub2 need to be mounted,
     # otherwise grub2 will not boot after a version update.
-    DIR_TO_MOUNT="${DIR_TO_MOUNT} `grep /boot/grub2/ /etc/fstab |grep subvol | awk '{print $2}'`"
+    DIR_TO_MOUNT="${DIR_TO_MOUNT} $(awk '$2 ~ /\/boot\/grub2\// { print $2 }' /proc/mounts)"
 
 
     # Mount everything we need:
