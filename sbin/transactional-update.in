@@ -406,7 +406,7 @@ fi
 grep -q "[[:space:]]/var[[:space:]]" /proc/mounts
 if [ $? -eq 0 ]; then
     log_info "Separate /var detected."
-    DIR_TO_MOUNT="${DIR_TO_MOUNT} /var/cache"
+    DIR_TO_MOUNT="${DIR_TO_MOUNT} var/cache var/lib/alternatives"
     HAS_SEPARATE_VAR=1
 else
     grep -q var.cache /proc/mounts
