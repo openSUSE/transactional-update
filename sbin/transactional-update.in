@@ -710,6 +710,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
     # Create bind mount or else grub2 will fail
     MOUNT_DIR=`mktemp -d`
     mount -o rbind ${SNAPSHOT_DIR} ${MOUNT_DIR}
+    mount -o bind,ro /.snapshots ${MOUNT_DIR}/.snapshots
 
     # Set indicator for RPM pre/post sections to detect whether we run in a
     # transactional update
@@ -811,7 +812,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
     fi
 
     # Unmount everything we don't need anymore:
-    for directory in proc sys $DIR_TO_MOUNT ; do
+    for directory in proc sys $DIR_TO_MOUNT .snapshots ; do
 	umount -R ${SNAPSHOT_DIR}/$directory
 	if [ $? -ne 0 ]; then
 	    log_error "ERROR: umount of $directory failed!"
