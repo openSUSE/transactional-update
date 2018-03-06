@@ -2,10 +2,11 @@
 # Copyright (c) 2018 Ignaz Forster <iforster@suse.com>
 #
 
-sysconf_DATA = transactional-update.conf
-
-EXTRA_DIST = $(DATA)
+EXTRA_DIST = transactional-update.conf
 
 install-data-local:
-	$(mkinstalldirs) $(DESTDIR)$(prefix)/etc
-	$(INSTALL_DATA) $(srcdir)/$(DATA) $(DESTDIR)$(prefix)/etc
+	$(mkinstalldirs) $(DESTDIR)$(prefix)$(sysconfdir)
+	$(INSTALL_DATA) $(srcdir)/$(EXTRA_DIST) $(DESTDIR)$(prefix)$(sysconfdir)
+
+uninstall-local:
+	-rm $(DESTDIR)$(prefix)$(sysconfdir)/$(EXTRA_DIST)

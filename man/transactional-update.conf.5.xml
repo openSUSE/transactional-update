@@ -61,7 +61,7 @@
     style assignments, e.g. <code>PARAMETER=value</code>.</para>
     <para>A reference file (also used for reading the default values) can be
     found in
-    <filename>%prefix%/etc/transactional-update.conf</filename>.</para>
+    <filename>%prefix%%sysconfdir%/transactional-update.conf</filename>.</para>
   </refsect1>
 
   <refsect1>
