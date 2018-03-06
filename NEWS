@@ -2,6 +2,11 @@ transactional-update NEWS -- history of user-visible changes.
 
 Copyright (C) 2016, 2017, 2018 Thorsten Kukuk
 
+Version 1.27
+* Fallback to snapper without dbus support if dbus fails
+* Add workaround for update-alternatives
+* Add support for /usr/etc/transactional-update.conf
+
 Version 1.26
 * Auto accept repo keys config option
 * Detect broken snapshots after abort
