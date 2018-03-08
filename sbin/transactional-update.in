@@ -251,6 +251,26 @@ add_unique_id() {
     LAST_WORKING_SNAPSHOTS="${NEW_ID} ${LAST_WORKING_SNAPSHOTS}"
 }
 
+check_registration_on_next_reboot() {
+    if [ ${HAS_SEPARATE_VAR} -eq 0 ]; then
+	# /var own subvolume, not mounted during update, so touch the
+	# file in the running system.
+	test -d  /var/lib/rollback || mkdir -p /var/lib/rollback
+	touch /var/lib/rollback/check-registration
+    else
+	# check if /var/lib/rollback is own subvolume
+	grep -q "[[:space:]]/var/lib/rollback[[:space:]]" /proc/mounts
+	if [ $? -eq 0 ]; then
+	    # Extra subvolume, not mounted in chroot, touch outside.
+	    touch /var/lib/rollback/check-registration
+	else
+	    # no subvolumes,
+	    test -d ${MOUNT_DIR}/var/lib/rollback || mkdir -p ${MOUNT_DIR}/var/lib/rollback
+	    touch ${MOUNT_DIR}/var/lib/rollback/check-registration
+	fi
+    fi
+}
+
 ORIG_ARGS="$@"
 
 # If no option is given, assume "up"
@@ -447,8 +467,7 @@ if [ ${DO_ROLLBACK} -eq 1 ]; then
 	    fi
 	    # Create the trigger to re-register the system as new version after next
 	    # reboot.
-	    test -d ${MOUNT_DIR}/var/lib/rollback || mkdir -p ${MOUNT_DIR}/var/lib/rollback
-	    touch ${MOUNT_DIR}/var/lib/rollback/check-registration
+	    check_registration_on_next_reboot
 	fi
 	# Remove possible cleanup algo
 	snapper ${SNAPPER_NO_DBUS} modify -c '' ${ROLLBACK_SNAPSHOT}
@@ -721,8 +740,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 		if [ $RETVAL -eq 0 ]; then
 		    # Create the trigger to re-register the system as new version after next
 		    # reboot.
-		    test -d ${MOUNT_DIR}/var/lib/rollback || mkdir -p ${MOUNT_DIR}/var/lib/rollback
-		    touch ${MOUNT_DIR}/var/lib/rollback/check-registration
+		    check_registration_on_next_reboot
 		fi
 	    else
 		env DISABLE_RESTART_ON_UPDATE=yes zypper -R ${MOUNT_DIR} ${ZYPPER_ARG} ${ZYPPER_ARG_PKGS}
@@ -736,6 +754,12 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	else
 	    copy_user_group_accounts
 	    REBUILD_KDUMP_INITRD=1
+	    # check if products are updated and we need to re-register
+	    # at next boot.
+	    diff -qr /etc/products.d ${MOUNT_DIR}/etc/products.d > /dev/null
+	    if [ $? -ne 0 ]; then
+		check_registration_on_next_reboot
+	    fi
 	fi
     fi
 
