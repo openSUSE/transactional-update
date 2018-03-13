@@ -1,0 +1,9 @@
+#
+# Copyright (c) 2018 Ignaz Forster <iforster@suse.com>
+#
+
+modulesdir = @DRACUTDIR@/50transactional-update
+
+modules_SCRIPTS = transactional-update-etc-cleaner.sh module-setup.sh
+
+EXTRA_DIST = $(SCRIPTS)

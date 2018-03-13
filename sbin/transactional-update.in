@@ -722,6 +722,14 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	fi
     done
 
+    # Copy the contents of /etc
+    log_info "Copying /etc state into snapshot"
+    rsync --archive --quiet --exclude '/etc/transactional-update.newsnapshot' --delete-excluded /etc ${SNAPSHOT_DIR}
+    if [ $? -ne 0 ]; then
+	log_error "ERROR: copying of /etc into snapshot failed!"
+	quit 1;
+    fi
+
     # If we have a seperate /var, create some directories which we
     # will delete again later.
     if [ ${HAS_SEPARATE_VAR} -eq 1 ]; then
@@ -893,6 +901,8 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 		# Save the old snapshot or else it will get lost.
 		add_unique_id ${CURRENT_SNAPSHOT_ID}
 		save_state_file ${SNAPSHOT_ID}
+		# Mark /etc contents as deleteable
+		touch /etc/transactional-update.newsnapshot
 		# Reset in-progress flag
 		snapper ${SNAPPER_NO_DBUS} modify -u "transactional-update-in-progress=" ${SNAPSHOT_ID}
 	    fi
