@@ -50,10 +50,6 @@ HAS_SEPARATE_VAR=0
 SNAPSHOT_ID=""
 SECOND_SNAPSHOT_ID=""
 SNAPPER_NO_DBUS=""
-KDUMP_SYSCONFIG="/etc/sysconfig/kdump"
-# Config files which the user could have modified and which should
-# be copied to the snapshot.
-CONFIG_FILES_TO_COPY="/etc/default/grub"
 
 # Load config
 if [ -r ${SYSTEMCONFFILE} ]; then
@@ -152,39 +148,7 @@ rebuild_kdump_initrd() {
     test -f /usr/lib/systemd/system/kdump.service || return
     systemctl is-enabled --quiet kdump.service
     if [ $? = 0 -a -x ${MOUNT_DIR}/usr/sbin/tu-rebuild-kdump-initrd ]; then
-	if [ ${KDUMP_SYSCONFIG} -nt ${MOUNT_DIR}/${KDUMP_SYSCONFIG} ]; then
-	    cp -a ${KDUMP_SYSCONFIG} ${MOUNT_DIR}/${KDUMP_SYSCONFIG}
-	fi
 	chroot ${MOUNT_DIR} /usr/sbin/tu-rebuild-kdump-initrd |& tee -a ${LOGFILE}
-    fi
-}
-
-# If the SHA256 sum of passwd, group or shadow has changed then copy the files
-# to /usr/etc. If libnss_usrfiles is installed those files will be taken into
-# account as a secondary source if an entry is not found in /etc.
-calc_user_group_sha256sum () {
-    SHA256_passwd=`sha256sum ${MOUNT_DIR}/etc/passwd | awk '{ print $1 }'`
-    SHA256_group=`sha256sum ${MOUNT_DIR}/etc/group | awk '{ print $1 }'`
-    SHA256_shadow=`sha256sum ${MOUNT_DIR}/etc/shadow | awk '{ print $1 }'`
-}
-
-copy_user_group_accounts () {
-    # Only copy files to usr/etc if libnss_usrfiles is installed.
-    test -d ${MOUNT_DIR}/usr/etc || return
-
-    NEWSUM=`sha256sum ${MOUNT_DIR}/etc/passwd | awk '{ print $1 }'`
-    if [ ${NEWSUM} != ${SHA256_passwd} ]; then
-	cp -a ${MOUNT_DIR}/etc/passwd ${MOUNT_DIR}/usr/etc/
-    fi
-
-    NEWSUM=`sha256sum ${MOUNT_DIR}/etc/group | awk '{ print $1 }'`
-    if [ ${NEWSUM} != ${SHA256_group} ]; then
-	cp -a ${MOUNT_DIR}/etc/group ${MOUNT_DIR}/usr/etc/
-    fi
-
-    NEWSUM=`sha256sum ${MOUNT_DIR}/etc/shadow | awk '{ print $1 }'`
-    if [ ${NEWSUM} != ${SHA256_shadow} ]; then
-	cp -a ${MOUNT_DIR}/etc/shadow ${MOUNT_DIR}/usr/etc/
     fi
 }
 
@@ -675,11 +639,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
         rm -f ${SNAPSHOT_DIR}/var/update_snapshot.test
     fi
 
-    # On a read only system, make sure that /etc/zypp in the
-    # snapshot is current, could come from a overlayfs which
-    # means not part of the snapshot itself
     if [ ${RO_ROOT} == "true" ]; then
-	DIR_TO_MOUNT="${DIR_TO_MOUNT} etc/zypp"
 	if [ ${RUN_SHELL} -eq 1 ]; then
 	    DIR_TO_MOUNT="${DIR_TO_MOUNT} root"
 	fi
@@ -760,16 +720,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
     # transactional update
     export TRANSACTIONAL_UPDATE=true
 
-    # Copy modified config files to the snapshot
-    for CF in ${CONFIG_FILES_TO_COPY} ; do
-	if [ ${CF} -nt ${MOUNT_DIR}/${CF} ]; then
-	    cp -a ${CF} ${MOUNT_DIR}/${CF}
-	fi
-    done
-
     if [ -n "${ZYPPER_ARG}" ]; then
-
-	calc_user_group_sha256sum
 
 	log_info "Calling zypper ${ZYPPER_ARG}"
 	if [ -n "${ZYPPER_NONINTERACTIVE}" ]; then
@@ -794,7 +745,6 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	fi
 
 	if [ $RETVAL -eq 0 -o $RETVAL -eq 102 -o $RETVAL -eq 103 -o \( $DO_DUP -eq 0 -a $RETVAL -eq 106 \) ]; then
-	    copy_user_group_accounts
 	    REBUILD_KDUMP_INITRD=1
 	    # check if products are updated and we need to re-register
 	    # at next boot.
