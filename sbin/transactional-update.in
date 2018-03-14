@@ -43,12 +43,13 @@ CONFFILE="@sysconfdir@/transactional-update.conf"
 SYSTEMCONFFILE="@prefix@@sysconfdir@/transactional-update.conf"
 LOGFILE="/var/log/transactional-update.log"
 STATE_FILE="/var/lib/misc/transactional-update.state"
+NEW_SNAPSHOT_FLAG="/var/lib/overlay/etc/transactional-update.newsnapshot"
 SELF_PATH="`dirname $0`"
 PACKAGE_UPDATES=0
 ZYPPER_AUTO_IMPORT_KEYS=0
 HAS_SEPARATE_VAR=0
 SNAPSHOT_ID=""
-SECOND_SNAPSHOT_ID=""
+BACKUP_SNAPSHOT_ID=""
 SNAPPER_NO_DBUS=""
 
 # Load config
@@ -158,9 +159,9 @@ quit() {
 	log_error "Removing snapshot #${SNAPSHOT_ID}..."
 	snapper ${SNAPPER_NO_DBUS} delete ${SNAPSHOT_ID} |& tee -a ${LOGFILE}
     fi
-    if [ -n "${SECOND_SNAPSHOT_ID}" ] ; then
-	log_error "Removing snapshot #${SECOND_SNAPSHOT_ID}..."
-	snapper ${SNAPPER_NO_DBUS} delete ${SECOND_SNAPSHOT_ID} |& tee -a ${LOGFILE}
+    if [ -n "${BACKUP_SNAPSHOT_ID}" ] ; then
+	log_error "Removing snapshot #${BACKUP_SNAPSHOT_ID}..."
+	snapper ${SNAPPER_NO_DBUS} delete ${BACKUP_SNAPSHOT_ID} |& tee -a ${LOGFILE}
     fi
     if [ $USE_SALT_GRAINS -eq 1 ]; then
 	if [ -f /etc/salt/grains ]; then
@@ -580,25 +581,41 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	fi
     fi
 
-    # If the current root file system is not read-only, a read-only copy for rollback has to be created first.
+    # Create a backup snapshot of the current system state (i.e. preserve the /etc overlay contents on a read-only
+    # system or the general system state on a read-write file system, similar to what zypper / snapper does).
     # Hint: The rw subvolume is not shown in grub2.
-    if [ ${RO_ROOT} == "false" ]; then
-	log_info "Creating read-only snapshot of current read-write root filesystem (#${CURRENT_SNAPSHOT_ID})"
-	SECOND_SNAPSHOT_ID=`snapper create -p -c number -u "important=yes" -d "RO-Clone of #${CURRENT_SNAPSHOT_ID}"`
+    log_info "Creating read-only snapshot of current system state (#${CURRENT_SNAPSHOT_ID})"
+    BACKUP_SNAPSHOT_ID=`snapper create -p -t pre -c number -u "important=yes" -d "RO-Clone of #${CURRENT_SNAPSHOT_ID}"`
+    BACKUP_SNAPSHOT_DIR=/.snapshots/${BACKUP_SNAPSHOT_ID}/snapshot
+    if [ $? -ne 0 ]; then
+	SNAPPER_NO_DBUS="--no-dbus"
+	BACKUP_SNAPSHOT_ID=`snapper --no-dbus create -p -t pre -c number -u "important=yes" -d "RO-Clone of #${CURRENT_SNAPSHOT_ID}"`
 	if [ $? -ne 0 ]; then
-	    SNAPPER_NO_DBUS="--no-dbus"
-	    SECOND_SNAPSHOT_ID=`snapper --no-dbus create -p -c number -u "important=yes" -d "RO-Clone of #${CURRENT_SNAPSHOT_ID}"`
-	    if [ $? -ne 0 ]; then
-		log_error "ERROR: snapper create failed!"
-		exit 1
-	    fi
+	    log_error "ERROR: snapper create failed!"
+	    exit 1
 	fi
     fi
 
-    SNAPSHOT_ID=`snapper create -p -u "transactional-update-in-progress=yes" -d "Snapshot Update"`
+    # Make the backup snapshot read-write:
+    btrfs property set ${BACKUP_SNAPSHOT_DIR} ro false
+    if [ $? -ne 0 ]; then
+	log_error "ERROR: changing ${BACKUP_SNAPSHOT_DIR} to read-write failed!"
+	quit 1;
+    fi
+
+    # Copy the contents of /etc into the backup snapshot
+    log_info "Copying /etc state into backup snapshot"
+    rsync --archive --quiet --exclude "${NEW_SNAPSHOT_FLAG}" --delete-excluded /etc ${BACKUP_SNAPSHOT_DIR}
+    if [ $? -ne 0 ]; then
+	log_error "ERROR: copying of /etc into backup snapshot failed!"
+	quit 1;
+    fi
+
+    # Create the working snapshot
+    SNAPSHOT_ID=`snapper create --type post --pre-number ${BACKUP_SNAPSHOT_ID} -p -u "transactional-update-in-progress=yes" -d "Snapshot Update"`
     if [ $? -ne 0 ]; then
 	SNAPPER_NO_DBUS="--no-dbus"
-	SNAPSHOT_ID=`snapper --no-dbus create -p -u "transactional-update-in-progress=yes" -d "Snapshot Update"`
+	SNAPSHOT_ID=`snapper --no-dbus create --type post --pre-number ${BACKUP_SNAPSHOT_ID} -p -u "transactional-update-in-progress=yes" -d "Snapshot Update"`
 	if [ $? -ne 0 ]; then
 	    log_error "ERROR: snapper create failed!"
 	    quit 1
@@ -684,7 +701,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 
     # Copy the contents of /etc
     log_info "Copying /etc state into snapshot"
-    rsync --archive --quiet --exclude '/etc/transactional-update.newsnapshot' --delete-excluded /etc ${SNAPSHOT_DIR}
+    rsync --archive --quiet --exclude "${NEW_SNAPSHOT_FLAG}" --delete-excluded /etc ${SNAPSHOT_DIR}
     if [ $? -ne 0 ]; then
 	log_error "ERROR: copying of /etc into snapshot failed!"
 	quit 1;
@@ -851,8 +868,8 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 		# Save the old snapshot or else it will get lost.
 		add_unique_id ${CURRENT_SNAPSHOT_ID}
 		save_state_file ${SNAPSHOT_ID}
-		# Mark /etc contents as deleteable
-		touch /etc/transactional-update.newsnapshot
+		# Create flag file for overlay purging
+		touch "${NEW_SNAPSHOT_FLAG}"
 		# Reset in-progress flag
 		snapper ${SNAPPER_NO_DBUS} modify -u "transactional-update-in-progress=" ${SNAPSHOT_ID}
 	    fi
@@ -864,6 +881,13 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
     if [ $? -ne 0 ]; then
 	log_error "ERROR: changing ${SNAPSHOT_DIR} to ro=${RO_ROOT} failed!"
 	EXITCODE=1
+    fi
+    if [ -n ${BACKUP_SNAPSHOT_DIR} ]; then
+	btrfs property set ${BACKUP_SNAPSHOT_DIR} ro ${RO_ROOT}
+	if [ $? -ne 0 ]; then
+	    log_error "ERROR: changing ${BACKUP_SNAPSHOT_DIR} to ro=${RO_ROOT} failed!"
+	    EXITCODE=1
+	fi
     fi
 
     if [ ${EXITCODE} -ne 0 ]; then
