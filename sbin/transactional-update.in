@@ -228,6 +228,10 @@ quit() {
 	log_error "Removing snapshot #${BACKUP_SNAPSHOT_ID}..."
 	snapper ${SNAPPER_NO_DBUS} delete ${BACKUP_SNAPSHOT_ID} |& tee -a ${LOGFILE}
     fi
+    if [ -n "${ETC_OVERLAY_DIR}" ] ; then
+	log_error "Removing overlay directory ${ETC_OVERLAY_DIR}..."
+	rm -rf "${ETC_OVERLAY_DIR}" |& tee -a ${LOGFILE}
+    fi
     if [ $USE_SALT_GRAINS -eq 1 ]; then
 	if [ -f /etc/salt/grains ]; then
 	    grep -q tx_update_failed /etc/salt/grains
@@ -267,7 +271,7 @@ teardown() {
     fi
 
     # Unmount everything we don't need anymore:
-    for directory in proc sys $DIR_TO_MOUNT .snapshots ; do
+    for directory in proc sys etc $DIR_TO_MOUNT .snapshots ; do
 	# Only try unmount if directory is mounted
 	if ! findmnt ${SNAPSHOT_DIR}/$directory >/dev/null; then
 	    continue;
@@ -829,6 +833,12 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	quit 1
     fi
 
+    # Create new /etc overlay for snapshot
+    ETC_OVERLAY_DIR=/var/lib/overlay/${SNAPSHOT_ID}/etc
+    mkdir -p "${ETC_OVERLAY_DIR}"
+    # Add new overlay to snapshot
+    sed -i 's#lowerdir=/sysroot/etc\(.*\),upperdir=\(.*\),workdir=\(.*\)#lowerdir=/sysroot/etc\1:\2,upperdir='${ETC_OVERLAY_DIR}',workdir=\3#g' "${SNAPSHOT_DIR}/etc/fstab.sys"
+
     # Remember all snapshots we create for update. If transactional-update is
     # run several times before a reboot, we need to clean up the unused
     # snapshots, otherwise we would have a big disk space leak. But don't store
@@ -874,6 +884,11 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
     if [ $? -ne 0 ]; then
         log_error "ERROR: mount of sys failed!"
         quit 1
+    fi
+    mount -t overlay overlay ${SNAPSHOT_DIR}/etc -o$(awk '$2 = /\/etc/ { gsub(/\/sysroot/,""); print $4 } ' "${SNAPSHOT_DIR}/etc/fstab.sys")
+    if [ $? -ne 0 ]; then
+        log_error "ERROR: mount of etc failed!"
+        quit 1;
     fi
     if [ -x /usr/sbin/selinuxenabled ]; then
         /usr/sbin/selinuxenabled
