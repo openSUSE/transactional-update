@@ -13,4 +13,5 @@ depends() {
 # called by dracut
 install() {
     inst_hook pre-pivot 10 "$moddir/transactional-update-etc-cleaner.sh"
+    inst_multiple cmp rmdir
 }
