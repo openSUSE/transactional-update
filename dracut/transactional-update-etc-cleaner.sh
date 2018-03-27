@@ -5,6 +5,9 @@
 ETC_OVERLAY="${NEWROOT}/var/lib/overlay/etc"
 TU_FLAGFILE="${ETC_OVERLAY}/transactional-update.newsnapshot"
 
+# Import common dracut variables
+. /dracut-state.sh 2>/dev/null
+
 # Remove files from overlay with safety checks
 # etc directory mustn't be deleted completely, as it's still mounted and the kernel won't be able to recover from that (different inode?)
 clean_overlay() {
@@ -25,15 +28,15 @@ clean_overlay() {
       rmdir --ignore-fail-on-non-empty -- "${file}"
     # Overlayfs creates a character device for removed files / directories
     elif [ -c "${file}" -a ! -e "${snapdir}/${file}" ]; then
-      echo "transactional-update: Deleting ${dir}/${file}..."
+      echo "Removing character device ${dir}/${file} from overlay..."
       rm -- "${file}"
     # Verify that files in the overlay haven't changed since taking the snapshot
     elif cmp --quiet -- "${file}" "${snapdir}/${file}"; then
-      echo "transactional-update: Deleting ${dir}/${file}..."
+      echo "Removing copy of ${dir}/${file} from overlay..."
       rm -- "${file}"
     # File seems to have been modified, warn user
     else
-      echo "transactional-update: ${dir}/${file} was modified after snapshot creation."
+      echo "Warning: Not removing - ${dir}/${file} file modified after snapshot creation."
     fi
   done
   popd >/dev/null
@@ -41,7 +44,7 @@ clean_overlay() {
 
 # Delete all contents of the overlay
 remove_overlay() {
-  echo "transactional-update: Previous snapshot ${PREV_SNAPSHOT_ID} not available; deleting all overlay contents."
+  echo "Previous snapshot ${PREV_SNAPSHOT_ID} not available; deleting all overlay contents."
   cd "${ETC_OVERLAY}"
   rm -rf -- .[^.]* ..?* *
 }
@@ -51,7 +54,7 @@ remove_overlay() {
 prepare_environment() {
   if ! findmnt "${NEWROOT}/.snapshots" >/dev/null; then
     if ! mount -t btrfs -o ro,subvol=@/.snapshots ${root#block:*} ${NEWROOT}/.snapshots; then
-      echo "transactional-update: Could not mount .snapshots!"
+      echo "Could not mount .snapshots!"
       return 1
     fi
     UMOUNT_DOT_SNAPSHOTS=1
@@ -61,7 +64,7 @@ prepare_environment() {
   PREV_SNAPSHOT_DIR="`btrfs subvolume list /${NEWROOT} | sed -n 's#.*\(/.snapshots/'${PREV_SNAPSHOT_ID}'/snapshot\)#\1#p'`"
   if [ -n "${PREV_SNAPSHOT_DIR}" ] && ! findmnt "${NEWROOT}/${PREV_SNAPSHOT_DIR}" >/dev/null; then
     if ! mount -t btrfs -o ro,subvol=@${PREV_SNAPSHOT_DIR} ${root#block:*} "${NEWROOT}/${PREV_SNAPSHOT_DIR}"; then
-      echo "transactional-update: Warning: Could not mount old snapshot directory ${PREV_SNAPSHOT_DIR}!"
+      echo "Warning: Could not mount old snapshot directory ${PREV_SNAPSHOT_DIR}!"
       return 1
     fi
     UMOUNT_PREV_SNAPSHOT=1
