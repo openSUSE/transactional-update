@@ -31,6 +31,7 @@ REWRITE_INITRD=0
 REBUILD_KDUMP_INITRD=0
 DO_CLEANUP=0
 DO_MIGRATION=0
+DO_DUP=0
 DO_ROLLBACK=0
 ROLLBACK_SNAPSHOT=0
 REBOOT_AFTERWARDS=0
@@ -289,6 +290,7 @@ while [ 1 ]; do
 	    shift
 	    ;;
 	dup)
+	    DO_DUP=1
 	    ZYPPER_ARG="dup --no-allow-vendor-change"
 	    shift
 	    ;;
@@ -553,6 +555,10 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 
     # Check if there are updates at all.
     if [ -n "${ZYPPER_ARG}" -a -n "${ZYPPER_NONINTERACTIVE}" ]; then
+	if [ $DO_DUP -eq 1 ]; then
+	    transactional-update-helper disable-optical
+	fi
+
 	TMPFILE=`mktemp /tmp/transactional-update.XXXXXXXXXX`
 	zypper --xml ${ZYPPER_ARG} ${ZYPPER_NONINTERACTIVE} --dry-run ${ZYPPER_ARG_PKGS} > ${TMPFILE}
 	if [ $? -ne 0 ]; then
@@ -707,7 +713,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	VAR_CACHE_CLEANUP=1
     fi
 
-    # Create bind mount or else grub2 will fail
+    # Create bind mounts or else grub2 will fail
     MOUNT_DIR=`mktemp -d`
     mount -o rbind ${SNAPSHOT_DIR} ${MOUNT_DIR}
     mount -o bind,ro /.snapshots ${MOUNT_DIR}/.snapshots
@@ -749,10 +755,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	    fi
 	fi
 
-	if [ $RETVAL -ne 0 ]; then
-	    log_error "ERROR: zypper ${ZYPPER_ARG} on ${MOUNT_DIR} failed!"
-	    EXITCODE=1
-	else
+	if [ $RETVAL -eq 0 -o $RETVAL -eq 102 -o $RETVAL -eq 103 -o \( $DO_DUP -eq 0 -a $RETVAL -eq 106 \) ]; then
 	    copy_user_group_accounts
 	    REBUILD_KDUMP_INITRD=1
 	    # check if products are updated and we need to re-register
@@ -761,6 +764,9 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	    if [ $? -ne 0 ]; then
 		check_registration_on_next_reboot
 	    fi
+	else
+	    log_error "ERROR: zypper ${ZYPPER_ARG} on ${MOUNT_DIR} failed!"
+	    EXITCODE=1
 	fi
     fi
 
