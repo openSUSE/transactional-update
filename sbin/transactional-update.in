@@ -42,6 +42,7 @@ CONFFILE="@sysconfdir@/transactional-update.conf"
 SYSTEMCONFFILE="@prefix@@sysconfdir@/transactional-update.conf"
 LOGFILE="/var/log/transactional-update.log"
 STATE_FILE="/var/lib/misc/transactional-update.state"
+SELF_PATH="`dirname $0`"
 PACKAGE_UPDATES=0
 ZYPPER_AUTO_IMPORT_KEYS=0
 HAS_SEPARATE_VAR=0
@@ -60,6 +61,19 @@ fi
 if [ -r ${CONFFILE} ]; then
     . ${CONFFILE}
 fi
+
+self_update() {
+    echo "Checking for newer version."
+    if zypper info transactional-update | grep -q '^Status *: out-of-date'; then
+	echo "New version found - updating..."
+	export TA_UPDATE_TMPFILE="`mktemp -d /tmp/transactional-update.XXXXXXXXXX`"
+	cd "${TA_UPDATE_TMPFILE}"
+	zypper --pkg-cache-dir "${TA_UPDATE_TMPFILE}" download transactional-update
+	find . -name transactional-update*.rpm -exec rpm2cpio {} \; | cpio -idmv >/dev/null
+	rm -f "${LOCKFILE}"
+	exec "${TA_UPDATE_TMPFILE}/usr/sbin/transactional-update" $@
+    fi
+}
 
 usage() {
     echo "Usage: transactional-update --help|--version"
@@ -273,6 +287,12 @@ check_registration_on_next_reboot() {
 }
 
 ORIG_ARGS="$@"
+
+if [ -z "${TA_UPDATE_TMPFILE}" ]; then
+  self_update $@
+else
+  trap 'rm -rf "${TA_UPDATE_TMPFILE}" && unset TA_UPDATE_TMPFILE' EXIT
+fi
 
 # If no option is given, assume "up"
 if [ $# -eq 0 ]; then
@@ -556,7 +576,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
     # Check if there are updates at all.
     if [ -n "${ZYPPER_ARG}" -a -n "${ZYPPER_NONINTERACTIVE}" ]; then
 	if [ $DO_DUP -eq 1 ]; then
-	    transactional-update-helper disable-optical
+	    "${SELF_PATH}"/transactional-update-helper disable-optical
 	fi
 
 	TMPFILE=`mktemp /tmp/transactional-update.XXXXXXXXXX`
