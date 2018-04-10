@@ -33,6 +33,7 @@ DO_CLEANUP=0
 DO_MIGRATION=0
 DO_DUP=0
 DO_ROLLBACK=0
+DO_SELF_UPDATE=1
 ROLLBACK_SNAPSHOT=0
 REBOOT_AFTERWARDS=0
 REBOOT_METHOD="auto"
@@ -63,6 +64,10 @@ if [ -r ${CONFFILE} ]; then
 fi
 
 self_update() {
+    if [ ${DO_SELF_UPDATE} == 0 ]; then
+	return
+    fi
+
     echo "Checking for newer version."
     if zypper info transactional-update | grep -q '^Status *: out-of-date'; then
 	echo "New version found - updating..."
@@ -77,9 +82,9 @@ self_update() {
 
 usage() {
     echo "Usage: transactional-update --help|--version"
-    echo "       transactional-update [cleanup][up|dup|patch|initrd][kdump][reboot]"
-    echo "       transactional-update [cleanup] [reboot] pkg install|remove|update PKG1..PKGN"
-    echo "       transactional-update migration"
+    echo "       transactional-update [--no-selfupdate] [cleanup][up|dup|patch|initrd][kdump][reboot]"
+    echo "       transactional-update [--no-selfupdate] [cleanup] [reboot] pkg install|remove|update PKG1..PKGN"
+    echo "       transactional-update [--no-selfupdate] migration"
     echo "       transactional-update rollback [number]"
     exit $1
 }
@@ -286,13 +291,7 @@ check_registration_on_next_reboot() {
     fi
 }
 
-ORIG_ARGS="$@"
-
-if [ -z "${TA_UPDATE_TMPFILE}" ]; then
-  self_update $@
-else
-  trap 'rm -rf "${TA_UPDATE_TMPFILE}" && unset TA_UPDATE_TMPFILE' EXIT
-fi
+ORIG_ARGS=("$@")
 
 # If no option is given, assume "up"
 if [ $# -eq 0 ]; then
@@ -390,6 +389,7 @@ while [ 1 ]; do
 	    ;;
 	rollback)
 	    DO_ROLLBACK=1
+	    DO_SELF_UPDATE=0
 	    shift
 	    if [ $# -eq 1 ]; then
 		ROLLBACK_SNAPSHOT=$1
@@ -400,6 +400,10 @@ while [ 1 ]; do
 	    REBOOT_AFTERWARDS=1
 	    USE_SALT_GRAINS=1
 	    REBOOT_METHOD="salt"
+	    shift
+	    ;;
+	--no-selfupdate)
+	    DO_SELF_UPDATE=0
 	    shift
 	    ;;
 	-h|--help)
@@ -420,6 +424,12 @@ if [ $# -ne 0 ]; then
     usage 1;
 fi
 
+if [ -z "${TA_UPDATE_TMPFILE}" ]; then
+  self_update "${ORIG_ARGS[@]}"
+else
+  trap 'rm -rf "${TA_UPDATE_TMPFILE}" && unset TA_UPDATE_TMPFILE' EXIT
+fi
+
 bashlock "/var/run/transactional-update.pid"
 if [ $? -ne 0 ]; then
   echo "Couldn't get lock, is another instance already running?"
@@ -432,7 +442,7 @@ if [ -f ${STATE_FILE} ]; then
 fi
 
 log_info "transactional-update @VERSION@ started"
-log_info "Options: $ORIG_ARGS"
+log_info "Options: ${ORIG_ARGS[@]}"
 
 if [ "`stat -f -c %T /`" != "btrfs" ]; then
   log_error "ERROR: not using btrfs as root file system!"
