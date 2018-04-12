@@ -48,6 +48,7 @@ LOGFILE="/var/log/transactional-update.log"
 STATE_FILE="/var/lib/misc/transactional-update.state"
 NEW_SNAPSHOT_FLAG="/var/lib/overlay/transactional-update.newsnapshot"
 ZYPPER_AUTO_IMPORT_KEYS=0
+ETC_OVERLAY_PATTERN='^[^[:space:]]\+[[:space:]]\+\/etc[[:space:]]\+overlay[[:space:]]\+\([^[:space:]]*,\|\)workdir=\/sysroot\/var\/lib\/overlay\/work-etc[,[:space:]]'
 
 # Load config
 if [ -r ${SYSTEMCONFFILE} ]; then
@@ -58,6 +59,7 @@ if [ -r ${CONFFILE} ]; then
 fi
 
 # Initialize internal variables
+HAS_SEPARATE_ETC=0
 HAS_SEPARATE_VAR=0
 FORCE_NONINTERACTIVE=""
 SNAPSHOT_ID=""
@@ -66,6 +68,8 @@ SNAPSHOT_DIR=""
 MOUNT_DIR=""
 SNAPPER_NO_DBUS=""
 TMPFILE=""
+ETC_OVERLAY_DIR=""
+ETC_OVERLAY_WORK_DIR=""
 
 # Create stderr alias for things that shouldn't be logged into logfile
 if [ ! -e /proc/$$/fd/4 ]; then
@@ -229,8 +233,8 @@ quit() {
 	snapper ${SNAPPER_NO_DBUS} delete ${BACKUP_SNAPSHOT_ID} |& tee -a ${LOGFILE}
     fi
     if [ -n "${ETC_OVERLAY_DIR}" ] ; then
-	log_error "Removing overlay directory ${ETC_OVERLAY_DIR}..."
-	rm -rf "${ETC_OVERLAY_DIR}" |& tee -a ${LOGFILE}
+	log_error "Removing overlay directory ${ETC_OVERLAY_DIR%/*}..."
+	rm -rf "${ETC_OVERLAY_DIR%/*}" |& tee -a ${LOGFILE}
     fi
     if [ $USE_SALT_GRAINS -eq 1 ]; then
 	if [ -f /etc/salt/grains ]; then
@@ -297,6 +301,9 @@ teardown() {
     # Cleanup of temporary mount point
     if [ -e ${MOUNT_DIR} ]; then
 	rmdir ${MOUNT_DIR}
+    fi
+    if [ -n "${ETC_OVERLAY_WORK_DIR}" ]; then
+	rm -rf "${ETC_OVERLAY_WORK_DIR}"
     fi
 
     # Cleanup other stuff
@@ -399,16 +406,66 @@ check_registration_on_next_reboot() {
     fi
 }
 
+get_etc_overlay_from() {
+    local fstab="$1"
+    local overlay_options="`sed -n "/${ETC_OVERLAY_PATTERN}/p" "${fstab}" | cut -d ' ' -f 4`"
+    local option lowerdir overlay_id
+
+    fstab_active_lowerdirs=()
+    fstab_lowerdirs=()
+    fstab_upper=""
+    fstab_oldest_active_snapshot=""
+    fstab_otheroptions=""
+
+    for option in `echo ${overlay_options} | tr ',' ' '`; do
+	case "${option%=*}" in
+	    upperdir)
+		fstab_upper="${option#*=}"
+		;;
+	    lowerdir)
+		for lowerdir in `echo ${option#*=} | tr ':' ' '`; do
+		    overlay_id=`echo "${lowerdir#/sysroot}" | sed -n 's#^/var/lib/overlay/\([[:digit:]]\+\)/etc$#\1#p'`
+		    # Add common directories and directories of existing snapshots
+		    if [ -z "${overlay_id}" -o -e "/.snapshots/${overlay_id}/snapshot" ]; then
+			if [ -n "${overlay_id}" ]; then
+			    fstab_oldest_active_snapshot="/.snapshots/${overlay_id}/snapshot"
+			    fstab_active_lowerdirs=("${fstab_lowerdirs[@]}")
+			fi
+			fstab_active_lowerdirs+=("${lowerdir}")
+		    fi
+		    fstab_lowerdirs+=("${lowerdir}")
+		done
+		;;
+	    workdir)
+		;;
+	    *)
+		fstab_otheroptions="${fstab_otheroptions}${option},"
+		;;
+	esac
+    done
+    fstab_oldest_active_snapshot="${fstab_oldest_active_snapshot:-/.snapshots/${CURRENT_SNAPSHOT_ID}/snapshot}"
+}
+
 # Sync /etc mount contents to target directory
 sync_etc() {
-    if findmnt -t overlay /etc >/dev/null; then
-	log_info "Copying /etc state into snapshot $1"
-	rsync --archive --xattrs --acls --delete --quiet /etc "$1"
-	if [ $? -ne 0 ]; then
-	    log_error "ERROR: copying of /etc into snapshot $1 failed!"
-	    quit 1
-	fi
+    log_info "Syncing /etc of oldest snapshot $1 as base into new snapshot $2"
+    get_etc_overlay_from "$1"/etc/fstab.sys
+    fstab_lowerdirs=("${fstab_lowerdirs[@]///sysroot\/var//var}")
+    mount_opts="defaults,"
+    mount_opts+="lowerdir=${fstab_upper#/sysroot}:"
+    mount_opts+="`echo ${fstab_lowerdirs[@]///sysroot/$1} | tr ' ' ':'`"
+    mount -t overlay overlay "${ETC_OVERLAY_DIR}" -o ${mount_opts}
+    if [ $? -ne 0 ]; then
+        log_error "ERROR: mount of old overlay stack from $1 failed!"
+        quit 1
     fi
+
+    rsync --archive --xattrs --acls --delete --quiet "${ETC_OVERLAY_DIR}" "$2"
+    if [ $? -ne 0 ]; then
+        log_error "ERROR: syncing $1 into snapshot $2 failed!"
+        quit 1
+    fi
+    umount "${ETC_OVERLAY_DIR}"
 }
 
 ORIG_ARGS=("$@")
@@ -640,6 +697,14 @@ CURRENT_SNAPSHOT_ID=`grep subvol=/@/.snapshots/ /proc/mounts | grep "/ btrfs" | 
 DEFAULT_SNAPSHOT_ID=`btrfs subvolume get-default / | sed -e 's|.*.snapshots/\(.*\)/snapshot|\1|g'`
 RO_ROOT=`btrfs property get / ro | sed -e 's|ro=||'`
 
+if [ -e "/.snapshots/${CURRENT_SNAPSHOT_ID}/snapshot/etc/fstab.sys" ]; then
+    get_etc_overlay_from "/.snapshots/${CURRENT_SNAPSHOT_ID}/snapshot/etc/fstab.sys"
+    if [ -n "$fstab_upper" ]; then
+	log_info "Separate /etc detected."
+	HAS_SEPARATE_ETC=1
+    fi
+fi
+
 if [ ${DO_ROLLBACK} -eq 1 ]; then
     NEED_REBOOT_WARNING=1
 
@@ -833,11 +898,23 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	quit 1
     fi
 
-    # Create new /etc overlay for snapshot
-    ETC_OVERLAY_DIR=/var/lib/overlay/${SNAPSHOT_ID}/etc
-    mkdir -p "${ETC_OVERLAY_DIR}"
-    # Add new overlay to snapshot
-    sed -i 's#lowerdir=/sysroot/etc\(.*\),upperdir=\(.*\),workdir=\(.*\)#lowerdir=/sysroot/etc\1:\2,upperdir='${ETC_OVERLAY_DIR}',workdir=\3#g' "${SNAPSHOT_DIR}/etc/fstab.sys"
+    if [ ${HAS_SEPARATE_ETC} -eq 1 ]; then
+	# Create new /etc overlay for snapshot
+	ETC_OVERLAY_DIR="/var/lib/overlay/${SNAPSHOT_ID}/etc"
+	ETC_OVERLAY_WORK_DIR="${ETC_OVERLAY_DIR}-work"
+	mkdir -p "${ETC_OVERLAY_DIR}" "${ETC_OVERLAY_WORK_DIR}"
+
+	# Copy the contents of oldest /etc layer into snapshot
+	sync_etc "${fstab_oldest_active_snapshot}" "${SNAPSHOT_DIR}"
+
+	# Update fstab.sys entries for /etc overlays
+	get_etc_overlay_from "/.snapshots/${CURRENT_SNAPSHOT_ID}/snapshot/etc/fstab.sys"
+	fstab_line="overlay /etc overlay ${fstab_otheroptions}"
+	fstab_line+="lowerdir=${fstab_upper}:`echo ${fstab_active_lowerdirs[@]} | tr ' ' ':'`,"
+	fstab_line+="upperdir=/sysroot${ETC_OVERLAY_DIR},"
+	fstab_line+="workdir=/sysroot/var/lib/overlay/work-etc 0 0"
+	sed -i "/${ETC_OVERLAY_PATTERN}/c ${fstab_line}" "${SNAPSHOT_DIR}/etc/fstab.sys"
+    fi
 
     # Remember all snapshots we create for update. If transactional-update is
     # run several times before a reboot, we need to clean up the unused
@@ -885,10 +962,16 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
         log_error "ERROR: mount of sys failed!"
         quit 1
     fi
-    mount -t overlay overlay ${SNAPSHOT_DIR}/etc -o$(awk '$2 = /\/etc/ { gsub(/\/sysroot/,""); print $4 } ' "${SNAPSHOT_DIR}/etc/fstab.sys")
-    if [ $? -ne 0 ]; then
-        log_error "ERROR: mount of etc failed!"
-        quit 1;
+    if [ ${HAS_SEPARATE_ETC} -eq 1 ]; then
+	etc_opts="defaults,"
+	etc_opts+="lowerdir=/etc,"
+	etc_opts+="upperdir=${ETC_OVERLAY_DIR},"
+	etc_opts+="workdir=${ETC_OVERLAY_WORK_DIR}"
+	mount -t overlay overlay ${SNAPSHOT_DIR}/etc -o ${etc_opts}
+	if [ $? -ne 0 ]; then
+	    log_error "ERROR: mount of etc failed!"
+	    quit 1;
+	fi
     fi
     if [ -x /usr/sbin/selinuxenabled ]; then
         /usr/sbin/selinuxenabled
@@ -910,9 +993,6 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	    quit 1
 	fi
     done
-
-    # Copy the contents of /etc into snapshot
-    sync_etc ${SNAPSHOT_DIR}
 
     # If we have a seperate /var, create some files / directories which we
     # will delete again later.
