@@ -16,5 +16,6 @@ install() {
     inst_simple "$moddir/transactional-update-etc-cleaner.service" $systemdsystemunitdir/transactional-update-etc-cleaner.service
     mkdir -p "${initdir}/$systemdsystemunitdir/initrd.target.wants"
     ln_r "$systemdsystemunitdir/transactional-update-etc-cleaner.service" "$systemdsystemunitdir/initrd.target.wants/transactional-update-etc-cleaner.service"
-    inst_multiple cmp rmdir
+    inst_multiple stat rmdir
+    inst_multiple -o getfattr
 }

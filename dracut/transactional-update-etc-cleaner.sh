@@ -8,6 +8,27 @@ TU_FLAGFILE="${ETC_OVERLAY}/transactional-update.newsnapshot"
 # Import common dracut variables
 . /dracut-state.sh 2>/dev/null
 
+same_file() {
+  # Primary indicators for changes: File size, attributes and modification time
+  local overlay_stat="`stat --format="%a %u:%g %s %t/%T %F %Y" -- "$1"`"
+  local lowerdir_stat="`stat --format="%a %u:%g %s %t/%T %F %Y" -- "$2"`"
+  if [ "${overlay_stat}" != "${lowerdir_stat}" ]; then
+    return 1
+  fi
+
+  # Compare extended attributes if available
+  if [ -x /usr/bin/getfattr ]; then
+    overlay_stat="`getfattr --dump --no-dereference --absolute-names -- "$1" | sed 1d`"
+    lowerdir_stat="`getfattr --dump --no-dereference --absolute-names -- "$2" | sed 1d`"
+    if [ "${overlay_stat}" != "${lowerdir_stat}" ]; then
+      return 1
+    fi
+  fi
+
+  # Files seem to be identical
+  return 0
+}
+
 # Remove files from overlay with safety checks
 # etc directory mustn't be deleted completely, as it's still mounted and the kernel won't be able to recover from that (different inode?)
 clean_overlay() {
@@ -25,18 +46,20 @@ clean_overlay() {
     # Recursively process directories
     if [ -d "${file}" ]; then
       clean_overlay "${dir}/${file}"
-      rmdir --ignore-fail-on-non-empty -- "${file}"
-    # Overlayfs creates a character device for removed files / directories
-    elif [ -c "${file}" -a ! -e "${snapdir}/${file}" ]; then
+      if same_file "${file}" "${snapdir}/${file}"; then
+        rmdir --ignore-fail-on-non-empty -- "${file}"
+      fi
+    # Overlayfs creates a character device with device number 0/0 for removed files / directories
+    elif [ -c "${file}" -a "`stat --format="%t/%T" -- "${file}"`" = "0/0" -a ! -e "${snapdir}/${file}" ]; then
       echo "Removing character device ${dir}/${file} from overlay..."
       rm -- "${file}"
     # Verify that files in the overlay haven't changed since taking the snapshot
-    elif cmp --quiet -- "${file}" "${snapdir}/${file}"; then
+    elif same_file "${file}" "${snapdir}/${file}"; then
       echo "Removing copy of ${dir}/${file} from overlay..."
       rm -- "${file}"
     # File seems to have been modified, warn user
     else
-      echo "Warning: Not removing - ${dir}/${file} file modified after snapshot creation."
+      echo "Warning: Not removing ${dir}/${file} - modified after snapshot creation."
     fi
   done
   popd >/dev/null

@@ -605,7 +605,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 
     # Copy the contents of /etc into the backup snapshot
     log_info "Copying /etc state into backup snapshot"
-    rsync --archive --quiet --exclude "${NEW_SNAPSHOT_FLAG}" --delete-excluded /etc ${BACKUP_SNAPSHOT_DIR}
+    rsync --archive --xattrs --acls --quiet --exclude "${NEW_SNAPSHOT_FLAG}" --delete-excluded /etc ${BACKUP_SNAPSHOT_DIR}
     if [ $? -ne 0 ]; then
 	log_error "ERROR: copying of /etc into backup snapshot failed!"
 	quit 1;
@@ -701,7 +701,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 
     # Copy the contents of /etc
     log_info "Copying /etc state into snapshot"
-    rsync --archive --quiet --exclude "${NEW_SNAPSHOT_FLAG}" --delete-excluded /etc ${SNAPSHOT_DIR}
+    rsync --archive --xattrs --acls --quiet --exclude "${NEW_SNAPSHOT_FLAG}" --delete-excluded /etc ${SNAPSHOT_DIR}
     if [ $? -ne 0 ]; then
 	log_error "ERROR: copying of /etc into snapshot failed!"
 	quit 1;
