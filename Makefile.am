@@ -5,7 +5,7 @@
 #
 AUTOMAKE_OPTIONS = 1.6 foreign check-news dist-bzip2
 #
-SUBDIRS = sbin man systemd logrotate doc etc
+SUBDIRS = sbin man systemd logrotate dracut doc etc
 
 CLEANFILES = *~
 

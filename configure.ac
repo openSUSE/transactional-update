@@ -16,22 +16,26 @@ then
     ISSUEDIR=${prefix}/lib/issue.d
     UDEVRULESDIR=${prefix}/lib/udev/rules.d
     SYSTEMDDIR=${prefix}/lib/systemd/system
+    DRACUTDIR=${prefix}/lib/dracut/modules.d
   else
     TMPFILESDIR=${exec_prefix}/lib/tmpfiles.d
     ISSUEDIR=${exec_prefix}/lib/issue.d
     UDEVRULESDIR=${exec_prefix}/lib/udev/rules.d
     SYSTEMDDIR=${exec_prefix}/lib/systemd/system
+    DRACUTDIR=${exec_prefix}/lib/dracut/modules.d
   fi
 else
   TMPFILESDIR=${libexecdir}/tmpfiles.d
   ISSUEDIR=${libexecdir}/issue.d
   UDEVRULESDIR=${libexecdir}/udev/rules.d
   SYSTEMDDIR=${libexecdir}/systemd/system
+  DRACUTDIR=${libexecdir}/dracut/modules.d
 fi
 AC_SUBST(TMPFILESDIR)
 AC_SUBST(ISSUEDIR)
 AC_SUBST(UDEVRULESDIR)
 AC_SUBST(SYSTEMDDIR)
+AC_SUBST(DRACUTDIR)
 LOGROTATEDDIR=${sysconfdir}/logrotate.d
 AC_SUBST(LOGROTATEDDIR)
 
@@ -73,5 +77,5 @@ else
 fi
 
 AC_OUTPUT([Makefile sbin/Makefile man/Makefile systemd/Makefile \
-	logrotate/Makefile doc/Makefile etc/Makefile \
+	logrotate/Makefile dracut/Makefile doc/Makefile etc/Makefile \
 	sbin/transactional-update])
