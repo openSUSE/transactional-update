@@ -39,6 +39,7 @@ AC_SUBST(DRACUTDIR)
 LOGROTATEDDIR=${sysconfdir}/logrotate.d
 AC_SUBST(LOGROTATEDDIR)
 
+AC_PROG_CC
 AC_PROG_CXX
 AC_PROG_INSTALL
 AC_PROG_LN_S
@@ -49,6 +50,11 @@ dnl
 dnl Check for libzypp
 dnl
 PKG_CHECK_MODULES(LIBZYPP, libzypp)
+
+dnl
+dnl Check for librpm
+dnl
+PKG_CHECK_MODULES([LIBRPM], [rpm])
 
 dnl
 dnl Check for xsltproc

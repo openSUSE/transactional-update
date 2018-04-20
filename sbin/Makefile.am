@@ -3,9 +3,11 @@
 #
 
 sbin_SCRIPTS = transactional-update tu-rebuild-kdump-initrd
-sbin_PROGRAMS = transactional-update-helper
+sbin_PROGRAMS = transactional-update-helper create_dirs_from_rpmdb
 transactional_update_helper_SOURCES = transactional-update-helper.cpp
 transactional_update_helper_LDADD = @LIBZYPP_LIBS@
+create_dirs_from_rpmdb_SOURCES = create_dirs_from_rpmdb.c
+create_dirs_from_rpmdb_LDADD = @LIBRPM_LIBS@
 CLEANFILES = transactional-update
 EXTRA_DIST = transactional-update.in tu-rebuild-kdump-initrd
 

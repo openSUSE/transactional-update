@@ -1,0 +1,12 @@
+[Unit]
+Description=Create missing directories from rpmdb
+Documentation=man:create_dirs_from_rpmdb(8)
+After=local-fs.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/sbin/create_dirs_from_rpmdb
+
+[Install]
+WantedBy=multi-user.target
