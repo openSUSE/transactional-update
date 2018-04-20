@@ -34,6 +34,8 @@ DO_MIGRATION=0
 DO_DUP=0
 DO_ROLLBACK=0
 DO_SELF_UPDATE=1
+DO_REGISTRATION=0
+REGISTRATION_ARGS=""
 ROLLBACK_SNAPSHOT=0
 REBOOT_AFTERWARDS=0
 REBOOT_METHOD="auto"
@@ -82,6 +84,7 @@ usage() {
     echo "       transactional-update [--no-selfupdate] [cleanup][up|dup|patch|initrd][kdump][reboot]"
     echo "       transactional-update [--no-selfupdate] [cleanup] [reboot] pkg install|remove|update PKG1..PKGN"
     echo "       transactional-update [--no-selfupdate] migration"
+    echo "       transactional-update [--no-selfupdate] register -p <product> [-r <registration code>]"
     echo "       transactional-update rollback [number]"
     exit $1
 }
@@ -371,6 +374,24 @@ while [ 1 ]; do
 	    DO_SELF_UPDATE=0
 	    shift
 	    ;;
+	register)
+	    DO_REGISTRATION=1
+	    shift
+
+	    # Collect arguments for Registration
+	    if [ $# -eq 0 ]; then
+		usage 1
+	    fi
+
+	    while [ 1 ]; do
+		if [ $# -eq 0 ]; then
+		    break;
+		else
+		    REGISTRATION_ARGS="${REGISTRATION_ARGS} $1";
+		    shift
+		fi
+	    done
+	    ;;
 	-h|--help)
 	    usage 0
 	    ;;
@@ -546,10 +567,13 @@ fi
 
 if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
     -o ${REWRITE_INITRD} -eq 1 -o ${REBUILD_KDUMP_INITRD} -eq 1 \
-    -o ${RUN_SHELL} -eq 1 -o ${REWRITE_BOOTLOADER} -eq 1 ]; then
+    -o ${RUN_SHELL} -eq 1 -o ${REWRITE_BOOTLOADER} -eq 1 \
+    -o ${DO_REGISTRATION} -eq 1 ]; then
 
-    # Check if there are updates at all.
-    if [ -n "${ZYPPER_ARG}" -a -n "${ZYPPER_NONINTERACTIVE}" ]; then
+    # Check if there are updates at all. Don't check if we do
+    # a registration, as this can change the zypper result.
+    if [ -n "${ZYPPER_ARG}" -a -n "${ZYPPER_NONINTERACTIVE}" \
+         -a ${DO_REGISTRATION} -eq 0 ]; then
 	if [ $DO_DUP -eq 1 ]; then
 	    "${SELF_PATH}"/transactional-update-helper disable-optical
 	fi
@@ -736,6 +760,10 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
     # Set indicator for RPM pre/post sections to detect whether we run in a
     # transactional update
     export TRANSACTIONAL_UPDATE=true
+
+    if [ ${DO_REGISTRATION} -eq 1 ]; then
+	SUSEConnect --root ${MOUNT_DIR}  ${REGISTRATION_ARGS}
+    fi
 
     if [ -n "${ZYPPER_ARG}" ]; then
 
