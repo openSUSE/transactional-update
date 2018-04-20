@@ -3,6 +3,9 @@
 #
 
 sbin_SCRIPTS = transactional-update tu-rebuild-kdump-initrd
+sbin_PROGRAMS = transactional-update-helper
+transactional_update_helper_SOURCES = transactional-update-helper.cpp
+transactional_update_helper_LDADD = @LIBZYPP_LIBS@
 CLEANFILES = transactional-update
 EXTRA_DIST = transactional-update.in tu-rebuild-kdump-initrd
 

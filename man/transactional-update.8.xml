@@ -60,6 +60,7 @@
     </cmdsynopsis>
     <cmdsynopsis>
       <command>transactional-update</command>
+      <arg choice='opt'>--no-selfupdate</arg>
       <arg choice='opt'>cleanup</arg>
       <group choice='opt'>
 	<arg choice='plain'>up</arg>
@@ -73,6 +74,7 @@
     </cmdsynopsis>
     <cmdsynopsis>
       <command>transactional-update</command>
+      <arg choice='opt'>--no-selfupdate</arg>
       <arg choice='opt'>cleanup</arg>
       <arg choice='opt'>reboot</arg>
       <arg choice='plain'>pkg</arg>
@@ -85,6 +87,7 @@
     </cmdsynopsis>
     <cmdsynopsis>
       <command>transactional-update</command>
+      <arg choice='opt'>--no-selfupdate</arg>
       <arg choice='plain'>migration</arg>
     </cmdsynopsis>
     <cmdsynopsis>
@@ -279,6 +282,12 @@ for more informations.
 	Afterwards, the snapshot is activated and will be used as the new root
 	filesystem during next boot.
       </para>
+    </listitem>
+  </varlistentry>
+  <varlistentry>
+    <term><option>--no-selfupdate</option></term>
+    <listitem>
+      <para>Skip checking for newer transactional-update versions.</para>
     </listitem>
   </varlistentry>
   <varlistentry>
