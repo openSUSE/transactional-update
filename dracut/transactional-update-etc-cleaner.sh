@@ -19,7 +19,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 ETC_OVERLAY="${NEWROOT}/var/lib/overlay/etc"
-TU_FLAGFILE="${ETC_OVERLAY}/transactional-update.newsnapshot"
+TU_FLAGFILE="${NEWROOT}/var/lib/overlay/transactional-update.newsnapshot"
 
 # Import common dracut variables
 . /dracut-state.sh 2>/dev/null
