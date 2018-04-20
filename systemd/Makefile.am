@@ -4,6 +4,7 @@
 
 systemddir = @SYSTEMDDIR@
 
-systemd_DATA = transactional-update.timer transactional-update.service
+systemd_DATA = transactional-update.timer transactional-update.service \
+	create-dirs-from-rpmdb.service
 
 EXTRA_DIST = $(DATA)
