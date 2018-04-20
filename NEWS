@@ -2,6 +2,11 @@ transactional-update NEWS -- history of user-visible changes.
 
 Copyright (C) 2016, 2017, 2018 Thorsten Kukuk
 
+Version 1.29
+* Implement self-update
+* Disable optical media on dup
+* Ignore certain zypper return codes
+
 Version 1.28
 * Adjust for latest grub2 changes
 
