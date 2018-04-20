@@ -1,5 +1,6 @@
 /* transactional-update-helper - native helper scripts for transactional-update
 
+   Author: Ignaz Forster <iforster@suse.de>
    Copyright (C) 2018 SUSE Linux GmbH
 
    This program is free software: you can redistribute it and/or modify

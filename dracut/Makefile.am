@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2018 Ignaz Forster <iforster@suse.com>
+# Copyright (c) 2018 Ignaz Forster <iforster@suse.de>
 #
 
 modulesdir = @DRACUTDIR@/50transactional-update
