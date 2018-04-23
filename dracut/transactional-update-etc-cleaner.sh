@@ -46,7 +46,8 @@ same_file() {
 }
 
 # Remove files from overlay with safety checks
-# etc directory mustn't be deleted completely, as it's still mounted and the kernel won't be able to recover from that (different inode?)
+# etc directory mustn't be deleted completely, as it's still mounted and the
+# kernel won't be able to recover from that (different inode?)
 clean_overlay() {
   local dir="${1:-.}"
   local file
@@ -98,7 +99,6 @@ prepare_environment() {
     fi
     UMOUNT_DOT_SNAPSHOTS=1
   fi
-  CURRENT_SNAPSHOT_ID="`btrfs subvolume get-default /${NEWROOT} | sed 's#.*/.snapshots/\(.*\)/snapshot#\1#g'`"
   PREV_SNAPSHOT_ID="`sed -n 's#.*<pre_num>\([^>]\+\)</pre_num>#\1#p' ${NEWROOT}/.snapshots/${CURRENT_SNAPSHOT_ID}/info.xml`"
   PREV_SNAPSHOT_DIR="`btrfs subvolume list /${NEWROOT} | sed -n 's#.*\(/.snapshots/'${PREV_SNAPSHOT_ID}'/snapshot\)#\1#p'`"
   if [ -n "${PREV_SNAPSHOT_DIR}" ] && ! findmnt "${NEWROOT}/${PREV_SNAPSHOT_DIR}" >/dev/null; then
@@ -121,13 +121,18 @@ release_environment() {
 }
 
 if [ -e "${ETC_OVERLAY}" -a -e "${TU_FLAGFILE}" ]; then
-  # Previous snapshot may not be available; just delete all overlay contents in this case
-  rm "${TU_FLAGFILE}"
-  if prepare_environment; then
-    clean_overlay
-  else
-    remove_overlay
+  CURRENT_SNAPSHOT_ID="`findmnt /${NEWROOT} | sed -n 's#.*\[/@/\.snapshots/\([[:digit:]]\+\)/snapshot\].*#\1#p'`"
+  . "${TU_FLAGFILE}"
+
+  if [ "${CURRENT_SNAPSHOT_ID}" = "${EXPECTED_SNAPSHOT_ID}" ]; then
+    # Previous snapshot may not be available; just delete all overlay contents in this case
+    rm "${TU_FLAGFILE}"
+    if prepare_environment; then
+      clean_overlay
+    else
+      remove_overlay
+    fi
+    mount -o remount "${NEWROOT}/etc"
+    release_environment
   fi
-  mount -o remount "${NEWROOT}/etc"
-  release_environment
 fi

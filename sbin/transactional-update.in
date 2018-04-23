@@ -897,7 +897,9 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 		add_unique_id ${CURRENT_SNAPSHOT_ID}
 		save_state_file ${SNAPSHOT_ID}
 		# Create flag file for overlay purging
-		touch "${NEW_SNAPSHOT_FLAG}"
+		if [ ${RO_ROOT} = "true" ]; then
+		    echo "EXPECTED_SNAPSHOT_ID=${SNAPSHOT_ID}" > "${NEW_SNAPSHOT_FLAG}"
+		fi
 		# Reset in-progress flag
 		snapper ${SNAPPER_NO_DBUS} modify -u "transactional-update-in-progress=" ${SNAPSHOT_ID}
 	    fi
