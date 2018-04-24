@@ -570,6 +570,13 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
     -o ${RUN_SHELL} -eq 1 -o ${REWRITE_BOOTLOADER} -eq 1 \
     -o ${DO_REGISTRATION} -eq 1 ]; then
 
+    # If the current snapshot and the default snapshot differ
+    # there have been changes that we are now discarding.
+    if [ "${DEFAULT_SNAPSHOT_ID}" -ne "${CURRENT_SNAPSHOT_ID}" ]; then
+       log_error: "WARNING: Default snapshot differs from current snapshot."
+       log_error: "WARNING: Any changes within the previous snapshot will be discarded!"
+    fi
+
     # Check if there are updates at all. Don't check if we do
     # a registration, as this can change the zypper result.
     if [ -n "${ZYPPER_ARG}" -a -n "${ZYPPER_NONINTERACTIVE}" \
