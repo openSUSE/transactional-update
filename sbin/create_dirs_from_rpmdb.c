@@ -44,7 +44,7 @@ print_version (void)
 static void
 print_usage (FILE *stream)
 {
-  fprintf (stream, "Usage: create_dirs_from_rpmdb [-V|--version] [--d|-debug] [-v|--verbose]\n");
+  fprintf (stream, "Usage: create_dirs_from_rpmdb [-V|--version] [--debug] [-v|--verbose]\n");
 }
 
 static void
@@ -240,7 +240,7 @@ main (int argc, char *argv[])
       /* Don't let getopt print error messages, we do it ourself. */
       opterr = 0;
 
-      c = getopt_long (argc, argv, "Vu",
+      c = getopt_long (argc, argv, "uVv",
 		       long_options, &option_index);
 
       if (c == (-1))
@@ -257,8 +257,10 @@ main (int argc, char *argv[])
           return 0;
 	case 'v':
 	  verbose_flag = 1;
+	  break;
 	case 254:
 	  debug_flag = 1;
+	  break;
         default:
 	  break;
 	}
