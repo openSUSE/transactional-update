@@ -21,6 +21,9 @@
 #include <config.h>
 #endif
 
+#include <sys/types.h>
+#include <pwd.h>
+#include <grp.h>
 #include <time.h>
 #include <unistd.h>
 #include <getopt.h>
@@ -141,6 +144,8 @@ check_package (rpmts ts, Header h)
 		  const char *fgroup = rpmfiFGroup(fi);
 		  uid_t user_id;
 		  gid_t group_id;
+		  struct passwd *pwd;
+		  struct group *grp;
 		  struct timeval stamps[2] = {
 		    { .tv_sec = mtime, .tv_usec = 0 },
 		    { .tv_sec = mtime, .tv_usec = 0 }};
@@ -167,12 +172,29 @@ check_package (rpmts ts, Header h)
 		  rc = mkdir (fn, fmode);
 		  if (rc < 0)
 		    {
+                      fprintf (stderr, "Failed to create directory '%s': %m\n", fn);
 		      ec = 1;
 		      goto exit;
 		    }
+
+		  pwd = getpwnam (fuser);
+		  grp = getgrnam (fgroup);
+
+		  if (pwd == NULL || grp == NULL)
+		    {
+                      fprintf (stderr, "Failed to resolve %s/%s\n", fuser, fgroup);
+		      rmdir (fn);
+		      ec = 1;
+		      goto exit;
+		    }
+
+		  user_id = pwd->pw_uid;
+		  group_id = grp->gr_gid;
+
 		  rc = chown (fn, user_id, group_id);
 		  if (rc < 0)
 		    {
+                      fprintf (stderr, "Failed to set owner/group for '%s': %m\n", fn);
 		      /* wrong permissions are bad, remove dir and continue */
 		      rmdir (fn);
 		      ec = 1;
