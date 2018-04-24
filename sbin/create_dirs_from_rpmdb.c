@@ -32,6 +32,7 @@
 #include <rpm/rpmdb.h>
 
 static int debug_flag = 0;
+static int verbose_flag = 0;
 
 /* Print the version information.  */
 static void
@@ -43,7 +44,7 @@ print_version (void)
 static void
 print_usage (FILE *stream)
 {
-  fprintf (stream, "Usage: create_dirs_from_rpmdb [-V|--version] [--debug]\n");
+  fprintf (stream, "Usage: create_dirs_from_rpmdb [-V|--version] [--d|-debug] [-v|--verbose]\n");
 }
 
 static void
@@ -168,6 +169,8 @@ check_package (rpmts ts, Header h)
 			      fgroup, timefield);
 		      free (perms);
 		    }
+		  else if (verbose_flag)
+		    printf ("Create %s\n", fn);
 
 		  rc = mkdir (fn, fmode);
 		  if (rc < 0)
@@ -229,6 +232,7 @@ main (int argc, char *argv[])
         {"version",                   no_argument,       NULL,  'V' },
         {"usage",                     no_argument,       NULL,  'u' },
         {"debug",                     no_argument,       NULL,  254 },
+	{"verbose",                  no_argument,       NULL, 'v' },
         {"help",                      no_argument,       NULL,  255 },
         {NULL,                    0,                 NULL,    0 }
       };
@@ -244,12 +248,15 @@ main (int argc, char *argv[])
 
       switch (c)
         {
-        case 'v':
+        case 'V':
           print_version ();
           return 0;
+	case 255:
         case 'u':
           print_usage (stdout);
           return 0;
+	case 'v':
+	  verbose_flag = 1;
 	case 254:
 	  debug_flag = 1;
         default:
