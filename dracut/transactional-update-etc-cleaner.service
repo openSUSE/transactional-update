@@ -4,7 +4,7 @@ Requires=dracut-pre-pivot.service
 After=dracut-pre-pivot.service
 Before=initrd-cleanup.service
 DefaultDependencies=no
-ConditionPathExists=/sysroot/var/lib/overlay/etc/transactional-update.newsnapshot
+ConditionPathExists=/sysroot/var/lib/overlay/transactional-update.newsnapshot
 
 [Service]
 Type=oneshot
