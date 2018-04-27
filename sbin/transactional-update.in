@@ -454,7 +454,7 @@ else
     fi
 fi
 
-if [ ${ZYPPER_AUTO_IMPORT_KEYS} -eq 1 ]; then
+if [ -n "${ZYPPER_ARG}" -a ${ZYPPER_AUTO_IMPORT_KEYS} -eq 1 ]; then
     ZYPPER_ARG="--gpg-auto-import-keys ${ZYPPER_ARG}"
 fi
 
