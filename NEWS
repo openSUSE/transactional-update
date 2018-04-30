@@ -2,6 +2,9 @@ transactional-update NEWS -- history of user-visible changes.
 
 Copyright (C) 2016, 2017, 2018 Thorsten Kukuk
 
+Version 2.1
+* Cleanup /etc cleanup
+
 Version 2.0
 * Create missing directories from rpm database during boot
 * Merge /etc overlay with root subvolume during update
