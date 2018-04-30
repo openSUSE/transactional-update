@@ -70,12 +70,16 @@ self_update() {
     echo "Checking for newer version."
     if zypper info transactional-update | grep -q '^Status *: out-of-date'; then
 	echo "New version found - updating..."
-	export TA_UPDATE_TMPFILE="`mktemp -d /tmp/transactional-update.XXXXXXXXXX`"
+	TA_UPDATE_TMPFILE="`mktemp -d /tmp/transactional-update.XXXXXXXXXX`"
+	if [ $? -ne 0 ]; then
+	    quit 1;
+	fi
+	export TA_UPDATE_TMPFILE
 	cd "${TA_UPDATE_TMPFILE}"
 	zypper --pkg-cache-dir "${TA_UPDATE_TMPFILE}" download transactional-update
 	find . -name transactional-update*.rpm -exec rpm2cpio {} \; | cpio -idmv >/dev/null
 	rm -f "${LOCKFILE}"
-	exec "${TA_UPDATE_TMPFILE}/usr/sbin/transactional-update" $@
+	exec "${TA_UPDATE_TMPFILE}/usr/sbin/transactional-update" "$@"
     fi
 }
 
