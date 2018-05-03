@@ -22,6 +22,7 @@ export LANG=C
 
 DIR_TO_MOUNT="dev opt var/log"
 EXITCODE=0
+VERBOSITY=2
 ZYPPER_ARG=""
 ZYPPER_NONINTERACTIVE="-y --auto-agree-with-product-licenses"
 ZYPPER_ARG_PKGS=""
@@ -86,11 +87,11 @@ self_update() {
 
 usage() {
     echo "Usage: transactional-update --help|--version"
-    echo "       transactional-update [--no-selfupdate] [cleanup][up|dup|patch|initrd][kdump][reboot]"
-    echo "       transactional-update [--no-selfupdate] [cleanup] [reboot] pkg install|remove|update PKG1..PKGN"
-    echo "       transactional-update [--no-selfupdate] migration"
-    echo "       transactional-update [--no-selfupdate] register -p <product> [-r <registration code>]"
-    echo "       transactional-update rollback [number]"
+    echo "       transactional-update [--no-selfupdate] [--quiet] [cleanup][up|dup|patch|initrd][kdump][reboot]"
+    echo "       transactional-update [--no-selfupdate] [--quiet] [cleanup] [reboot] pkg install|remove|update PKG1..PKGN"
+    echo "       transactional-update [--no-selfupdate] [--quiet] migration"
+    echo "       transactional-update [--no-selfupdate] [--quiet] register -p <product> [-r <registration code>]"
+    echo "       transactional-update [--quiet] rollback [number]"
     exit $1
 }
 
@@ -101,6 +102,9 @@ print_version() {
 
 log_info() {
     echo `date "+%Y-%m-%d %H:%M"` "$@" >> ${LOGFILE}
+    if [ ${VERBOSITY} -ge 2 ]; then
+	echo "$@"
+    fi
 }
 
 log_error() {
@@ -377,6 +381,10 @@ while [ 1 ]; do
 	    ;;
 	--no-selfupdate)
 	    DO_SELF_UPDATE=0
+	    shift
+	    ;;
+	--quiet)
+	    VERBOSITY=1
 	    shift
 	    ;;
 	register)

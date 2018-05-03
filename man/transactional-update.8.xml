@@ -291,6 +291,12 @@ for more informations.
     </listitem>
   </varlistentry>
   <varlistentry>
+    <term><option>--quiet</option></term>
+    <listitem>
+      <para>Don't print warnings and informational messages to stdout.</para>
+    </listitem>
+  </varlistentry>
+  <varlistentry>
     <term><option>--help</option></term>
     <listitem>
       <para>Display help and exit</para>
