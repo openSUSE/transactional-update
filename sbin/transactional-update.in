@@ -63,6 +63,9 @@ if [ -r ${CONFFILE} ]; then
     . ${CONFFILE}
 fi
 
+# Log stderr to log file
+exec 2> >(tee -a "${LOGFILE}")
+
 self_update() {
     if [ ${DO_SELF_UPDATE} == 0 ]; then
 	return
