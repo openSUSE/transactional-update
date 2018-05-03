@@ -492,12 +492,12 @@ if [ ${DO_ROLLBACK} -eq 1 ]; then
 	BTRFS_ID=`btrfs subvolume list / |grep /.snapshots/${ROLLBACK_SNAPSHOT}/snapshot | awk '{print $2}'`
 	if [ -z $BTRFS_ID ]; then
 	    log_error "ERROR: couldn't determine btrfs subvolume ID"
-	    exit 1
+	    quit 1
 	else
 	    btrfs subvolume set-default $BTRFS_ID /.snapshots
 	    if [ $? -ne 0 ]; then
 		log_error "ERROR: btrfs set-default $BTRFS_ID failed!"
-		exit 1
+		quit 1
 	    fi
 	    # Create the trigger to re-register the system as new version after next
 	    # reboot.
@@ -639,7 +639,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	BACKUP_SNAPSHOT_ID=`snapper --no-dbus create -p -t pre -c number -u "important=yes" -d "RO-Clone of #${CURRENT_SNAPSHOT_ID}"`
 	if [ $? -ne 0 ]; then
 	    log_error "ERROR: snapper create failed!"
-	    exit 1
+	    quit 1
 	fi
     fi
 
@@ -945,6 +945,8 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 
     if [ ${EXITCODE} -ne 0 ]; then
 	quit ${EXITCODE}
+    elif [ $REBOOT_AFTERWARDS -eq 0 ]; then
+	echo "Please reboot your machine to activate the changes and avoid data loss."
     fi
 fi
 
@@ -971,8 +973,6 @@ if [ ${EXITCODE} -eq 0 ]; then
 	esac
 	echo "The system couldn't be rebooted using method '{$REBOOT_METHOD}'. Please reboot the system"
 	echo "manually."
-    elif [ $PACKAGE_UPDATES -gt 1 ]; then
-	echo "Please reboot your machine to activate the changes and avoid data loss"
     fi
 fi
 
