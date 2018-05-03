@@ -25,7 +25,7 @@ EXITCODE=0
 VERBOSITY=2
 ZYPPER_ARG=""
 ZYPPER_NONINTERACTIVE="-y --auto-agree-with-product-licenses"
-ZYPPER_ARG_PKGS=""
+ZYPPER_ARG_PKGS=()
 REWRITE_BOOTLOADER=0
 REWRITE_GRUB_CFG=0
 REWRITE_INITRD=0
@@ -331,7 +331,7 @@ while [ 1 ]; do
 		if [ $# -eq 0 ]; then
 		    break;
 		else
-		    ZYPPER_ARG_PKGS="${ZYPPER_ARG_PKGS} $1";
+		    ZYPPER_ARG_PKGS+=("$1");
 		    shift
 		fi
 	    done
@@ -606,7 +606,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	fi
 
 	TMPFILE=`mktemp /tmp/transactional-update.XXXXXXXXXX`
-	zypper --xml ${ZYPPER_ARG} ${ZYPPER_NONINTERACTIVE} --dry-run ${ZYPPER_ARG_PKGS} > ${TMPFILE}
+	zypper --xml ${ZYPPER_ARG} ${ZYPPER_NONINTERACTIVE} --dry-run "${ZYPPER_ARG_PKGS[@]}" > ${TMPFILE}
 	if [ $? -ne 0 ]; then
 	    LOG_MESSAGES=`awk -v RS='<' -v FS='>' '{if ($1 ~ /^(message|description)/) print $2}' ${TMPFILE} | perl -MHTML::Entities -pe 'decode_entities($_);'`
 	    log_error "ERROR: Zypper failed with the following message(s):"
@@ -795,12 +795,14 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
     if [ -n "${ZYPPER_ARG}" ]; then
 
 	log_info "Calling zypper ${ZYPPER_ARG}"
+	# All transactional-update zypper commands except migration and pkg
 	if [ -n "${ZYPPER_NONINTERACTIVE}" ]; then
-	    env DISABLE_RESTART_ON_UPDATE=yes zypper -R ${MOUNT_DIR} ${ZYPPER_ARG} ${ZYPPER_NONINTERACTIVE} ${ZYPPER_ARG_PKGS} |& tee -a ${LOGFILE}
+	    env DISABLE_RESTART_ON_UPDATE=yes zypper -R ${MOUNT_DIR} ${ZYPPER_ARG} ${ZYPPER_NONINTERACTIVE} "${ZYPPER_ARG_PKGS[@]}" |& tee -a ${LOGFILE}
 	    RETVAL=${PIPESTATUS[0]}
 	else
+	    # transactional-update migration
 	    if [ ${DO_MIGRATION} -eq 1 ]; then
-		chroot ${MOUNT_DIR} env DISABLE_RESTART_ON_UPDATE=yes zypper ${ZYPPER_ARG} ${ZYPPER_ARG_PKGS}
+		chroot ${MOUNT_DIR} env DISABLE_RESTART_ON_UPDATE=yes zypper ${ZYPPER_ARG} "${ZYPPER_ARG_PKGS[@]}"
 		RETVAL=$?
 		# Reset registration until reboot. Needed in both cases,
 		# whether an error occured or whether we had success.
@@ -810,8 +812,9 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 		    # reboot.
 		    check_registration_on_next_reboot
 		fi
+	    # transactional-update pkg
 	    else
-		env DISABLE_RESTART_ON_UPDATE=yes zypper -R ${MOUNT_DIR} ${ZYPPER_ARG} ${ZYPPER_ARG_PKGS}
+		env DISABLE_RESTART_ON_UPDATE=yes zypper -R ${MOUNT_DIR} ${ZYPPER_ARG} "${ZYPPER_ARG_PKGS[@]}"
 		RETVAL=$?
 	    fi
 	fi
