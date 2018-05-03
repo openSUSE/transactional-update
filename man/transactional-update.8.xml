@@ -55,45 +55,16 @@
   <refsynopsisdiv id='synopsis'>
     <cmdsynopsis>
       <command>transactional-update</command>
-      <arg choice='opt'>--help</arg>
-      <arg choice='opt'>--version</arg>
+      <arg choice='opt' rep='repeat'><replaceable>options</replaceable></arg>
+      <arg choice='opt' rep='repeat'><replaceable>general-command</replaceable></arg>
+      <arg choice='opt'><replaceable>package-command</replaceable>
+        <arg choice='opt' rep='repeat'><replaceable>command-argument</replaceable></arg>
+      </arg>
     </cmdsynopsis>
     <cmdsynopsis>
       <command>transactional-update</command>
-      <arg choice='opt'>--no-selfupdate</arg>
-      <arg choice='opt'>cleanup</arg>
-      <group choice='opt'>
-	<arg choice='plain'>up</arg>
-	<arg choice='plain'>dup</arg>
-	<arg choice='plain'>patch</arg>
-	<arg choice='plain'>bootloader</arg>
-	<arg choice='plain'>initrd</arg>
-    </group>
-    <arg choice='opt'>kdump</arg>
-    <arg choice='opt'>reboot</arg>
-    </cmdsynopsis>
-    <cmdsynopsis>
-      <command>transactional-update</command>
-      <arg choice='opt'>--no-selfupdate</arg>
-      <arg choice='opt'>cleanup</arg>
-      <arg choice='opt'>reboot</arg>
-      <arg choice='plain'>pkg</arg>
-      <group choice='plain'>
-	<arg choice='plain'>install</arg>
-	<arg choice='plain'>remove</arg>
-	<arg choice='plain'>update</arg>
-      </group>
-      <arg choice='plain'>&lt;RPM&gt;...&lt;RPM&gt;</arg>
-    </cmdsynopsis>
-    <cmdsynopsis>
-      <command>transactional-update</command>
-      <arg choice='opt'>--no-selfupdate</arg>
-      <arg choice='plain'>migration</arg>
-    </cmdsynopsis>
-    <cmdsynopsis>
-      <command>transactional-update</command>
-      <arg choice='plain'>rollback</arg>
-      <arg choice='opt'>number</arg>
+      <arg choice='opt'><replaceable>options</replaceable></arg>
+      <arg choice='plain'><replaceable>individual-command</replaceable></arg>
     </cmdsynopsis>
     <para><filename>transactional-update.service</filename></para>
     <para><filename>transactional-update.timer</filename></para>
@@ -126,7 +97,12 @@ for more informations.
 </para>
 </refsect1>
 
-<refsect1 id='options'><title>OPTIONS</title>
+<refsect1 id='commands'><title>COMMANDS</title>
+<refsect2 id='general_commands'><title>General Commands</title>
+<para>
+  General commands can be used together in any combination; additionally
+  they can be extended with one <option>Package Command</option>.
+</para>
 <variablelist remap='TP'>
   <varlistentry>
     <term><option>cleanup</option></term>
@@ -138,17 +114,6 @@ for more informations.
       algorithm set. This is to make sure, that old snapshots will be deleted
       by snapper. See the section about cleanup algorithms in
       <citerefentry project='snapper'><refentrytitle>snapper</refentrytitle><manvolnum>8</manvolnum></citerefentry>.
-      </para>
-    </listitem>
-  </varlistentry>
-  <varlistentry>
-    <term><option>dup</option></term>
-    <listitem>
-      <para>
-	If new updates are available, a new snapshot is created and
-	<command>zypper dup --no-allow-vendor-change</command> is used to
-	update the snapshot. Afterwards, the snapshot is activated and will be
-	used as the new root filesystem during next boot.
       </para>
     </listitem>
   </varlistentry>
@@ -189,12 +154,61 @@ for more informations.
     </listitem>
   </varlistentry>
   <varlistentry>
-    <term><option>migration</option></term>
+    <term><option>reboot</option></term>
     <listitem>
       <para>
-	On systems which are registered against the SUSE Customer Center (SCC)
-	or SMT, a migration to a new version of the installed products can be
-	made with	this option. This is done in an interactive mode.
+	If a new snapshot with updates was created, the system should be
+	rebooted. This option will trigger the necessary reboot. If the
+	<citerefentry><refentrytitle>rebootmgrd</refentrytitle><manvolnum>8</manvolnum></citerefentry>
+	is running, <command>transactional-update</command> will tell the
+	daemon to reboot the system according to the configured policies. Else
+	<command>systemctl reboot</command> is called.
+      </para>
+    </listitem>
+  </varlistentry>
+  <varlistentry>
+    <term><option>shell</option></term>
+    <listitem>
+      <para>
+	After all actions are done, before the snapshot with the changes is
+	unmounted and switched to read-only, a shell is started in the new
+	snapshot as chroot environment for testing and debugging.
+      </para>
+    </listitem>
+  </varlistentry>
+</variablelist>
+</refsect2>
+<refsect2 id='pkg_commands'><title>Package Commands</title>
+<para>
+  Only one package command can be used at the same time. Note that when
+  combining non-interactive package commands with
+  <option>General Commands</option> those will only be executed if the package
+  command updated any packages.
+</para>
+<refsect3 id='ni_pkg_commands'><title>Non-interactive Package Commands</title>
+<para>
+  Non-interactive Package Commands will require no user interaction.
+</para>
+<variablelist>
+  <varlistentry>
+    <term><option>dup</option></term>
+    <listitem>
+      <para>
+	If new updates are available, a new snapshot is created and
+	<command>zypper dup --no-allow-vendor-change</command> is used to
+	update the snapshot. Afterwards, the snapshot is activated and will be
+	used as the new root filesystem during next boot.
+      </para>
+    </listitem>
+  </varlistentry>
+  <varlistentry>
+    <term><option>up</option></term>
+    <listitem>
+      <para>
+	If new updates are available, a new snapshot is created and
+	<command>zypper up</command> is used to update the snapshot.
+	Afterwards, the snapshot is activated and will be used as the new root
+	filesystem during next boot.
       </para>
     </listitem>
   </varlistentry>
@@ -206,6 +220,24 @@ for more informations.
 	<command>zypper patch</command> is used to update the snapshot.
 	Afterwards, the snapshot is activated and will be used as the new root
 	filesystem during next boot.
+      </para>
+    </listitem>
+  </varlistentry>
+</variablelist>
+</refsect3>
+<refsect3 id='i_pkg_commands'><title>Interactive Package Commands</title>
+<para>
+  Interactive Package Commands may require user interaction to solve conflicts
+  or make decisions.
+</para>
+<variablelist>
+  <varlistentry>
+    <term><option>migration</option></term>
+    <listitem>
+      <para>
+	On systems which are registered against the SUSE Customer Center (SCC)
+	or SMT, a migration to a new version of the installed products can be
+	made with	this option. This is done in an interactive mode.
       </para>
     </listitem>
   </varlistentry>
@@ -234,19 +266,11 @@ for more informations.
       </para>
     </listitem>
   </varlistentry>
-  <varlistentry>
-    <term><option>reboot</option></term>
-    <listitem>
-      <para>
-	If a new snapshot with updates was created, the system should be
-	rebooted. This option will trigger the necessary reboot. If the
-	<citerefentry><refentrytitle>rebootmgrd</refentrytitle><manvolnum>8</manvolnum></citerefentry>
-	is running, <command>transactional-update</command> will tell the
-	daemon to reboot the system according to the configured policies. Else
-	<command>systemctl reboot</command> is called.
-      </para>
-    </listitem>
-  </varlistentry>
+</variablelist>
+</refsect3>
+</refsect2>
+<refsect2 id='individual_commands'><title>Individual Commands</title>
+<variablelist>
   <varlistentry>
     <term><option>rollback</option>
     <optional><replaceable>number</replaceable></optional></term>
@@ -263,27 +287,11 @@ for more informations.
       </para>
     </listitem>
   </varlistentry>
-  <varlistentry>
-    <term><option>shell</option></term>
-    <listitem>
-      <para>
-	After all actions are done, before the snapshot with the changes is
-	unmounted and switched to read-only, a shell is started in the new
-	snapshot as chroot environment for testing and debugging.
-      </para>
-    </listitem>
-  </varlistentry>
-  <varlistentry>
-    <term><option>up</option></term>
-    <listitem>
-      <para>
-	If new updates are available, a new snapshot is created and
-	<command>zypper up</command> is used to update the snapshot.
-	Afterwards, the snapshot is activated and will be used as the new root
-	filesystem during next boot.
-      </para>
-    </listitem>
-  </varlistentry>
+</variablelist>
+</refsect2>
+</refsect1>
+<refsect1 id='options'><title>OPTIONS</title>
+<variablelist>
   <varlistentry>
     <term><option>--no-selfupdate</option></term>
     <listitem>
