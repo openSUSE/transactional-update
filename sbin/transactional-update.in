@@ -67,12 +67,13 @@ self_update() {
 	return
     fi
 
-    echo "Checking for newer version."
+    log_info "Checking for newer version."
     if zypper info transactional-update | grep -q '^Status *: out-of-date'; then
-	echo "New version found - updating..."
+	log_info "New version found - updating..."
 	TA_UPDATE_TMPFILE="`mktemp -d /tmp/transactional-update.XXXXXXXXXX`"
 	if [ $? -ne 0 ]; then
-	    quit 1;
+	    log_error "ERROR: Couldn't create temporary directory for self-update."
+	    quit 1
 	fi
 	export TA_UPDATE_TMPFILE
 	cd "${TA_UPDATE_TMPFILE}"
@@ -474,7 +475,7 @@ if [ ${DO_ROLLBACK} -eq 1 ]; then
 	NEED_REBOOT_WARNING=0
     fi
 
-    echo "Rollback to snapshot ${ROLLBACK_SNAPSHOT}..."
+    log_info "Rollback to snapshot ${ROLLBACK_SNAPSHOT}..."
 
     if [ ${RO_ROOT} == "true" ]; then
 	BTRFS_ID=`btrfs subvolume list / |grep /.snapshots/${ROLLBACK_SNAPSHOT}/snapshot | awk '{print $2}'`
@@ -577,8 +578,8 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
     # If the current snapshot and the default snapshot differ
     # there have been changes that we are now discarding.
     if [ "${DEFAULT_SNAPSHOT_ID}" -ne "${CURRENT_SNAPSHOT_ID}" ]; then
-       log_error: "WARNING: Default snapshot differs from current snapshot."
-       log_error: "WARNING: Any changes within the previous snapshot will be discarded!"
+       log_info "WARNING: Default snapshot differs from current snapshot."
+       log_info "WARNING: Any changes within the previous snapshot will be discarded!"
     fi
 
     # Check if there are updates at all. Don't check if we do
