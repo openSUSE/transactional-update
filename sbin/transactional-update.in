@@ -82,8 +82,11 @@ self_update() {
 	export TA_UPDATE_TMPFILE
 	cd "${TA_UPDATE_TMPFILE}"
 	zypper --pkg-cache-dir "${TA_UPDATE_TMPFILE}" download transactional-update
-	find . -name transactional-update*.rpm -exec rpm2cpio {} \; | cpio -idmv >/dev/null
-	rm -f "${LOCKFILE}"
+	find . -name transactional-update*.rpm -exec rpm2cpio {} \; | cpio -idmv 2>/dev/null
+	if [ $? -ne 0 ]; then
+	    log_error "ERROR: Couldn't extract the update."
+	    quit 1
+	fi
 	exec "${TA_UPDATE_TMPFILE}/usr/sbin/transactional-update" "$@"
     fi
 }
@@ -426,16 +429,17 @@ if [ $# -ne 0 ]; then
     usage 1
 fi
 
+# Check if this is a self-updated transactional-update; if it isn't lock and
+# check for update
 if [ -z "${TA_UPDATE_TMPFILE}" ]; then
-  self_update "${ORIG_ARGS[@]}"
-else
-  trap 'rm -rf "${TA_UPDATE_TMPFILE}" && unset TA_UPDATE_TMPFILE' EXIT
-fi
-
-bashlock "/var/run/transactional-update.pid"
-if [ $? -ne 0 ]; then
-  echo "Couldn't get lock, is another instance already running?"
-  exit 1;
+    bashlock "/var/run/transactional-update.pid"
+    if [ $? -ne 0 ]; then
+	echo "Couldn't get lock, is another instance already running?"
+	exit 1
+    fi
+    self_update "${ORIG_ARGS[@]}"
+else # Set exit handler to clean up artifacts of the self-update
+    trap 'rm -f "$LOCKFILE" && rm -rf "${TA_UPDATE_TMPFILE}" && unset TA_UPDATE_TMPFILE' EXIT
 fi
 
 # Load old state file
