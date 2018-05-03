@@ -100,7 +100,7 @@ usage() {
 
 print_version() {
     echo "transactional-update @VERSION@"
-    exit 0;
+    exit 0
 }
 
 log_info() {
@@ -111,7 +111,7 @@ log_info() {
 }
 
 log_error() {
-    echo `date "+%Y-%m-%d %H:%M "` "$@" >> ${LOGFILE}
+    echo `date "+%Y-%m-%d %H:%M"` "$@" >> ${LOGFILE}
     echo "$@" 1>&2
 }
 
@@ -423,7 +423,7 @@ while [ 1 ]; do
 done
 
 if [ $# -ne 0 ]; then
-    usage 1;
+    usage 1
 fi
 
 if [ -z "${TA_UPDATE_TMPFILE}" ]; then
@@ -512,7 +512,7 @@ if [ ${DO_ROLLBACK} -eq 1 ]; then
     if [ ${NEED_REBOOT_WARNING} -eq 1 ]; then
 	echo "Please reboot to finish rollback!"
     fi
-    exit 0;
+    exit 0
 fi
 
 #
@@ -647,15 +647,15 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
     btrfs property set ${BACKUP_SNAPSHOT_DIR} ro false
     if [ $? -ne 0 ]; then
 	log_error "ERROR: changing ${BACKUP_SNAPSHOT_DIR} to read-write failed!"
-	quit 1;
+	quit 1
     fi
 
     # Copy the contents of /etc into the backup snapshot
     log_info "Copying /etc state into backup snapshot"
-    rsync --archive --xattrs --acls --quiet --delete-excluded /etc ${BACKUP_SNAPSHOT_DIR}
+    rsync --archive --xattrs --acls --quiet /etc ${BACKUP_SNAPSHOT_DIR}
     if [ $? -ne 0 ]; then
 	log_error "ERROR: copying of /etc into backup snapshot failed!"
-	quit 1;
+	quit 1
     fi
 
     # Create the working snapshot
@@ -675,7 +675,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
     btrfs property set  ${SNAPSHOT_DIR} ro false
     if [ $? -ne 0 ]; then
 	log_error "ERROR: changing ${SNAPSHOT_DIR} to read-write failed!"
-	quit 1;
+	quit 1
     fi
 
     # Remember all snapshots we create for update. If transactional-update is
@@ -689,7 +689,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	touch ${SNAPSHOT_DIR}/var/tmp/update_snapshot.test
 	if [ $? -ne 0 ]; then
 	    log_error "ERROR: System installation is too old!"
-	    quit 1;
+	    quit 1
 	fi
 	rm -f ${SNAPSHOT_DIR}/var/tmp/update_snapshot.test
     else
@@ -698,7 +698,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
         touch ${SNAPSHOT_DIR}/var/update_snapshot.test
         if [ $? -ne 0 ]; then
             log_error "ERROR: System installation is broken!"
-            quit 1;
+            quit 1
         fi
         rm -f ${SNAPSHOT_DIR}/var/update_snapshot.test
     fi
@@ -718,12 +718,12 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
     mount -t proc none ${SNAPSHOT_DIR}/proc
     if [ $? -ne 0 ]; then
         log_error "ERROR: mount of proc failed!"
-        quit 1;
+        quit 1
     fi
     mount -t sysfs sys ${SNAPSHOT_DIR}/sys
     if [ $? -ne 0 ]; then
         log_error "ERROR: mount of sys failed!"
-        quit 1;
+        quit 1
     fi
     if [ -x /usr/sbin/selinuxenabled ]; then
         /usr/sbin/selinuxenabled
@@ -731,7 +731,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
             mount -t selinuxfs selinux ${SNAPSHOT_DIR}/sys/fs/selinux
             if [ $? -ne 0 ]; then
                 log_error "ERROR: mount of sys failed!"
-                quit 1;
+                quit 1
             fi
         fi
     fi
@@ -742,16 +742,16 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	mount -o bind /$directory ${SNAPSHOT_DIR}/$directory
 	if [ $? -ne 0 ]; then
 	    log_error "ERROR: mount of $directory failed!"
-	    quit 1;
+	    quit 1
 	fi
     done
 
     # Copy the contents of /etc
     log_info "Copying /etc state into snapshot"
-    rsync --archive --xattrs --acls --quiet --delete-excluded /etc ${SNAPSHOT_DIR}
+    rsync --archive --xattrs --acls --quiet /etc ${SNAPSHOT_DIR}
     if [ $? -ne 0 ]; then
 	log_error "ERROR: copying of /etc into snapshot failed!"
-	quit 1;
+	quit 1
     fi
 
     # If we have a seperate /var, create some directories which we
@@ -971,7 +971,7 @@ if [ ${EXITCODE} -eq 0 ]; then
 	        reboot_autodetect
 	        ;;
 	esac
-	echo "The system couldn't be rebooted using method '{$REBOOT_METHOD}'. Please reboot the system"
+	echo "The system couldn't be rebooted using method '${REBOOT_METHOD}'. Please reboot the system"
 	echo "manually."
     fi
 fi
