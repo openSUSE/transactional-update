@@ -72,7 +72,7 @@ self_update() {
     fi
 
     log_info "Checking for newer version."
-    if zypper info transactional-update | grep -q '^Status *: out-of-date'; then
+    if zypper --non-interactive info transactional-update | grep -q '^Status *: out-of-date'; then
 	log_info "New version found - updating..."
 	TA_UPDATE_TMPFILE="`mktemp -d /tmp/transactional-update.XXXXXXXXXX`"
 	if [ $? -ne 0 ]; then
@@ -81,7 +81,7 @@ self_update() {
 	fi
 	export TA_UPDATE_TMPFILE
 	cd "${TA_UPDATE_TMPFILE}"
-	zypper --pkg-cache-dir "${TA_UPDATE_TMPFILE}" download transactional-update
+	zypper --non-interactive --pkg-cache-dir "${TA_UPDATE_TMPFILE}" download transactional-update
 	find . -name transactional-update*.rpm -exec rpm2cpio {} \; | cpio -idmv 2>/dev/null
 	if [ $? -ne 0 ]; then
 	    log_error "ERROR: Couldn't extract the update."
@@ -742,7 +742,6 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
     # Check which directories in /boot/grub2 need to be mounted,
     # otherwise grub2 will not boot after a version update.
     DIR_TO_MOUNT="${DIR_TO_MOUNT} $(awk '$2 ~ /\/boot\/grub2\// { print $2 }' /proc/mounts)"
-
 
     # Mount everything we need:
     mount -t proc none ${SNAPSHOT_DIR}/proc
