@@ -121,7 +121,7 @@ usage() {
     echo ""
     echo "Options:"
     echo "--no-selfupdate    Skip checking for newer version"
-    echo "--quit             Don't print warnings and infos to stdout"
+    echo "--quiet            Don't print warnings and infos to stdout"
     echo "--help             Display this help and exit"
     echo "--version          Display version and exit"
     exit $1
