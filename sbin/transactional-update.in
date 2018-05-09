@@ -64,7 +64,7 @@ if [ -r ${CONFFILE} ]; then
 fi
 
 # Log stderr to log file
-exec 2> >(tee -a "${LOGFILE}")
+exec 4>&2 2> >(tee -a "${LOGFILE}")
 
 self_update() {
     if [ ${DO_SELF_UPDATE} == 0 ]; then
@@ -894,7 +894,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 
     if [ ${RUN_SHELL} -eq 1 ]; then
 	echo "Opening chroot in snapshot ${SNAPSHOT_ID}, continue with 'exit'"
-	env PS1="transactional update # " chroot ${MOUNT_DIR} bash
+	env PS1="transactional update # " chroot ${MOUNT_DIR} bash 2>&4
     fi
 
     # Unset variable
