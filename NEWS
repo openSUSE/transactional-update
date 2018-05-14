@@ -2,6 +2,16 @@ transactional-update NEWS -- history of user-visible changes.
 
 Copyright (C) 2016, 2017, 2018 Thorsten Kukuk
 
+Version 2.3
+* Reformat help text / synopsis
+* More detailled output (use --quiet for less output)
+* Log all error messages into log file
+* Avoid potential lock file race condition on self update
+* Accept package names with whitespace
+* Don't wait for user input during self-update
+* Fix broken error message output when creating new snapshot without reboot
+* Fix erroneous mounting of stale grub mounts
+
 Version 2.2
 * Fix security issue in self update
 * Create dirs in /var more reliably by sorting the list
