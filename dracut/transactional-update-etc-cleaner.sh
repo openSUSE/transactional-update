@@ -25,6 +25,11 @@ TU_FLAGFILE="${NEWROOT}/var/lib/overlay/transactional-update.newsnapshot"
 . /dracut-state.sh 2>/dev/null
 
 same_file() {
+  # Check if file exists in lowerdir
+  if [ ! -e "$2" ]; then
+    return 1
+  fi
+
   # Primary indicators for changes: File size, attributes and modification time
   local overlay_stat="`stat --format="%a %u:%g %s %t/%T %F %Y" -- "$1"`"
   local lowerdir_stat="`stat --format="%a %u:%g %s %t/%T %F %Y" -- "$2"`"
