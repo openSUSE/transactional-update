@@ -783,10 +783,11 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	quit 1
     fi
 
-    # If we have a seperate /var, create some directories which we
+    # If we have a seperate /var, create some files / directories which we
     # will delete again later.
     if [ ${HAS_SEPARATE_VAR} -eq 1 ]; then
 	mkdir ${SNAPSHOT_DIR}/var/tmp
+	cp /var/lib/zypp/RequestedLocales ${SNAPSHOT_DIR}/var/lib/zypp/
     fi
 
     # Check if we have /var/lib/rpm, otherwise zypper will
@@ -908,7 +909,8 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 
     # Delete temporary data before unmounting everything:
     if [ ${HAS_SEPARATE_VAR} -eq 1 ]; then
-       rm -rf ${SNAPSHOT_DIR}/var/tmp
+	rm -rf ${SNAPSHOT_DIR}/var/tmp
+	rm -f ${SNAPSHOT_DIR}/var/lib/zypp/RequestedLocales
     fi
 
     # Unmount everything we don't need anymore:
