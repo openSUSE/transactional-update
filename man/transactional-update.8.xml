@@ -63,8 +63,8 @@
     </cmdsynopsis>
     <cmdsynopsis>
       <command>transactional-update</command>
-      <arg choice='opt'><replaceable>options</replaceable></arg>
-      <arg choice='plain'><replaceable>individual-command</replaceable></arg>
+      <arg choice='opt' rep='repeat'><replaceable>options</replaceable></arg>
+      <arg choice='plain'><replaceable>standalone-command</replaceable></arg>
     </cmdsynopsis>
     <para><filename>transactional-update.service</filename></para>
     <para><filename>transactional-update.timer</filename></para>
@@ -78,30 +78,53 @@ running system and it can be rolled back. To activate the changes, the system
 needs to be rebooted.
 </para>
 <para>
-  This is archived by creating at first a snapshot of the system. Afterwards,
-  this snapshot is updated with zypper. Only if there were updates and they
-  could be applied without error, the snapshot will be the default with the
-  next reboot.
+To achieve this <command>transactional-update</command> is using Btrfs'
+snapshot mechanism.
+Before modifying any files - similar to
+<citerefentry project='snapper'><refentrytitle>snapper-zypp-plugin</refentrytitle><manvolnum>8</manvolnum></citerefentry>
+- a pair of pre / post snapshots of the current system is created using
+<citerefentry project='snapper'><refentrytitle>snapper</refentrytitle><manvolnum>8</manvolnum></citerefentry>.
+The "pre" snapshot will back up the current state of the system before the
+update and will not be modified any further, while the "post" snapshot will be
+used to perform the update.
 </para>
-<para>Changes made to the running root filesystem after
-<command>transactional-update</command> was started are lost after the next
+<para>
+If no errors occured the "post" snapshot will be set as the new default
+snapshot. In case of errors both snapshots will be deleted again.
+</para>
+<para>
+On a <emphasis>read-only system</emphasis> the contents of the
+<filename class='directory'>/etc</filename> overlay file system will be
+synchronized into both snapshots; packages will thus be able to modify the
+production configuration files (e.g. via fillup-templates). Due to the
+read-only file system the only difference between the "pre" snapshot and the
+snapshot of the currently running system will be the contents of the
+<filename class='directory'>/etc</filename> directory. On reboot all files
+of the <filename class='directory'>/etc</filename> overlay will be purged
+(except if modified after snapshot creation), as those files are part of the
+snapshot's lower layer now.
+</para>
+<para>
+Note that on a <emphasis>read-write system</emphasis> all changes made to the
+running root filesystem after snapshot creation are lost after the next
 reboot. For this reason, after an successfull update, the system should be
-rebooted as fast as possible. </para>
+rebooted as fast as possible.
+</para>
 <para>For easier maintenance of big clusters,
-<command>transactional-update</command> is regular run by
-<citerefentry project='systemd'><refentrytitle>systemd.timer</refentrytitle><manvolnum>5</manvolnum></citerefentry>.
-The time, at which the command is run, can be modified by a configuration file
+<command>transactional-update</command> is run by
+<citerefentry project='systemd'><refentrytitle>systemd.timer</refentrytitle><manvolnum>5</manvolnum></citerefentry>
+in regular intervals. The specific time can be configured in
 <filename>/etc/systemd/system/transactional-update.timer.d/local.conf</filename>. See
 <citerefentry project='systemd'><refentrytitle>systemd.unit</refentrytitle><manvolnum>5</manvolnum></citerefentry>
-for more informations.
+for more information.
 </para>
 </refsect1>
 
 <refsect1 id='commands'><title>COMMANDS</title>
 <refsect2 id='general_commands'><title>General Commands</title>
 <para>
-  General commands can be used together in any combination; additionally
-  they can be extended with one <option>Package Command</option>.
+  General Commands can be used together in any combination; additionally they
+  can be extended with one <link linkend='pkg_commands'>Package Command</link>.
 </para>
 <variablelist remap='TP'>
   <varlistentry>
@@ -132,8 +155,7 @@ for more informations.
     <term><option>bootloader</option></term>
     <listitem>
       <para>
-	A new snapshot is created, the bootloader configuration updated and
-	the boorloader newly written.
+	Same as <option>grub.cfg</option>, but will also rewrite the bootloader itself.
       </para>
     </listitem>
   </varlistentry>
@@ -180,14 +202,22 @@ for more informations.
 </refsect2>
 <refsect2 id='pkg_commands'><title>Package Commands</title>
 <para>
-  Only one package command can be used at the same time. Note that when
-  combining non-interactive package commands with
-  <option>General Commands</option> those will only be executed if the package
-  command updated any packages.
+  Package Commands will typically invoke <command>zypper</command> to perform
+  actions on the RPM packages. Only one Package Command can be used at the
+  same time. Can be combined with any number of
+  <link linkend='general_commands'>General Commands</link>.
 </para>
 <refsect3 id='ni_pkg_commands'><title>Non-interactive Package Commands</title>
 <para>
-  Non-interactive Package Commands will require no user interaction.
+  Non-interactive Package Commands are designed to be called from scripts and
+  will require no user interaction. Note that when combining Non-interactive
+  Package Commands with
+  <link linkend='general_commands'>General Commands</link> those will only be
+  executed if the Package Command updated any packages.
+</para>
+<para>In case a user decision is needed it has to be resolved by using one
+  of the <link linkend='i_pkg_commands'>Interactive Package Commands</link> or
+  <command>zypper</command> first.
 </para>
 <variablelist>
   <varlistentry>
@@ -269,21 +299,22 @@ for more informations.
 </variablelist>
 </refsect3>
 </refsect2>
-<refsect2 id='individual_commands'><title>Individual Commands</title>
+<refsect2 id='standalone_commands'><title>Standalone Commands</title>
 <variablelist>
   <varlistentry>
     <term><option>rollback</option>
     <optional><replaceable>number</replaceable></optional></term>
     <listitem>
       <para>
-	Sets the default subvolume. On systems with read-write filesystem,
+	Sets the default root file system. On a read-only system the root
+	file system is set directly using <command>btrfs</command>. On
+	read-write systems
 	<citerefentry
 	    project='snapper'><refentrytitle>snapper</refentrytitle><manvolnum>8</manvolnum></citerefentry>
-	<option> rollback</option> is called. On a read-only filesystem,
-	without argument, the current system is made the new default root
-	filesystem. Else the snapshot with <option>number</option> is made the
-	new default root filesystem. On a read-only filesystem, no additional
-	snapshots are created.
+	<option>rollback</option> is called. If no snapshot number is given
+	the current root file system is made the new default root file system.
+	Otherwise the snapshot with <option>number</option> is made the
+	new default root filesystem.
       </para>
     </listitem>
   </varlistentry>
@@ -321,39 +352,27 @@ for more informations.
 
 <refsect1 id='important'><title>IMPORTANT</title>
 <para>
-  Only RPMs, which are fully part of the snapshot of the root filesystem, can
-  be updated. If RPMs contains files outside of the snapshot, the update
-  itself can break or can break the system.
+  Only RPMs which are fully part of the root filesystem and
+  <filename class='directory'>/etc</filename> can be updated. There is also
+  limited handling for adding files and directories to
+  <filename class='directory'>/var</filename>, however modifications of
+  existing files (e.g. migrating databases) are supposed to be handled by
+  systemd jobs at startup (see the
+  <ulink url="https://en.opensuse.org/openSUSE:Packaging_guidelines#systemd_services_.28as_a_sample_see_mariadb_package.29">initial
+  configuration and deployment section of the packaging guidelines</ulink>).
 </para>
 <para>
-  Since all changes to the root filesystem will go lost after creating the
+  Since all changes to the root filesystem will get lost after creating the
   snapshot for the update, the system should be rebooted as fast as possible
   after the update finished.
 </para>
 <para>
-  RPMs, where a license needs accepted for, cannot be updated.
-</para>
-<para>
-  If PTFs get installed or removed, and
-  <command>transactional-update</command> is called again before the next
-  reboot and updates packages, the changes to the PTFs are lost and need to be
-  redone with the next reboot. After installing or removing PTFs, the system
-  should be immeaditly rebooted.
-</para>
-</refsect1>
-
-<refsect1 id='notes'><title>NOTES</title>
-<para>
-  If <filename>/etc/default/grub</filename> was modified by an administrator,
-  the modified version is copied into the new snapshot.
-</para>
-<para>
-  If during the update process <filename>/etc/passwd</filename>,
-  <filename>/etc/group</filename> or <filename>/etc/shadow</filename> are
-  modified and <filename>/usr/etc</filename> exists, the modified files are
-  copied into <filename>/usr/etc</filename> and can be accessed by tools like
-  <command>libnss_usrfiles</command>. This prevents that the new accounts are
-  hidden by local modifications by the system administrator.
+  Every time <command>transactional-update</command> will create a new
+  snapshot it will be based on the <emphasis>currently running
+  system</emphasis>.
+  Calling <command>transactional-update</command> multiple times without
+  rebooting will <emphasis>not</emphasis> include the changes of the previous
+  snapshot, thus effectively discarding all previous changes.
 </para>
 </refsect1>
 
