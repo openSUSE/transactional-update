@@ -938,8 +938,8 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 
     # Somersault:
     if [ $EXITCODE -eq 0 ]; then
-	BTRFS_ID=`btrfs subvolume list / |grep ${SNAPSHOT_DIR} | awk '{print $2}'`
-	if [ -z $BTRFS_ID ]; then
+	BTRFS_ID=`btrfs subvolume list / |grep ${SNAPSHOT_DIR}$ | awk '{print $2}'`
+	if [ -z "$BTRFS_ID" ]; then
 	    log_error "ERROR: couldn't determine btrfs subvolume ID"
 	    EXITCODE=1
 	else
