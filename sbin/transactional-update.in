@@ -122,6 +122,7 @@ usage() {
     echo "Options:"
     echo "--no-selfupdate    Skip checking for newer version"
     echo "--quiet            Don't print warnings and infos to stdout"
+    echo "--kexec            Use 'kexec' instead of full reboot. Can save time"
     echo "--help             Display this help and exit"
     echo "--version          Display version and exit"
     exit $1
@@ -258,6 +259,14 @@ reboot_via_systemd() {
     log_info "transactional-update finished - rebooting machine"
     sync
     systemctl reboot |& tee -a ${LOGFILE}
+    exit 0
+}
+
+reboot_via_kexec() {
+    log_info "transactional-update finished - re-initializing system with kexec"
+    kexec -l /boot/vmlinuz --initrd=/boot/initrd --reuse-cmdline
+    sync
+    systemctl kexec |& tee -a ${LOGFILE}
     exit 0
 }
 
@@ -417,6 +426,10 @@ while [ 1 ]; do
 	    ;;
 	--quiet)
 	    VERBOSITY=1
+	    shift
+	    ;;
+	--kexec)
+	    REBOOT_METHOD="kexec"
 	    shift
 	    ;;
 	register)
@@ -996,6 +1009,9 @@ if [ ${EXITCODE} -eq 0 ]; then
 		;;
 	    systemd)
 		reboot_via_systemd
+		;;
+	    kexec)
+		reboot_via_kexec
 		;;
 	    *)
 	        log_info "Unsupported reboot method, falling back to 'auto'; please"
