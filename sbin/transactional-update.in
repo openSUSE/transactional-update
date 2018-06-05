@@ -852,6 +852,12 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	    if [ $? -ne 0 ]; then
 		check_registration_on_next_reboot
 	    fi
+	    # Rebuild grub.cfg if /etc/os-release changes, could change grub
+	    # menu output, too.
+	    cmp -s /etc/os-release ${MOUNT_DIR}/etc/os-release
+	    if [ $? -ne 0 ]; then
+	        REWRITE_GRUB_CFG=1
+	    fi
 	else
 	    log_error "ERROR: zypper ${ZYPPER_ARG} on ${MOUNT_DIR} failed with exit code ${RETVAL}!"
 	    EXITCODE=1
