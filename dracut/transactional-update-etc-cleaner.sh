@@ -30,17 +30,24 @@ same_file() {
     return 1
   fi
 
+  if [ -d "$1" ]; then
+    # Directories will be merged, so sizes won't match
+    stat_format="%a %u:%g %t/%T %F %Y"
+  else
+    stat_format="%a %u:%g %s %t/%T %F %Y"
+  fi
+
   # Primary indicators for changes: File size, attributes and modification time
-  local overlay_stat="`stat --format="%a %u:%g %s %t/%T %F %Y" -- "$1"`"
-  local lowerdir_stat="`stat --format="%a %u:%g %s %t/%T %F %Y" -- "$2"`"
+  local overlay_stat="`stat --format="${stat_format}" -- "$1"`"
+  local lowerdir_stat="`stat --format="${stat_format}" -- "$2"`"
   if [ "${overlay_stat}" != "${lowerdir_stat}" ]; then
     return 1
   fi
 
-  # Compare extended attributes if available
+  # Compare extended attributes if available (without overlayfs attributes)
   if [ -x /usr/bin/getfattr ]; then
-    overlay_stat="`getfattr --dump --no-dereference --absolute-names -- "$1" | sed 1d`"
-    lowerdir_stat="`getfattr --dump --no-dereference --absolute-names -- "$2" | sed 1d`"
+    overlay_stat="`getfattr --dump --no-dereference --absolute-names --match=- -- "$1" | sed '1d;/^trusted\.overlay\./d'`"
+    lowerdir_stat="`getfattr --dump --no-dereference --absolute-names --match=- -- "$2" | sed '1d;/^trusted\.overlay\./d'`"
     if [ "${overlay_stat}" != "${lowerdir_stat}" ]; then
       return 1
     fi
@@ -57,6 +64,7 @@ clean_overlay() {
   local dir="${1:-.}"
   local file
   local snapdir="${NEWROOT}/${PREV_SNAPSHOT_DIR}/etc/${dir}"
+  local is_same
 
   pushd "${ETC_OVERLAY}/${dir}" >/dev/null
   for file in .[^.]* ..?* *; do
@@ -67,9 +75,21 @@ clean_overlay() {
 
     # Recursively process directories
     if [ -d "${file}" ]; then
-      clean_overlay "${dir}/${file}"
       if same_file "${file}" "${snapdir}/${file}"; then
+        is_same=1
+      else
+        is_same=0
+      fi
+      clean_overlay "${dir}/${file}"
+      if [ "${is_same}" -eq 1 ]; then
         rmdir --ignore-fail-on-non-empty -- "${file}"
+        if [ -e "${file}" ]; then
+          echo "Warning: Not removing directory ${dir}/${file} - not empty"
+        else
+          echo "Removing directory ${dir}/${file} from overlay..."
+        fi
+      else
+        echo "Warning: Not removing directory ${dir}/${file} - modified after snapshot creation."
       fi
     # Overlayfs creates a character device with device number 0/0 for removed files / directories
     elif [ -c "${file}" -a "`stat --format="%t/%T" -- "${file}"`" = "0/0" -a ! -e "${snapdir}/${file}" ]; then
@@ -77,11 +97,11 @@ clean_overlay() {
       rm -- "${file}"
     # Verify that files in the overlay haven't changed since taking the snapshot
     elif same_file "${file}" "${snapdir}/${file}"; then
-      echo "Removing copy of ${dir}/${file} from overlay..."
+      echo "Removing file ${dir}/${file} from overlay..."
       rm -- "${file}"
     # File seems to have been modified, warn user
     else
-      echo "Warning: Not removing ${dir}/${file} - modified after snapshot creation."
+      echo "Warning: Not removing file ${dir}/${file} - modified after snapshot creation."
     fi
   done
   popd >/dev/null
@@ -130,11 +150,11 @@ if [ -e "${ETC_OVERLAY}" -a -e "${TU_FLAGFILE}" ]; then
   . "${TU_FLAGFILE}"
 
   if [ "${CURRENT_SNAPSHOT_ID}" = "${EXPECTED_SNAPSHOT_ID}" ]; then
-    # Previous snapshot may not be available; just delete all overlay contents in this case
     rm "${TU_FLAGFILE}"
     if prepare_environment; then
       clean_overlay
     else
+      # Previous snapshot may not be available; just delete all overlay contents in this case
       remove_overlay
     fi
     mount -o remount "${NEWROOT}/etc"
