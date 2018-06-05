@@ -1,6 +1,8 @@
 [Unit]
 Description=Create missing directories from rpmdb
 Documentation=man:create_dirs_from_rpmdb(8)
+DefaultDependencies=no
+Conflicts=shutdown.target
 After=local-fs.target systemd-sysusers.service
 Before=systemd-tmpfiles-setup.service
 
