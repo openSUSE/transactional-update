@@ -1,9 +1,9 @@
 #
-# Copyright (c) 2016 Thorsten Kukuk, Germany
+# Copyright (c) 2016-2018 Thorsten Kukuk, Germany
 #
 # Author: Thorsten Kukuk <kukuk@suse.de>
 #
-AUTOMAKE_OPTIONS = 1.6 foreign check-news dist-bzip2
+AUTOMAKE_OPTIONS = 1.6 foreign check-news dist-xz
 #
 SUBDIRS = sbin man systemd logrotate dracut doc etc
 

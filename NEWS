@@ -2,6 +2,9 @@ transactional-update NEWS -- history of user-visible changes.
 
 Copyright (C) 2016, 2017, 2018 Thorsten Kukuk
 
+Version 2.4
+* Bug fix release
+
 Version 2.3
 * Reformat help text / synopsis
 * More detailled output (use --quiet for less output)
