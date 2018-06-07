@@ -21,6 +21,9 @@
 ETC_OVERLAY="${NEWROOT}/var/lib/overlay/etc"
 TU_FLAGFILE="${NEWROOT}/var/lib/overlay/transactional-update.newsnapshot"
 
+FILES_TO_DELETE=()
+LEFTOVER_FILES=()
+
 # Import common dracut variables
 . /dracut-state.sh 2>/dev/null
 
@@ -57,6 +60,14 @@ same_file() {
   return 0
 }
 
+dump_dir() {
+  pushd "$1" >/dev/null
+  if [ -e "$2" ]; then
+    ls --almost-all --indicator-style=slash -1 --escape --recursive -- "$2"
+  fi
+  popd >/dev/null
+}
+
 # Remove files from overlay with safety checks
 # etc directory mustn't be deleted completely, as it's still mounted and the
 # kernel won't be able to recover from that (different inode?)
@@ -64,7 +75,10 @@ clean_overlay() {
   local dir="${1:-.}"
   local file
   local snapdir="${NEWROOT}/${PREV_SNAPSHOT_DIR}/etc/${dir}"
-  local is_same
+  local dir_was_same
+  local mode="${2:-delete}"
+  local can_be_removed=()
+  local cannot_be_removed=()
 
   pushd "${ETC_OVERLAY}/${dir}" >/dev/null
   for file in .[^.]* ..?* *; do
@@ -76,35 +90,73 @@ clean_overlay() {
     # Recursively process directories
     if [ -d "${file}" ]; then
       if same_file "${file}" "${snapdir}/${file}"; then
-        is_same=1
+        # If all files could be removed from the overlay then the containing
+        # directory can be removed, too, if there have been no changes to the
+        # directory itself; this, however, has to be checked before deleting
+        # any files in that directory, as doing so will necessarily modify
+        # the directory's attributes.
+        # TODO: Reset timestamp after deleting containing file(s)
+        dir_was_same=1
       else
-        is_same=0
+        dir_was_same=0
       fi
-      clean_overlay "${dir}/${file}"
-      if [ "${is_same}" -eq 1 ]; then
-        rmdir --ignore-fail-on-non-empty -- "${file}"
-        if [ -e "${file}" ]; then
-          echo "Warning: Not removing directory ${dir}/${file} - not empty"
-        else
-          echo "Removing directory ${dir}/${file} from overlay..."
+      # Opaque directories will completely hide the original directory, so it
+      # can only be removed if contents are absolutely identical to the
+      # snapshot
+      if [[ "`getfattr -n 'trusted.overlay.opaque' --dump --absolute-names -- "${file}" 2>/dev/null`" =~ =\"y\"$ ]] && [ "${mode}" != "dry" ]; then
+        # Have any files been added or removed?
+        if [ "`dump_dir . "${file}"`" != "`dump_dir "${snapdir}" "${file}"`" ]; then
+          continue
         fi
+        LEFTOVER_FILES=()
+        # Have any files been modified?
+        clean_overlay "${dir}/${file}" dry
+        if [ ! -z "${LEFTOVER_FILES}" ]; then
+          continue
+        fi
+      fi
+      clean_overlay "${dir}/${file}" "${mode}"
+      if [ "${dir_was_same}" -eq 1 ]; then
+        can_be_removed+=("${dir}/${file}/")
       else
-        echo "Warning: Not removing directory ${dir}/${file} - modified after snapshot creation."
+        cannot_be_removed+=("${dir}/${file}/")
       fi
     # Overlayfs creates a character device with device number 0/0 for removed files / directories
     elif [ -c "${file}" -a "`stat --format="%t/%T" -- "${file}"`" = "0/0" -a ! -e "${snapdir}/${file}" ]; then
-      echo "Removing character device ${dir}/${file} from overlay..."
-      rm -- "${file}"
+      can_be_removed+=("${dir}/${file}")
     # Verify that files in the overlay haven't changed since taking the snapshot
     elif same_file "${file}" "${snapdir}/${file}"; then
-      echo "Removing file ${dir}/${file} from overlay..."
-      rm -- "${file}"
-    # File seems to have been modified, warn user
+      can_be_removed+=("${dir}/${file}")
     else
-      echo "Warning: Not removing file ${dir}/${file} - modified after snapshot creation."
+      cannot_be_removed+=("${dir}/${file}")
     fi
   done
   popd >/dev/null
+
+  if [ "${mode}" = "dry" ]; then
+    LEFTOVER_FILES+=("${cannot_be_removed[@]}")
+  elif [ "${mode}" = "delete" ]; then
+    FILES_TO_DELETE+=("${can_be_removed[@]}")
+  fi
+}
+
+delete_files() {
+  cd "${ETC_OVERLAY}"
+  for file in "${FILES_TO_DELETE[@]}"; do
+    if [ -d "${file}" ]; then
+      rmdir --ignore-fail-on-non-empty -- "${file}"
+      # Check if directory was actually removed
+      if [ ! -e "${file}" ]; then
+        echo "Removing ${file} from overlay..."
+      fi
+    else
+      rm -- "${file}"
+      echo "Removing ${file} from overlay..."
+    fi
+  done
+
+  echo "The following files weren't removed due to changes after snapshot creation:"
+  ls --almost-all --indicator-style=slash -1 --escape --recursive -- "${ETC_OVERLAY}"
 }
 
 # Delete all contents of the overlay
@@ -153,6 +205,7 @@ if [ -e "${ETC_OVERLAY}" -a -e "${TU_FLAGFILE}" ]; then
     rm "${TU_FLAGFILE}"
     if prepare_environment; then
       clean_overlay
+      delete_files
     else
       # Previous snapshot may not be available; just delete all overlay contents in this case
       remove_overlay
