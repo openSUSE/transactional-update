@@ -104,6 +104,21 @@ of the <filename class='directory'>/etc</filename> overlay will be purged
 (except if modified after snapshot creation), as those files are part of the
 snapshot's lower layer now.
 </para>
+<warning>
+<para>
+The following situations currently cannot be detected reliably when clearing
+the /etc overlay:
+<itemizedlist>
+<listitem>
+<para>
+If a file or directory has been created since the last reboot and is then
+removed or renamed <emphasis>after</emphasis> taking the snapshot, the
+file / directory may reappear after reboot and has to be deleted again.
+</para>
+</listitem>
+</itemizedlist>
+</para>
+</warning>
 <para>
 Note that on a <emphasis>read-write system</emphasis> all changes made to the
 running root filesystem after snapshot creation are lost after the next
