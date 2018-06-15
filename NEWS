@@ -2,6 +2,14 @@ transactional-update NEWS -- history of user-visible changes.
 
 Copyright (C) 2016, 2017, 2018 Thorsten Kukuk
 
+Version 2.5
+* Support for overlayfs attributes like trusted.overlay.opaque - this will
+  avoid disappearing configuration files on system updates
+* Documentation update
+* Only sync /etc if it's on an overlayfs mount
+* Use correct locale for zypper - thus updating locale specific packages and
+  avoiding "empty" updates where transactional-update didn't see the change
+
 Version 2.4
 * Bug fix release
 
