@@ -695,7 +695,6 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
     # Hint: The rw subvolume is not shown in grub2.
     log_info "Creating read-only snapshot of current system state (#${CURRENT_SNAPSHOT_ID})"
     BACKUP_SNAPSHOT_ID=`snapper create -p -t pre -c number -u "important=yes" -d "RO-Clone of #${CURRENT_SNAPSHOT_ID}"`
-    BACKUP_SNAPSHOT_DIR=/.snapshots/${BACKUP_SNAPSHOT_ID}/snapshot
     if [ $? -ne 0 ]; then
 	SNAPPER_NO_DBUS="--no-dbus"
 	BACKUP_SNAPSHOT_ID=`snapper --no-dbus create -p -t pre -c number -u "important=yes" -d "RO-Clone of #${CURRENT_SNAPSHOT_ID}"`
@@ -704,6 +703,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	    quit 1
 	fi
     fi
+    BACKUP_SNAPSHOT_DIR=/.snapshots/${BACKUP_SNAPSHOT_ID}/snapshot
 
     # Make the backup snapshot read-write:
     btrfs property set ${BACKUP_SNAPSHOT_DIR} ro false
