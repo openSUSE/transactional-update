@@ -91,6 +91,14 @@
               </listitem>
             </varlistentry>
             <varlistentry>
+              <term><literal>kured</literal></term>
+              <listitem>
+                <para>
+		  Will inform kured (kubernetes reboot daemon) to reboot the system.
+                </para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
               <term><literal>salt</literal></term>
               <listitem>
                 <para>

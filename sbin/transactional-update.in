@@ -261,6 +261,12 @@ reboot_via_systemd() {
     exit 0
 }
 
+reboot_via_kured() {
+    log_info "transactional-update finished - informed kured"
+    touch /var/run/reboot-required
+    exit 0
+}
+
 reboot_autodetect() {
     if [ -x /usr/sbin/rebootmgrctl ]; then
 	reboot_via_rebootmgr
@@ -1020,6 +1026,9 @@ if [ ${EXITCODE} -eq 0 ]; then
 	case "$REBOOT_METHOD" in
 	    auto)
 		reboot_autodetect
+		;;
+	    kured)
+		reboot_via_kured
 		;;
 	    salt)
 		reboot_via_salt
