@@ -277,7 +277,7 @@ for more information.
 </para>
 <variablelist>
   <varlistentry>
-    <term><option>migration</option></term>
+    <term><option>migration</option> <optional>-n</optional></term>
     <listitem>
       <para>
 	On systems which are registered against the SUSE Customer Center (SCC)

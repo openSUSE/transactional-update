@@ -111,7 +111,7 @@ usage() {
     echo "dup                Call 'zypper dup --no-allow-vendor-change'"
     echo "up                 Call 'zypper up'"
     echo "patch              Call 'zypper patch'"
-    echo "migration          Updates systems registered via SCC / SMT"
+    echo "migration [-n]     Updates systems registered via SCC / SMT"
     echo "pkg install ...    Install individual packages"
     echo "pkg remove ...     Remove individual packages"
     echo "pkg update ...     Updates individual packages"
@@ -377,10 +377,24 @@ while [ 1 ]; do
             ZYPPER_NONINTERACTIVE=""
 	    ;;
 	migration)
+	    __NO_RESET=0
 	    DO_MIGRATION=1
-	    ZYPPER_NONINTERACTIVE=""
-	    ZYPPER_ARG="migration --no-snapshots"
+	    ZYPPER_ARG="migration --no-snapshots --no-selfupdate"
 	    shift
+	    if [ $# -ge 1 ]; then
+	        case "$1" in
+	            -n|--non-interactive)
+                        # non interative option is named different for
+                        # different commands ...
+                        ZYPPER_NONINTERACTIVE="--non-interactive --auto-agree-with-licenses"
+			__NO_RESET=1
+			shift
+	                ;;
+	        esac
+	    fi
+	    if [ ${__NO_RESET} -eq 0 ]; then
+		ZYPPER_NONINTERACTIVE=""
+	    fi
 	    ;;
 	bootloader)
 	    REWRITE_BOOTLOADER=1
@@ -823,27 +837,36 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
     if [ -n "${ZYPPER_ARG}" ]; then
 
 	log_info "Calling zypper ${ZYPPER_ARG}"
-	# All transactional-update zypper commands except migration and pkg
 	if [ -n "${ZYPPER_NONINTERACTIVE}" ]; then
-	    env DISABLE_RESTART_ON_UPDATE=yes zypper -R ${MOUNT_DIR} ${ZYPPER_ARG} ${ZYPPER_NONINTERACTIVE} "${ZYPPER_ARG_PKGS[@]}" |& tee -a ${LOGFILE}
-	    RETVAL=${PIPESTATUS[0]}
-	else
-	    # transactional-update migration
+	    # In non-interactive mode, we redirect everything to a log file
 	    if [ ${DO_MIGRATION} -eq 1 ]; then
-		chroot ${MOUNT_DIR} env DISABLE_RESTART_ON_UPDATE=yes zypper ${ZYPPER_ARG} "${ZYPPER_ARG_PKGS[@]}"
+		# transactional-update migration
+		env DISABLE_RESTART_ON_UPDATE=yes zypper ${ZYPPER_ARG} --root ${MOUNT_DIR} ${ZYPPER_NONINTERACTIVE} "${ZYPPER_ARG_PKGS[@]}" |& tee -a ${LOGFILE}
+		RETVAL=${PIPESTATUS[0]}
+	    else
+		env DISABLE_RESTART_ON_UPDATE=yes zypper -R ${MOUNT_DIR} ${ZYPPER_ARG} ${ZYPPER_NONINTERACTIVE} "${ZYPPER_ARG_PKGS[@]}" |& tee -a ${LOGFILE}
+		RETVAL=${PIPESTATUS[0]}
+	    fi
+	else
+	    # in interactive mode, we don't redirect to a log file
+	    if [ ${DO_MIGRATION} -eq 1 ]; then
+		# transactional-update migration
+		env DISABLE_RESTART_ON_UPDATE=yes zypper ${ZYPPER_ARG} --root ${MOUNT_DIR} "${ZYPPER_ARG_PKGS[@]}"
 		RETVAL=$?
-		# Reset registration until reboot. Needed in both cases,
-		# whether an error occured or whether we had success.
-		test -x /usr/sbin/rollback-reset-registration && /usr/sbin/rollback-reset-registration
-		if [ $RETVAL -eq 0 ]; then
-		    # Create the trigger to re-register the system as new version after next
-		    # reboot.
-		    check_registration_on_next_reboot
-		fi
-	    # transactional-update pkg
 	    else
 		env DISABLE_RESTART_ON_UPDATE=yes zypper -R ${MOUNT_DIR} ${ZYPPER_ARG} "${ZYPPER_ARG_PKGS[@]}"
 		RETVAL=$?
+	    fi
+	fi
+	# in case of migration, we need to do a little bit more:
+	if [ ${DO_MIGRATION} -eq 1 ]; then
+	    # Reset registration until reboot. Needed in both cases,
+	    # whether an error occured or whether we had success.
+	    test -x /usr/sbin/SUSEConnect && /usr/sbin/SUSEConnect --rollback
+	    if [ $RETVAL -eq 0 ]; then
+		# Create the trigger to re-register the system as new version after next
+		# reboot.
+		check_registration_on_next_reboot
 	    fi
 	fi
 
