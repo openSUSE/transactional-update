@@ -337,7 +337,7 @@ while [ 1 ]; do
 	    ;;
 	dup)
 	    DO_DUP=1
-	    ZYPPER_ARG="dup --no-allow-vendor-change"
+	    ZYPPER_ARG="--no-cd dup --no-allow-vendor-change"
 	    shift
 	    ;;
         up|patch)
@@ -659,9 +659,6 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
     # a registration, as this can change the zypper result.
     if [ -n "${ZYPPER_ARG}" -a -n "${ZYPPER_NONINTERACTIVE}" \
          -a ${DO_REGISTRATION} -eq 0 ]; then
-	if [ $DO_DUP -eq 1 ]; then
-	    "${SELF_PATH}"/transactional-update-helper disable-optical
-	fi
 
 	TMPFILE=`mktemp /tmp/transactional-update.XXXXXXXXXX`
 	zypper --xml ${ZYPPER_ARG} ${ZYPPER_NONINTERACTIVE} --dry-run "${ZYPPER_ARG_PKGS[@]}" > ${TMPFILE}

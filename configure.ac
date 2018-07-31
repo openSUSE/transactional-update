@@ -40,16 +40,8 @@ LOGROTATEDDIR=${sysconfdir}/logrotate.d
 AC_SUBST(LOGROTATEDDIR)
 
 AC_PROG_CC
-AC_PROG_CXX
 AC_PROG_INSTALL
 AC_PROG_LN_S
-
-AX_CHECK_COMPILE_FLAG([-std=c++11], [CXXFLAGS="$CXXFLAGS -std=c++11"])
-
-dnl
-dnl Check for libzypp
-dnl
-PKG_CHECK_MODULES(LIBZYPP, libzypp)
 
 dnl
 dnl Check for librpm
