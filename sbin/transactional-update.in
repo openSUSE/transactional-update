@@ -225,6 +225,48 @@ quit() {
     exit $1
 }
 
+teardown() {
+    # Unset variable
+    unset TRANSACTIONAL_UPDATE
+
+    # Delete temporary data before unmounting everything:
+    if [ ${HAS_SEPARATE_VAR} -eq 1 ]; then
+	rm -rf ${SNAPSHOT_DIR}/var/tmp
+	rm -f ${SNAPSHOT_DIR}/var/lib/zypp/RequestedLocales
+    fi
+
+    # Unmount everything we don't need anymore:
+    for directory in proc sys $DIR_TO_MOUNT .snapshots ; do
+	umount -R ${SNAPSHOT_DIR}/$directory
+	if [ $? -ne 0 ]; then
+	    log_error "ERROR: umount of $directory failed!"
+	    fuser -v ${SNAPSHOT_DIR}/$directory >> ${LOGFILE}
+	    lsof ${SNAPSHOT_DIR}/$directory >> ${LOGFILE}
+            # Try again after some time
+            sleep 30
+            umount -R ${SNAPSHOT_DIR}/$directory
+            if [ $? -ne 0 ]; then
+                log_error "ERROR 2nd try: umount of $directory failed!"
+	        EXITCODE=1;
+            fi
+	fi
+    done
+    umount -R ${MOUNT_DIR}
+
+    # Cleanup of temporary mount point
+    rmdir ${MOUNT_DIR}
+
+    # Cleanup other stuff
+    # Cleanup cache directory
+    if [ $VAR_CACHE_CLEANUP -eq 1 ]; then
+	rm -rf ${SNAPSHOT_DIR}/var/cache/*
+    fi
+    # systemd-tmpfiles creates directories/files even if /run is no tmpfs:
+    rm -rf ${SNAPSHOT_DIR}/run/*
+    # WARNING: /var/spool/ can contain changes through RPM!
+    rm -rf ${SNAPSHOT_DIR}/var/spool/*
+}
+
 reboot_via_salt() {
     log_info "transactional-update finished - created salt grains"
     if [ -f /etc/salt/grains ]; then
@@ -932,45 +974,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	env PS1="transactional update # " chroot ${MOUNT_DIR} bash 2>&4
     fi
 
-    # Unset variable
-    unset TRANSACTIONAL_UPDATE
-
-    # Delete temporary data before unmounting everything:
-    if [ ${HAS_SEPARATE_VAR} -eq 1 ]; then
-	rm -rf ${SNAPSHOT_DIR}/var/tmp
-	rm -f ${SNAPSHOT_DIR}/var/lib/zypp/RequestedLocales
-    fi
-
-    # Unmount everything we don't need anymore:
-    for directory in proc sys $DIR_TO_MOUNT .snapshots ; do
-	umount -R ${SNAPSHOT_DIR}/$directory
-	if [ $? -ne 0 ]; then
-	    log_error "ERROR: umount of $directory failed!"
-	    fuser -v ${SNAPSHOT_DIR}/$directory >> ${LOGFILE}
-	    lsof ${SNAPSHOT_DIR}/$directory >> ${LOGFILE}
-            # Try again after some time
-            sleep 30
-            umount -R ${SNAPSHOT_DIR}/$directory
-            if [ $? -ne 0 ]; then
-                log_error "ERROR 2nd try: umount of $directory failed!"
-	        EXITCODE=1;
-            fi
-	fi
-    done
-    umount -R ${MOUNT_DIR}
-
-    # Cleanup of temporary mount point
-    rmdir ${MOUNT_DIR}
-
-    # Cleanup other stuff
-    # Cleanup cache directory
-    if [ $VAR_CACHE_CLEANUP -eq 1 ]; then
-	rm -rf ${SNAPSHOT_DIR}/var/cache/*
-    fi
-    # systemd-tmpfiles creates directories/files even if /run is no tmpfs:
-    rm -rf ${SNAPSHOT_DIR}/run/*
-    # WARNING: /var/spool/ can contain changes through RPM!
-    rm -rf ${SNAPSHOT_DIR}/var/spool/*
+    teardown
 
     # Somersault:
     if [ $EXITCODE -eq 0 ]; then
