@@ -144,7 +144,7 @@ log_info() {
 
 log_error() {
     echo `date "+%Y-%m-%d %H:%M"` "$@" >> ${LOGFILE}
-    echo "$@" 1>&2
+    echo "$@" 1>&4
 }
 
 bashlock() {
@@ -562,6 +562,9 @@ if [ -z "${TA_UPDATE_TMPFILE}" ]; then
 else # Set exit handler to clean up artifacts of the self-update
     trap 'rm -f "$LOCKFILE" && rm -rf "${TA_UPDATE_TMPFILE}" && unset TA_UPDATE_TMPFILE' EXIT
 fi
+
+# Clean up in case the application is interrupted
+trap 'echo -e "\nReceived termination signal..." && quit 1' HUP INT QUIT TERM
 
 # Load old state file
 if [ -f ${STATE_FILE} ]; then
