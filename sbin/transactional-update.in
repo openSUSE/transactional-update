@@ -244,7 +244,7 @@ teardown() {
     # Delete temporary data before unmounting everything:
     if [ ${HAS_SEPARATE_VAR} -eq 1 ]; then
 	rm -rf ${SNAPSHOT_DIR}/var/tmp
-	rm -f ${SNAPSHOT_DIR}/var/lib/zypp/RequestedLocales
+	rm -rf ${SNAPSHOT_DIR}/var/lib/zypp
     fi
 
     # Unmount everything we don't need anymore:
@@ -869,6 +869,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
     # will delete again later.
     if [ ${HAS_SEPARATE_VAR} -eq 1 ]; then
 	mkdir ${SNAPSHOT_DIR}/var/tmp
+	mkdir -p ${SNAPSHOT_DIR}/var/lib/zypp
 	cp /var/lib/zypp/RequestedLocales ${SNAPSHOT_DIR}/var/lib/zypp/
     fi
 
