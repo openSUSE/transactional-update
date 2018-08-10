@@ -47,13 +47,7 @@ SYSTEMCONFFILE="@prefix@@sysconfdir@/transactional-update.conf"
 LOGFILE="/var/log/transactional-update.log"
 STATE_FILE="/var/lib/misc/transactional-update.state"
 NEW_SNAPSHOT_FLAG="/var/lib/overlay/transactional-update.newsnapshot"
-SELF_PATH="`dirname $0`"
-PACKAGE_UPDATES=0
 ZYPPER_AUTO_IMPORT_KEYS=0
-HAS_SEPARATE_VAR=0
-SNAPSHOT_ID=""
-BACKUP_SNAPSHOT_ID=""
-SNAPPER_NO_DBUS=""
 
 # Load config
 if [ -r ${SYSTEMCONFFILE} ]; then
@@ -62,6 +56,15 @@ fi
 if [ -r ${CONFFILE} ]; then
     . ${CONFFILE}
 fi
+
+# Initialize internal variables
+HAS_SEPARATE_VAR=0
+SNAPSHOT_ID=""
+BACKUP_SNAPSHOT_ID=""
+SNAPSHOT_DIR=""
+MOUNT_DIR=""
+SNAPPER_NO_DBUS=""
+TMPFILE=""
 
 # Log stderr to log file
 exec 4>&2 2> >(tee -a "${LOGFILE}")
@@ -199,6 +202,8 @@ rebuild_kdump_initrd() {
 
 # Only called in error case; reverts everything to previous state.
 quit() {
+    teardown
+
     if [ -n "${SNAPSHOT_ID}" ] ; then
 	log_error "Removing snapshot #${SNAPSHOT_ID}..."
 	snapper ${SNAPPER_NO_DBUS} delete ${SNAPSHOT_ID} |& tee -a ${LOGFILE}
@@ -225,9 +230,16 @@ quit() {
     exit $1
 }
 
+# Called on exit (both on success and failure); cleans up temporary files,
+# mount points and variables
 teardown() {
     # Unset variable
     unset TRANSACTIONAL_UPDATE
+
+    # The following commands only make sense if snapshot dir is set already
+    if [ "${SNAPSHOT_DIR}" = "" ]; then
+	return
+    fi
 
     # Delete temporary data before unmounting everything:
     if [ ${HAS_SEPARATE_VAR} -eq 1 ]; then
@@ -237,6 +249,10 @@ teardown() {
 
     # Unmount everything we don't need anymore:
     for directory in proc sys $DIR_TO_MOUNT .snapshots ; do
+	# Only try unmount if directory is mounted
+	if ! findmnt ${SNAPSHOT_DIR}/$directory >/dev/null; then
+	    continue;
+	fi
 	umount -R ${SNAPSHOT_DIR}/$directory
 	if [ $? -ne 0 ]; then
 	    log_error "ERROR: umount of $directory failed!"
@@ -251,10 +267,14 @@ teardown() {
             fi
 	fi
     done
-    umount -R ${MOUNT_DIR}
+    if findmnt ${MOUNT_DIR} >/dev/null; then
+	umount -R ${MOUNT_DIR}
+    fi
 
     # Cleanup of temporary mount point
-    rmdir ${MOUNT_DIR}
+    if [ -e ${MOUNT_DIR} ]; then
+	rmdir ${MOUNT_DIR}
+    fi
 
     # Cleanup other stuff
     # Cleanup cache directory
@@ -265,6 +285,7 @@ teardown() {
     rm -rf ${SNAPSHOT_DIR}/run/*
     # WARNING: /var/spool/ can contain changes through RPM!
     rm -rf ${SNAPSHOT_DIR}/var/spool/*
+    rm -f ${TMPFILE}
 }
 
 reboot_via_salt() {
