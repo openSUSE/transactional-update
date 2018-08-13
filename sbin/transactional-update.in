@@ -204,6 +204,14 @@ rebuild_kdump_initrd() {
 quit() {
     teardown
 
+    # Wait for things to settle down
+    for delay in {1..10}; do
+	if [ -z "${SNAPSHOT_DIR}" -o -z "`lsof "${SNAPSHOT_DIR}" 2>/dev/null`" ]; then
+	    break
+	fi
+	sleep $delay
+    done
+
     if [ -n "${SNAPSHOT_ID}" ] ; then
 	log_error "Removing snapshot #${SNAPSHOT_ID}..."
 	snapper ${SNAPPER_NO_DBUS} delete ${SNAPSHOT_ID} |& tee -a ${LOGFILE}
