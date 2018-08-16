@@ -244,6 +244,9 @@ teardown() {
     # Unset variable
     unset TRANSACTIONAL_UPDATE
 
+    # Cleanup temporary files
+    rm -f ${TMPFILE}
+
     # The following commands only make sense if snapshot dir is set already
     if [ "${SNAPSHOT_DIR}" = "" ]; then
 	return
@@ -293,7 +296,6 @@ teardown() {
     rm -rf ${SNAPSHOT_DIR}/run/*
     # WARNING: /var/spool/ can contain changes through RPM!
     rm -rf ${SNAPSHOT_DIR}/var/spool/*
-    rm -f ${TMPFILE}
 }
 
 reboot_via_salt() {
