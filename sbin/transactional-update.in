@@ -59,6 +59,7 @@ fi
 
 # Initialize internal variables
 HAS_SEPARATE_VAR=0
+FORCE_NONINTERACTIVE=""
 SNAPSHOT_ID=""
 BACKUP_SNAPSHOT_ID=""
 SNAPSHOT_DIR=""
@@ -102,31 +103,34 @@ usage() {
     echo "system."
     echo ""
     echo "General Commands:"
-    echo "cleanup            Mark unused snapshots for snapper removal"
-    echo "grub.cfg           Regenerate grub.cfg"
-    echo "bootloader         Reinstall the bootloader"
-    echo "initrd             Regenerate initrd"
-    echo "kdump              Regenerate kdump initrd"
-    echo "shell              Open rw shell in new snapshot before exiting"
-    echo "reboot             Reboot after update"
+    echo "cleanup                Mark unused snapshots for snapper removal"
+    echo "grub.cfg               Regenerate grub.cfg"
+    echo "bootloader             Reinstall the bootloader"
+    echo "initrd                 Regenerate initrd"
+    echo "kdump                  Regenerate kdump initrd"
+    echo "shell                  Open rw shell in new snapshot before exiting"
+    echo "reboot                 Reboot after update"
     echo ""
     echo "Package Commands:"
-    echo "dup                Call 'zypper dup --no-allow-vendor-change'"
-    echo "up                 Call 'zypper up'"
-    echo "patch              Call 'zypper patch'"
-    echo "migration [-n]     Updates systems registered via SCC / SMT"
-    echo "pkg install ...    Install individual packages"
-    echo "pkg remove ...     Remove individual packages"
-    echo "pkg update ...     Updates individual packages"
+    echo "dup                    Call 'zypper dup --no-allow-vendor-change' (n)"
+    echo "up                     Call 'zypper up' (n)"
+    echo "patch                  Call 'zypper patch' (n)"
+    echo "migration              Updates systems registered via SCC / SMT (i)"
+    echo "pkg install ...        Install individual packages (i)"
+    echo "pkg remove ...         Remove individual packages (i)"
+    echo "pkg update ...         Updates individual packages (i)"
+    echo "Defaults: (i) interactive command; (n) non-interactive command"
     echo ""
     echo "Standalone Commands:"
-    echo "rollback <number>  Set given snapshot as default snapshot"
+    echo "rollback <number>      Set given snapshot as default snapshot"
     echo ""
     echo "Options:"
-    echo "--no-selfupdate    Skip checking for newer version"
-    echo "--quiet            Don't print warnings and infos to stdout"
-    echo "--help             Display this help and exit"
-    echo "--version          Display version and exit"
+    echo "--interactive, -i      Use interactive mode for package command"
+    echo "--non-interactive, -n  Use non-interactive mode for package command"
+    echo "--no-selfupdate        Skip checking for newer version"
+    echo "--quiet                Don't print warnings and infos to stdout"
+    echo "--help, -h             Display this help and exit"
+    echo "--version              Display version and exit"
     exit $1
 }
 
@@ -422,6 +426,8 @@ while [ 1 ]; do
 	    if [ $# -eq 0 ]; then
 		usage 1
 	    fi
+            # Interactively run installing PTFs
+            ZYPPER_NONINTERACTIVE="${FORCE_NONINTERACTIVE:-}"
 	    case "$1" in
 		install|in)
 		    ZYPPER_ARG="install"
@@ -429,6 +435,9 @@ while [ 1 ]; do
 		    ;;
 		remove|rm)
 		    ZYPPER_ARG="remove"
+		    if [ -n "${ZYPPER_NONINTERACTIVE}" ]; then
+			ZYPPER_NONINTERACTIVE="-y"
+		    fi
 		    shift
 		    ;;
 		update|up)
@@ -452,28 +461,19 @@ while [ 1 ]; do
 		    shift
 		fi
 	    done
-            # Interactively run installing PTFs
-            ZYPPER_NONINTERACTIVE=""
 	    ;;
 	migration)
 	    __NO_RESET=0
 	    DO_MIGRATION=1
 	    ZYPPER_ARG="migration --no-snapshots --no-selfupdate"
-	    shift
-	    if [ $# -ge 1 ]; then
-	        case "$1" in
-	            -n|--non-interactive)
-                        # non interative option is named different for
-                        # different commands ...
-                        ZYPPER_NONINTERACTIVE="--non-interactive --auto-agree-with-licenses"
-			__NO_RESET=1
-			shift
-	                ;;
-	        esac
-	    fi
-	    if [ ${__NO_RESET} -eq 0 ]; then
+	    if [ -n "${FORCE_NONINTERACTIVE}" ]; then
+		# non interative option is named different for
+		# different commands ...
+		ZYPPER_NONINTERACTIVE="--non-interactive --auto-agree-with-licenses"
+	    else
 		ZYPPER_NONINTERACTIVE=""
 	    fi
+	    shift
 	    ;;
 	bootloader)
 	    REWRITE_BOOTLOADER=1
@@ -514,6 +514,14 @@ while [ 1 ]; do
 	    REBOOT_AFTERWARDS=1
 	    USE_SALT_GRAINS=1
 	    REBOOT_METHOD="salt"
+	    shift
+	    ;;
+	-i|--interactive)
+	    ZYPPER_NONINTERACTIVE=""
+	    shift
+	    ;;
+	-n|--non-interactive)
+	    FORCE_NONINTERACTIVE="${ZYPPER_NONINTERACTIVE}"
 	    shift
 	    ;;
 	--no-selfupdate)
@@ -742,7 +750,8 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	    LOG_MESSAGES=`awk -v RS='<' -v FS='>' '{if ($1 ~ /^(message|description)/) print $2}' ${TMPFILE} | perl -MHTML::Entities -pe 'decode_entities($_);'`
 	    log_error "ERROR: Zypper failed with the following message(s):"
 	    log_error "${LOG_MESSAGES}"
-            rm -f ${TMPFILE}
+	    rm -f ${TMPFILE}
+	    echo "Use '--interactive' for manual problem resolution."
 	    quit 1
 	fi
 	PACKAGE_UPDATES=`grep "install-summary download-size" ${TMPFILE} | sed -e 's|.*install-summary download-size=\"\(.*\)\" space-usage-diff.*|\1|g'`

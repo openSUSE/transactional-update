@@ -217,23 +217,25 @@ for more information.
 </refsect2>
 <refsect2 id='pkg_commands'><title>Package Commands</title>
 <para>
-  Package Commands will typically invoke <command>zypper</command> to perform
+  Package Commands will invoke <command>zypper</command> to perform
   actions on the RPM packages. Only one Package Command can be used at the
   same time. Can be combined with any number of
   <link linkend='general_commands'>General Commands</link>.
 </para>
-<refsect3 id='ni_pkg_commands'><title>Non-interactive Package Commands</title>
 <para>
-  Non-interactive Package Commands are designed to be called from scripts and
-  will require no user interaction. Note that when combining Non-interactive
-  Package Commands with
-  <link linkend='general_commands'>General Commands</link> those will only be
-  executed if the Package Command updated any packages.
+  By default commands usually invoked from scripts are called in
+  non-interactive mode (assuming the default answer in case of questions),
+  commands typically called by the user are called in interactive mode.
+  The behaviour can be changed or enforced using the
+  <option>--interactive</option> respectively the
+  <option>--non-interactive</option> options.
 </para>
-<para>In case a user decision is needed it has to be resolved by using one
-  of the <link linkend='i_pkg_commands'>Interactive Package Commands</link> or
-  <command>zypper</command> first.
+<para>
+  Note that when using Package Commands non-interactively and combining them
+  with <link linkend='general_commands'>General Commands</link> the General
+  Commands will only be executed if the Package Command updated any packages.
 </para>
+<refsect3 id='ni_pkg_commands'><title>Non-interactive Package Commands</title>
 <variablelist>
   <varlistentry>
     <term><option>dup</option></term>
@@ -271,18 +273,14 @@ for more information.
 </variablelist>
 </refsect3>
 <refsect3 id='i_pkg_commands'><title>Interactive Package Commands</title>
-<para>
-  Interactive Package Commands may require user interaction to solve conflicts
-  or make decisions.
-</para>
 <variablelist>
   <varlistentry>
-    <term><option>migration</option> <optional>-n</optional></term>
+    <term><option>migration</option></term>
     <listitem>
       <para>
 	On systems which are registered against the SUSE Customer Center (SCC)
 	or SMT, a migration to a new version of the installed products can be
-	made with	this option. This is done in an interactive mode.
+	made with this option.
       </para>
     </listitem>
   </varlistentry>
@@ -339,6 +337,18 @@ for more information.
 <refsect1 id='options'><title>OPTIONS</title>
 <variablelist>
   <varlistentry>
+    <term><option>--interactive, -i</option></term>
+    <listitem>
+      <para>Ignores package command categorization, calls zypper in interactive mode.</para>
+    </listitem>
+  </varlistentry>
+  <varlistentry>
+    <term><option>--non-interactive, -n</option></term>
+    <listitem>
+      <para>Ignores package command categorization, calls zypper in non-interactive mode.</para>
+    </listitem>
+  </varlistentry>
+  <varlistentry>
     <term><option>--no-selfupdate</option></term>
     <listitem>
       <para>Skip checking for newer transactional-update versions.</para>
@@ -351,7 +361,7 @@ for more information.
     </listitem>
   </varlistentry>
   <varlistentry>
-    <term><option>--help</option></term>
+    <term><option>--help, -h</option></term>
     <listitem>
       <para>Display help and exit</para>
     </listitem>
