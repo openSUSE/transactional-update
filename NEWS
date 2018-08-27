@@ -2,6 +2,20 @@ transactional-update NEWS -- history of user-visible changes.
 
 Copyright (C) 2016, 2017, 2018 Thorsten Kukuk
 
+Version 2.6
+* Add --interactive and --non-interactive options to change the default
+  interactivity for zypper calls. For previously non-interactive calls (e.g.
+  dup) these options makes it possible to pick the correct solution in case
+  of conflicts or make sure that a script will never be stuck at an input
+  prompt.
+* Add kured reboot support
+* Tries to clean up temporary files and mount points if transactional-update
+  quits unexpectedly
+* Remove trancactional-update-helper (replaced by zypper options)
+* Create /var/lib/zypp if not available (boo#1104452)
+* Add compatibility with new zypper versions (boo#1105992)
+* Various small fixes
+
 Version 2.5
 * Support for overlayfs attributes like trusted.overlay.opaque - this will
   avoid disappearing configuration files on system updates
