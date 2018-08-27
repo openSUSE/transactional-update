@@ -755,7 +755,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	    quit 1
 	fi
 	PACKAGE_UPDATES=`grep "install-summary download-size" ${TMPFILE} | sed -e 's|.*install-summary download-size=\"\(.*\)\" space-usage-diff.*|\1|g'`
-	SIZE_OF_UPDATES=`grep "install-summary.*space-usage-diff" ${TMPFILE} | sed -e 's|.*install-summary.*space-usage-diff=\"\(.*\)\">.*|\1|g'`
+	SIZE_OF_UPDATES=`grep "install-summary.*space-usage-diff" ${TMPFILE} | sed -e 's|.*install-summary.*space-usage-diff=\"\([^"]*\)\".*|\1|g'`
 	rm -f ${TMPFILE}
 	if [ ${PACKAGE_UPDATES} -eq 0 -a ${SIZE_OF_UPDATES} -eq 0 ]; then
 	    log_info "zypper: nothing to update"
