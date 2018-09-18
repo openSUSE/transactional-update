@@ -125,6 +125,16 @@
                 </para>
               </listitem>
             </varlistentry>
+            <varlistentry>
+              <term><literal>kexec</literal></term>
+              <listitem>
+                <para>
+                  Will use kexec to reboot the system; this will skip hardware
+                  initialization and thus boot faster than
+                  <literal>systemd</literal>.
+                </para>
+              </listitem>
+            </varlistentry>
           </variablelist>
 	</listitem>
       </varlistentry>

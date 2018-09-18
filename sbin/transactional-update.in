@@ -344,6 +344,14 @@ reboot_via_kured() {
     exit 0
 }
 
+reboot_via_kexec() {
+    log_info "transactional-update finished - re-initializing system with kexec"
+    kexec -l /boot/vmlinuz --initrd=/boot/initrd --reuse-cmdline
+    sync
+    systemctl kexec |& tee -a ${LOGFILE}
+    exit 0
+}
+
 reboot_autodetect() {
     if [ -x /usr/sbin/rebootmgrctl ]; then
 	reboot_via_rebootmgr
@@ -1083,6 +1091,9 @@ if [ ${EXITCODE} -eq 0 ]; then
 		;;
 	    systemd)
 		reboot_via_systemd
+		;;
+	    kexec)
+		reboot_via_kexec
 		;;
 	    *)
 	        log_info "Unsupported reboot method, falling back to 'auto'; please"
