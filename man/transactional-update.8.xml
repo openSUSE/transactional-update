@@ -217,9 +217,10 @@ for more information.
 </refsect2>
 <refsect2 id='pkg_commands'><title>Package Commands</title>
 <para>
-  Package Commands will invoke <command>zypper</command> to perform
-  actions on the RPM packages. Only one Package Command can be used at the
-  same time. Can be combined with any number of
+  Package Commands will invoke
+  <citerefentry><refentrytitle>zypper</refentrytitle><manvolnum>8</manvolnum></citerefentry>
+  to perform actions on the RPM packages. Only one Package Command can be used
+  at the same time. Can be combined with any number of
   <link linkend='general_commands'>General Commands</link>.
 </para>
 <para>
@@ -285,28 +286,55 @@ for more information.
     </listitem>
   </varlistentry>
   <varlistentry>
-    <term><option>pkg install</option> <replaceable>&lt;RPM&gt; ... &lt;RPM&gt;</replaceable></term>
+    <term><option>pkg</option> <replaceable>command</replaceable> <replaceable>arguments</replaceable></term>
     <listitem>
       <para>
-	A PTF or other packages in RPM format can be installed in the system.
+	Calls <command>zypper</command> with the given
+        <replaceable>command</replaceable> and
+        <replaceable>arguments</replaceable>. The arguments are typically one
+        or more package names, but can be any
+        <citerefentry><refentrytitle>zypper</refentrytitle><manvolnum>8</manvolnum></citerefentry>
+        parameter for the given command including options. The following
+        commands are supported:
       </para>
-    </listitem>
-  </varlistentry>
-  <varlistentry>
-    <term><option>pkg remove</option> <replaceable>&lt;RPM&gt; ... &lt;RPM&gt;</replaceable></term>
-    <listitem>
-      <para>
-	A PTF or other installed packages in RPM format can be removed from
-	the system.
-      </para>
-    </listitem>
-  </varlistentry>
-  <varlistentry>
-    <term><option>pkg update</option> <replaceable>&lt;RPM&gt; ... &lt;RPM&gt;</replaceable></term>
-    <listitem>
-      <para>
-	Packages installed as RPMs can be updated.
-      </para>
+      <variablelist>
+	<varlistentry>
+	  <term><option>install</option></term>
+	  <term><option>in</option></term>
+	  <listitem>
+	    <para>
+	      Installs additional software.
+	      See the <option>install</option> description in the "Package
+              Management Commands" section of zypper's man page for all
+              available arguments.
+	    </para>
+	  </listitem>
+	</varlistentry>
+	<varlistentry>
+	  <term><option>remove</option></term>
+	  <term><option>rm</option></term>
+	  <listitem>
+	    <para>
+	      Removes installed software.
+              See the <option>remove</option> description in the "Package
+              Management Commands" section of zypper's man page for all
+              available arguments.
+	    </para>
+	  </listitem>
+	</varlistentry>
+	<varlistentry>
+	  <term><option>update</option></term>
+	  <term><option>up</option></term>
+	  <listitem>
+	    <para>
+	      Update selected software.
+              See the <option>update</option> description in the "Update
+              Management Commands" section of zypper's man page for all
+              available arguments.
+	    </para>
+	  </listitem>
+	</varlistentry>
+      </variablelist>
     </listitem>
   </varlistentry>
 </variablelist>

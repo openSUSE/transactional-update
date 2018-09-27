@@ -100,6 +100,15 @@
   </a>
 </xsl:template>
 
+<xsl:template match="citerefentry[@project='zypper']">
+  <a>
+    <xsl:attribute name="href">
+      <xsl:text>https://en.opensuse.org/SDB:Zypper_manual_(plain)</xsl:text>
+    </xsl:attribute>
+    <xsl:call-template name="inline.charseq"/>
+  </a>
+</xsl:template>
+
 
 <!--
   - helper template to do conflict resolution between various headings with the same inferred ID attribute/tag from the headerlink template
