@@ -315,8 +315,7 @@ for more information.
 <refsect2 id='standalone_commands'><title>Standalone Commands</title>
 <variablelist>
   <varlistentry>
-    <term><option>rollback</option>
-    <optional><replaceable>number</replaceable></optional></term>
+    <term><option>rollback</option> <optional><replaceable>number</replaceable></optional></term>
     <listitem>
       <para>
 	Sets the default root file system. On a read-only system the root
@@ -337,13 +336,15 @@ for more information.
 <refsect1 id='options'><title>OPTIONS</title>
 <variablelist>
   <varlistentry>
-    <term><option>--interactive, -i</option></term>
+    <term><option>--interactive</option></term>
+    <term><option>-i</option></term>
     <listitem>
       <para>Ignores package command categorization, calls zypper in interactive mode.</para>
     </listitem>
   </varlistentry>
   <varlistentry>
-    <term><option>--non-interactive, -n</option></term>
+    <term><option>--non-interactive</option></term>
+    <term><option>-n</option></term>
     <listitem>
       <para>Ignores package command categorization, calls zypper in non-interactive mode.</para>
     </listitem>
@@ -361,7 +362,8 @@ for more information.
     </listitem>
   </varlistentry>
   <varlistentry>
-    <term><option>--help, -h</option></term>
+    <term><option>--help</option></term>
+    <term><option>-h</option></term>
     <listitem>
       <para>Display help and exit</para>
     </listitem>
