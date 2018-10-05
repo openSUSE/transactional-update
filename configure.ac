@@ -62,7 +62,18 @@ JH_CHECK_XML_CATALOG([-//OASIS//DTD DocBook XML V4.3//EN],
                 [DocBook XML DTD V4.3], [], enable_man=no)
 JH_CHECK_XML_CATALOG([http://docbook.sourceforge.net/release/xsl/current/manpages/docbook.xsl],
                 [DocBook XSL Stylesheets], [], enable_man=no)
+
+m4_ifdef([AX_PYTHON_MODULE],
+	[AX_PYTHON_MODULE([lxml], , [python])],
+	[m4_warn([unsupported], [Missing macro AX_PYTHON_MODULE: please install
+	  autoconf-archive to enable Python module checks.])])
+AS_IF([test "${HAVE_PYMOD_LXML}" != "yes"], enable_man=no)
+
 AM_CONDITIONAL(ENABLE_REGENERATE_MAN, test x$enable_man != xno)
+
+if test "no" = "$enable_man"; then
+     AC_MSG_WARN(Not building man pages and documentation!)
+fi
 
 AC_PATH_PROG([BROWSER], [w3m])
 if test ! -z "$BROWSER"; then
