@@ -38,5 +38,6 @@ man/transactional-update.timer.8.html
 man/transactional-update.conf.5.html
 man/transactional-update.index.html
 transactional-update-*.tar.*
+doc/html/*
 doc/transactional-update.txt
 sbin/create_dirs_from_rpmdb

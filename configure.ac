@@ -48,10 +48,13 @@ dnl Check for librpm
 dnl
 PKG_CHECK_MODULES([LIBRPM], [rpm])
 
+AC_ARG_WITH([doc],
+	[AS_HELP_STRING([--with-doc], [Build documentation])], ,
+	[enable_man=yes])
+
 dnl
 dnl Check for xsltproc
 dnl
-enable_man=yes
 AC_PATH_PROG([XSLTPROC], [xsltproc])
 if test -z "$XSLTPROC"; then
      enable_man=no
@@ -69,11 +72,13 @@ m4_ifdef([AX_PYTHON_MODULE],
 	  autoconf-archive to enable Python module checks.])])
 AS_IF([test "${HAVE_PYMOD_LXML}" != "yes"], enable_man=no)
 
-AM_CONDITIONAL(ENABLE_REGENERATE_MAN, test x$enable_man != xno)
+AS_IF([test "x$enable_man" = "xno" -a "x$with_doc" = "xyes"],
+	[AC_MSG_ERROR([missing dependencies for building documentation])])
+AS_IF([test "x$enable_man" = "xno" -a "x$with_doc" != "xno"],
+	[AC_MSG_WARN([not building man pages and documentation])])
 
-if test "no" = "$enable_man"; then
-     AC_MSG_WARN(Not building man pages and documentation!)
-fi
+AM_CONDITIONAL(ENABLE_REGENERATE_MAN,
+	test "x$enable_man" != "xno" -a "x$with_doc" != "xno")
 
 AC_PATH_PROG([BROWSER], [w3m])
 if test ! -z "$BROWSER"; then

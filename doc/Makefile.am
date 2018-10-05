@@ -2,16 +2,13 @@
 # Copyright (c) 2017 Thorsten Kukuk <kukuk@thkukuk.de>
 #
 
-CLEANFILES = transactional-update.fo *~
+CLEANFILES = transactional-update.fo transactional-update.txt html/*.html *~
 
-EXTRA_DIST = $(XMLS)
+EXTRA_DIST = $(XMLS) transactional-update.txt
 
 XMLS = transactional-update.xml
-#DEP_XMLS = $(shell ls $(top_srcdir)/doc/man/pam_*.xml)
 
 if ENABLE_REGENERATE_MAN
-MAINTAINERCLEANFILES = transactional-update.txt html/*.html
-
 all: transactional-update.txt html/transactional-update.html
 
 transactional-update.txt: $(XMLS) $(DEP_XMLS)
@@ -40,11 +37,6 @@ html/transactional-update.html: $(XMLS) $(DEP_XMLS)
 transactional-update.md: $(XMLS) $(DEP_XMLS)
 	pandoc -f docbook -t markdown -s $< -o $@
 
-distclean-local:
-	-rm -rf html transactional-update.txt
-
-endif
-
 install-data-local:
 	$(mkinstalldirs) $(DESTDIR)$(docdir)
 	$(mkinstalldirs) $(DESTDIR)$(pdfdir)
@@ -68,23 +60,4 @@ uninstall-local:
 	-rm $(DESTDIR)$(htmldir)/transactional-update.html
 	-rm $(DESTDIR)$(htmldir)/tu-*.html
 	-rm $(DESTDIR)$(docdir)/transactional-update.txt
-
-releasedocs: all
-	$(mkinstalldirs) $(top_builddir)/transactional-update-$(VERSION)/doc/adg/html
-	if test -f html/Linux-PAM_ADG.html; then \
-	    cp -ap html/Linux-PAM_ADG.html html/adg-*.html \
-		$(top_builddir)/Linux-PAM-$(VERSION)/doc/adg/html/; \
-	elif test -f $(srcdir)/html/Linux-PAM_ADG.html; then \
-	    cp -ap $(srcdir)/html/Linux-PAM_ADG.html \
-		$(srcdir)/html/adg-*.html \
-		$(top_builddir)/Linux-PAM-$(VERSION)/doc/adg/html/; \
-	else exit 1; \
-	fi
-	if test -f Linux-PAM_ADG.txt; then \
-	    cp -p Linux-PAM_ADG.txt \
-		$(top_builddir)/Linux-PAM-$(VERSION)/doc/adg/; \
-	elif test -f $(srcdir)/Linux-PAM_ADG.txt; then \
-	    cp -p $(srcdir)/Linux-PAM_ADG.txt \
-		$(top_builddir)/Linux-PAM-$(VERSION)/doc/adg/; \
-	else exit 1; \
-	fi
+endif

@@ -9,14 +9,15 @@ CLEANFILES = $(MANS) $(DATA) transactional-update.index.xml
 EXTRA_DIST = $(MANS) $(XMLS) $(DATA) custom-html.xsl make-man-index.py \
 	xml_helper.py transactional-update.index.xml
 
+XMLS = transactional-update.8.xml transactional-update.conf.5.xml
+
+if ENABLE_REGENERATE_MAN
 man_MANS = transactional-update.8 transactional-update.service.8 \
 	transactional-update.timer.8 transactional-update.conf.5
 
 noinst_DATA = transactional-update.8.html transactional-update.service.8.html \
 	transactional-update.timer.8.html transactional-update.conf.5.html \
 	transactional-update.index.html
-
-XMLS = transactional-update.8.xml transactional-update.conf.5.xml
 
 XSLTPROC_FLAGS_HTML = \
         --nonet \
@@ -37,7 +38,6 @@ XSLTPROC_FLAGS_MAN = \
 	--stringparam prefix $(prefix) \
 	$(srcdir)/custom-man.xsl
 
-if ENABLE_REGENERATE_MAN
 define html_alias
 	$(LN_S) -f $(notdir $<) $@
 endef
