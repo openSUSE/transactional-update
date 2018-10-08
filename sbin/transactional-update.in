@@ -67,8 +67,12 @@ MOUNT_DIR=""
 SNAPPER_NO_DBUS=""
 TMPFILE=""
 
+# Create stderr alias for things that shouldn't be logged into logfile
+if [ ! -e /proc/$$/fd/4 ]; then
+	exec 4>&2
+fi
 # Log stderr to log file
-exec 4>&2 2> >(tee -a "${LOGFILE}")
+exec 2> >(tee -a "${LOGFILE}")
 
 self_update() {
     if [ ${DO_SELF_UPDATE} == 0 ]; then
