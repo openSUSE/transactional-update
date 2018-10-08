@@ -647,7 +647,7 @@ if [ ${DO_ROLLBACK} -eq 1 ]; then
     log_info "Rollback to snapshot ${ROLLBACK_SNAPSHOT}..."
 
     if [ ${RO_ROOT} == "true" ]; then
-	BTRFS_ID=`btrfs subvolume list / |grep /.snapshots/${ROLLBACK_SNAPSHOT}/snapshot | awk '{print $2}'`
+	BTRFS_ID=`btrfs subvolume list -o /.snapshots | grep /.snapshots/${ROLLBACK_SNAPSHOT}/snapshot | awk '{print $2}'`
 	if [ -z $BTRFS_ID ]; then
 	    log_error "ERROR: couldn't determine btrfs subvolume ID"
 	    quit 1
@@ -1034,7 +1034,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 
     # Somersault:
     if [ $EXITCODE -eq 0 ]; then
-	BTRFS_ID=`btrfs subvolume list / |grep ${SNAPSHOT_DIR}$ | awk '{print $2}'`
+	BTRFS_ID=`btrfs subvolume list -o /.snapshots | grep ${SNAPSHOT_DIR} | awk '{print $2}'`
 	if [ -z "$BTRFS_ID" ]; then
 	    log_error "ERROR: couldn't determine btrfs subvolume ID"
 	    EXITCODE=1
