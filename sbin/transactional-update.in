@@ -61,6 +61,7 @@ fi
 # Initialize internal variables
 HAS_SEPARATE_ETC=0
 HAS_SEPARATE_VAR=0
+VAR_CACHE_CLEANUP=0
 FORCE_NONINTERACTIVE=""
 SNAPSHOT_ID=""
 SNAPSHOT_DIR=""
@@ -289,12 +290,12 @@ teardown() {
             fi
 	fi
     done
-    if findmnt ${MOUNT_DIR} >/dev/null; then
-	umount -R ${MOUNT_DIR}
-    fi
 
     # Cleanup of temporary mount point
-    if [ -e ${MOUNT_DIR} ]; then
+    if [ -e "${MOUNT_DIR}" ]; then
+	if findmnt ${MOUNT_DIR} >/dev/null; then
+	    umount -R ${MOUNT_DIR}
+	fi
 	rmdir ${MOUNT_DIR}
     fi
     if [ -n "${ETC_OVERLAY_WORK_DIR}" ]; then
@@ -981,9 +982,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
     fi
 
     # Do we need to cleanup the /var/cache directory?
-    if [ -d ${SNAPSHOT_DIR}/var/cache/zypp ]; then
-	VAR_CACHE_CLEANUP=0
-    else
+    if [ ! -d ${SNAPSHOT_DIR}/var/cache/zypp ]; then
 	VAR_CACHE_CLEANUP=1
     fi
 
