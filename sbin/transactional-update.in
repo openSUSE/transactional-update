@@ -403,7 +403,7 @@ check_registration_on_next_reboot() {
 sync_etc() {
     if findmnt -t overlay /etc >/dev/null; then
 	log_info "Copying /etc state into snapshot $1"
-	rsync --archive --xattrs --filter='-x trusted.overlay.*' --acls --delete --quiet /etc "$1"
+	rsync --archive --xattrs --acls --delete --quiet /etc "$1"
 	if [ $? -ne 0 ]; then
 	    log_error "ERROR: copying of /etc into snapshot $1 failed!"
 	    quit 1
