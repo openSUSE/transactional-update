@@ -63,7 +63,6 @@ HAS_SEPARATE_ETC=0
 HAS_SEPARATE_VAR=0
 FORCE_NONINTERACTIVE=""
 SNAPSHOT_ID=""
-BACKUP_SNAPSHOT_ID=""
 SNAPSHOT_DIR=""
 MOUNT_DIR=""
 SNAPPER_NO_DBUS=""
@@ -227,10 +226,6 @@ quit() {
     if [ -n "${SNAPSHOT_ID}" ] ; then
 	log_error "Removing snapshot #${SNAPSHOT_ID}..."
 	snapper ${SNAPPER_NO_DBUS} delete ${SNAPSHOT_ID} |& tee -a ${LOGFILE}
-    fi
-    if [ -n "${BACKUP_SNAPSHOT_ID}" ] ; then
-	log_error "Removing snapshot #${BACKUP_SNAPSHOT_ID}..."
-	snapper ${SNAPPER_NO_DBUS} delete ${BACKUP_SNAPSHOT_ID} |& tee -a ${LOGFILE}
     fi
     if [ -n "${ETC_OVERLAY_DIR}" ] ; then
 	log_error "Removing overlay directory ${ETC_OVERLAY_DIR%/*}..."
@@ -853,36 +848,11 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	fi
     fi
 
-    # Create a backup snapshot of the current system state (i.e. preserve the /etc overlay contents on a read-only
-    # system or the general system state on a read-write file system, similar to what zypper / snapper does).
-    # Hint: The rw subvolume is not shown in grub2.
-    log_info "Creating read-only snapshot of current system state (#${CURRENT_SNAPSHOT_ID})"
-    BACKUP_SNAPSHOT_ID=`snapper create -p -t pre -c number -u "important=yes" -d "RO-Clone of #${CURRENT_SNAPSHOT_ID}"`
-    if [ $? -ne 0 ]; then
-	SNAPPER_NO_DBUS="--no-dbus"
-	BACKUP_SNAPSHOT_ID=`snapper --no-dbus create -p -t pre -c number -u "important=yes" -d "RO-Clone of #${CURRENT_SNAPSHOT_ID}"`
-	if [ $? -ne 0 ]; then
-	    log_error "ERROR: snapper create failed!"
-	    quit 1
-	fi
-    fi
-    BACKUP_SNAPSHOT_DIR=/.snapshots/${BACKUP_SNAPSHOT_ID}/snapshot
-
-    # Make the backup snapshot read-write:
-    btrfs property set ${BACKUP_SNAPSHOT_DIR} ro false
-    if [ $? -ne 0 ]; then
-	log_error "ERROR: changing ${BACKUP_SNAPSHOT_DIR} to read-write failed!"
-	quit 1
-    fi
-
-    # Copy the contents of /etc into the backup snapshot
-    sync_etc ${BACKUP_SNAPSHOT_DIR}
-
     # Create the working snapshot
-    SNAPSHOT_ID=`snapper create --type post --pre-number ${BACKUP_SNAPSHOT_ID} -p -u "transactional-update-in-progress=yes" -d "Snapshot Update"`
+    SNAPSHOT_ID=`snapper create -p -u "transactional-update-in-progress=yes" -d "Snapshot Update"`
     if [ $? -ne 0 ]; then
 	SNAPPER_NO_DBUS="--no-dbus"
-	SNAPSHOT_ID=`snapper --no-dbus create --type post --pre-number ${BACKUP_SNAPSHOT_ID} -p -u "transactional-update-in-progress=yes" -d "Snapshot Update"`
+	SNAPSHOT_ID=`snapper --no-dbus create -p -u "transactional-update-in-progress=yes" -d "Snapshot Update"`
 	if [ $? -ne 0 ]; then
 	    log_error "ERROR: snapper create failed!"
 	    quit 1
@@ -1157,13 +1127,6 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
     if [ $? -ne 0 ]; then
 	log_error "ERROR: changing ${SNAPSHOT_DIR} to ro=${RO_ROOT} failed!"
 	EXITCODE=1
-    fi
-    if [ -n ${BACKUP_SNAPSHOT_DIR} ]; then
-	btrfs property set ${BACKUP_SNAPSHOT_DIR} ro ${RO_ROOT}
-	if [ $? -ne 0 ]; then
-	    log_error "ERROR: changing ${BACKUP_SNAPSHOT_DIR} to ro=${RO_ROOT} failed!"
-	    EXITCODE=1
-	fi
     fi
 
     if [ ${EXITCODE} -ne 0 ]; then
