@@ -651,7 +651,7 @@ else # Set exit handler to clean up artifacts of the self-update
 fi
 
 # Clean up in case the application is interrupted
-trap 'echo -e "\nReceived termination signal..." && quit 1' HUP INT QUIT TERM
+trap 'log_error "Received termination signal..." && quit 1' HUP INT QUIT TERM
 
 # Load old state file
 if [ -f ${STATE_FILE} ]; then
@@ -1138,6 +1138,7 @@ fi
 
 if [ ${EXITCODE} -eq 0 ]; then
     if [ $REBOOT_AFTERWARDS -eq 1 ]; then
+	trap '-' HUP INT QUIT TERM
 	case "$REBOOT_METHOD" in
 	    auto)
 		reboot_autodetect
