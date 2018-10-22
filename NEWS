@@ -2,6 +2,39 @@ transactional-update NEWS -- history of user-visible changes.
 
 Copyright (C) 2016, 2017, 2018 Thorsten Kukuk
 
+Version 2.10
+* Introduce /etc overlays
+  * Each root file system snapshot now has a dedicated /etc overlay in
+    /var/lib/snapshots/<snapshot number>/etc
+  * Changes in older snapshots will be visible in newer snapshots (if
+    the file hasn't been changed in both snapshots), but not the other
+    way around; this makes it possible to roll back to a previous
+    snapshot even if the configuration is broken
+  * The /etc state of the oldest active snapshot will be synchronized
+    into the new snapshot to prevent ever growing overlays
+  * Removed creation of /etc backup snapshots
+  * Removed complex overlayfs cleanup handling during dracut early boot;
+    only thing left is to output a warning if files have been changed
+    in old and new overlay after snapshot creation
+  * Unused overlays will be removed during "cleanup" operation
+* Add compatibility with snapper >= 0.7.0
+* Correctly detect BTRFS ID when using multiple snapper configurations
+* Fix disappearing prompt in "shell" command when application was updated
+* Prevent accidental rollback on fast reboots (boo#1111786)
+* Use zypper attribute packages-to-change if available (boo#1105992 &
+  boo#1097619)
+* Add kexec as reboot alternative
+* Added explicit --with-doc / --without-doc build configure opttions for
+  enforcing or excluding documentation build
+* Removed precompiled documentation (boo#1088676)
+* Added more dependency checks to configure script
+* Small improvements to documentation
+* Restored compatibility with older rsync versions not supporting the -x
+  filter
+* Small bugfixes for cleanup in error situations
+* Fix possible incorrect detection of snapshots numbers during cleanup
+* Mention parent in snapshot description
+
 Version 2.6
 * Add --interactive and --non-interactive options to change the default
   interactivity for zypper calls. For previously non-interactive calls (e.g.
