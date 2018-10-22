@@ -771,7 +771,11 @@ if [ ${DO_CLEANUP} -eq 1 ]; then
 
     # Check for aborted transactional-updates (due to power outtage, killed
     # process, forced shutdown or similar uncommon conditions).
-    for snap in `snapper list | cut -f 2,8 -d \| | grep transactional-update-in-progress=yes | cut -f 1 -d \|`; do
+    # As snapper list output differs between versions search for the correct
+    # rows first
+    for snap in $(snapper list | awk -F '|' '
+	    NR==1 { for(i=1; i<=NF; i++) { gsub(/^ +/, "", $i); gsub(/ +$/, "", $i); fields[$i]=i }}
+	    NR>2 { if($fields["Userdata"] ~ "transactional-update-in-progress=yes") { print $fields["#"] }}'); do
 	UNUSED_SNAPSHOTS="${UNUSED_SNAPSHOTS} ${snap}"
     done
 
@@ -788,7 +792,7 @@ if [ ${DO_CLEANUP} -eq 1 ]; then
 		if [ ${PIPESTATUS[0]} -ne 0 ]; then
 		    log_error "ERROR: cannot set cleanup algorithm for snapshot #${snap}"
 		    # Is the snapshot still available at all?
-		    if snapper list | cut -f 2 -d \| | grep -q " ${snap} "; then
+		    if [ -e /.snapshots/${snap} ]; then
 			# Keep the snapshot in the list
 			_new_unused="${snap} ${_new_unused}"
 		    fi
