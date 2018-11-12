@@ -140,6 +140,41 @@
       </varlistentry>
 
       <varlistentry>
+        <term><varname>UPDATE_METHOD</varname></term>
+        <listitem>
+          <para>
+	    Specify the zypper update method to use. This value is used for
+	    <citerefentry><refentrytitle>transactional-update.service</refentrytitle><manvolnum>8</manvolnum></citerefentry>.
+	  </para>
+          <variablelist>
+            <varlistentry>
+              <term><literal>dup</literal></term>
+              <listitem>
+	        <para>
+                  Uses <literal>zypper dup</literal> for updating the system;
+                  use this on rolling release distributions like openSUSE
+		  Tumbleweed, openSUSE Kubic or the SUSE CaaS Platform.
+		</para>
+		<para>
+		  This is the default value.
+                </para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term><literal>up</literal></term>
+              <listitem>
+	        <para>
+                  Uses <literal>zypper up</literal> for updating the system;
+		  use this for regular releases like openSUSE Leap or SUSE
+		  Linux Enterprise Server / Desktop.
+                </para>
+              </listitem>
+            </varlistentry>
+          </variablelist>
+	</listitem>
+      </varlistentry>
+
+      <varlistentry>
         <term><varname>ZYPPER_AUTO_IMPORT_KEYS</varname></term>
         <listitem>
           <para>
