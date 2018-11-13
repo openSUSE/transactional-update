@@ -72,58 +72,56 @@
 
 <refsect1 id='description'><title>DESCRIPTION</title>
 <para><command>transactional-update</command> updates the system
-in a transactional way, which means: it is atomic, so either the patches are
-fully applied or nothing is changed. The update does not influence your
+in a transactional way; this means updates are atomic, so either the patches
+are fully applied or nothing is changed. The update does not influence the
 running system and it can be rolled back. To activate the changes, the system
 needs to be rebooted.
 </para>
 <para>
 To achieve this <command>transactional-update</command> is using Btrfs'
-snapshot mechanism.
-Before modifying any files - similar to
-<citerefentry project='snapper'><refentrytitle>snapper-zypp-plugin</refentrytitle><manvolnum>8</manvolnum></citerefentry>
-- a pair of pre / post snapshots of the current system is created using
-<citerefentry project='snapper'><refentrytitle>snapper</refentrytitle><manvolnum>8</manvolnum></citerefentry>.
-The "pre" snapshot will back up the current state of the system before the
-update and will not be modified any further, while the "post" snapshot will be
-used to perform the update.
+snapshot mechanism. Updates will be performed in a new snapshot of the root
+file system. The snapshot is created with
+<citerefentry project='snapper'><refentrytitle>snapper</refentrytitle><manvolnum>8</manvolnum></citerefentry>,
+for the update
+<citerefentry project='zypper'><refentrytitle>zypper</refentrytitle><manvolnum>8</manvolnum></citerefentry>
+is called with the <option>-R</option> option pointing to the new snapshot.
+If no errors occured the snapshot will be set as the new default snapshot and
+set as read-only. In case of errors the snapshot will be deleted again.
 </para>
 <para>
-If no errors occured the "post" snapshot will be set as the new default
-snapshot. In case of errors both snapshots will be deleted again.
-</para>
-<para>
-On a <emphasis>read-only system</emphasis> the contents of the
-<filename class='directory'>/etc</filename> overlay file system will be
-synchronized into both snapshots; packages will thus be able to modify the
-production configuration files (e.g. via fillup-templates). Due to the
-read-only file system the only difference between the "pre" snapshot and the
-snapshot of the currently running system will be the contents of the
-<filename class='directory'>/etc</filename> directory. On reboot all files
-of the <filename class='directory'>/etc</filename> overlay will be purged
-(except if modified after snapshot creation), as those files are part of the
-snapshot's lower layer now.
+On <emphasis>read-only systems</emphasis> each snapshot will have a
+corresponding <filename class='directory'>/etc</filename> overlay located in
+<filename class='directory'>/var/lib/overlay</filename>. As configuration files
+may be modified after a snapshot was created and before a reboot is performed
+(e.g. via configuration management software) the overlay file system will use
+multiple lower layers, i.e. changes in older layers will be visible in newer
+snapshots, but not vice versa. To keep the number of layers at a minimum and the
+amount of data stored in the overlays low the
+<filename class='directory'>/etc</filename> state of the oldest still available
+snapshot is synchronized into the new root file system; unused overlays will be
+removed at a later time (see the <option>cleanup</option> option).
 </para>
 <warning>
-<para>
-The following situations currently cannot be detected reliably when clearing
-the /etc overlay:
-<itemizedlist>
-<listitem>
-<para>
-If a file or directory has been created since the last reboot and is then
-removed or renamed <emphasis>after</emphasis> taking the snapshot, the
-file / directory may reappear after reboot and has to be deleted again.
-</para>
-</listitem>
-</itemizedlist>
-</para>
+If a file was changed both in the new snapshot (e.g. if a package installed a
+new version of the configuration file or used fillup-templates) and in the
+currently running system after creation of the new snapshot (e.g. if the
+administrator or configuration management software changed a file) only the
+version of the new snapshot will be visible. When rebooting into the new
+snapshot for the first time
+<filename>transactional-update-etc-cleaner.service</filename> will print a
+warning about such conflicts to the system log file.
 </warning>
 <para>
-Note that on a <emphasis>read-write system</emphasis> all changes made to the
-running root filesystem after snapshot creation are lost after the next
-reboot. For this reason, after an successfull update, the system should be
-rebooted as fast as possible.
+Older transactional-update versions were using a single
+<filename class='directory'>/etc</filename> overlay for all snapshots; a
+migration mechanism is in place, the directory will also be removed if no
+snapshot is using it any more.
+</para>
+<para>
+On <emphasis>read-write systems</emphasis> please be aware that all changes
+done to the running root filesystem after snapshot creation are lost after the
+next reboot. For this reason the system should be rebooted as fast as possible
+after an successfull update.
 </para>
 <para>For easier maintenance of big clusters,
 <command>transactional-update</command> is run by
@@ -152,6 +150,11 @@ for more information.
       algorithm set. This is to make sure, that old snapshots will be deleted
       by snapper. See the section about cleanup algorithms in
       <citerefentry project='snapper'><refentrytitle>snapper</refentrytitle><manvolnum>8</manvolnum></citerefentry>.
+      </para>
+      <para>
+	Also removes all unreferenced (and thus unused)
+	<filename class='directory'>/etc</filename> overlay directories in
+	<filename class='directory'>/var/lib/overlay</filename>.
       </para>
     </listitem>
   </varlistentry>
@@ -218,7 +221,7 @@ for more information.
 <refsect2 id='pkg_commands'><title>Package Commands</title>
 <para>
   Package Commands will invoke
-  <citerefentry><refentrytitle>zypper</refentrytitle><manvolnum>8</manvolnum></citerefentry>
+  <citerefentry project='zypper'><refentrytitle>zypper</refentrytitle><manvolnum>8</manvolnum></citerefentry>
   to perform actions on the RPM packages. Only one Package Command can be used
   at the same time. Can be combined with any number of
   <link linkend='general_commands'>General Commands</link>.
@@ -293,7 +296,7 @@ for more information.
         <replaceable>command</replaceable> and
         <replaceable>arguments</replaceable>. The arguments are typically one
         or more package names, but can be any
-        <citerefentry><refentrytitle>zypper</refentrytitle><manvolnum>8</manvolnum></citerefentry>
+        <citerefentry project='zypper'><refentrytitle>zypper</refentrytitle><manvolnum>8</manvolnum></citerefentry>
         parameter for the given command including options. The following
         commands are supported:
       </para>
