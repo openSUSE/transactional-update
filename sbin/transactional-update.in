@@ -421,8 +421,14 @@ get_etc_overlay_from() {
 	    lowerdir)
 		for lowerdir in `echo ${option#*=} | tr ':' ' '`; do
 		    overlay_id=`echo "${lowerdir#/sysroot}" | sed -n 's#^/var/lib/overlay/\([[:digit:]]\+\)/etc$#\1#p'`
+
+		    # Special handling for old overlay location
+		    if [ "${lowerdir}" = "/sysroot/var/lib/overlay/etc" ]; then
+			if [ "${fstab_lowerdirs[*]}" = "${fstab_active_lowerdirs[*]}" ]; then
+			    fstab_active_lowerdirs+=("${lowerdir}")
+			fi
 		    # Add common directories and directories of existing snapshots
-		    if [ -z "${overlay_id}" -o -e "/.snapshots/${overlay_id}/snapshot" ]; then
+		    elif [ -z "${overlay_id}" -o -e "/.snapshots/${overlay_id}/snapshot" ]; then
 			if [ -n "${overlay_id}" ]; then
 			    fstab_oldest_active_snapshot="/.snapshots/${overlay_id}/snapshot"
 			    fstab_active_lowerdirs=("${fstab_lowerdirs[@]}")
@@ -808,7 +814,7 @@ if [ ${DO_CLEANUP} -eq 1 ]; then
     fi
 
     # Clean up old unused overlays
-    for overlay in /var/lib/overlay/[0-9]*; do
+    for overlay in /var/lib/overlay/[0-9]* /var/lib/overlay; do
 	if ! grep -q "${overlay}/etc" /.snapshots/*/snapshot/etc/fstab.sys; then
 	    log_info "Deleting unused overlay ${overlay}"
 	    rm -rf "${overlay}"
