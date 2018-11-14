@@ -2,6 +2,12 @@ transactional-update NEWS -- history of user-visible changes.
 
 Copyright (C) 2016, 2017, 2018 Thorsten Kukuk
 
+Version 2.11
+* Update man page to explain new /etc overlay handling
+* Add special handling for migrating away from old overlay directory
+* Read default update method for systemd service from config file
+  (boo#1111321)
+
 Version 2.10
 * Introduce /etc overlays
   * Each root file system snapshot now has a dedicated /etc overlay in
