@@ -837,7 +837,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
     # Check if there are updates at all. Don't check if we do
     # a registration, as this can change the zypper result.
     if [ -n "${ZYPPER_ARG}" -a -n "${ZYPPER_NONINTERACTIVE}" \
-         -a ${DO_REGISTRATION} -eq 0 ]; then
+         -a ${DO_REGISTRATION} -eq 0 -a ${DO_MIGRATION} -eq 0 ]; then
 
 	TMPFILE=`mktemp /tmp/transactional-update.XXXXXXXXXX`
 	zypper --xml ${ZYPPER_ARG} ${ZYPPER_NONINTERACTIVE} --dry-run "${ZYPPER_ARG_PKGS[@]}" > ${TMPFILE}
