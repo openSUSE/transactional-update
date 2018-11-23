@@ -47,6 +47,7 @@ SYSTEMCONFFILE="@prefix@@sysconfdir@/transactional-update.conf"
 LOGFILE="/var/log/transactional-update.log"
 STATE_FILE="/var/lib/misc/transactional-update.state"
 NEW_SNAPSHOT_FLAG="/var/lib/overlay/transactional-update.newsnapshot"
+NEEDS_RESTARTING_FILE="/var/run/reboot-needed"
 ZYPPER_AUTO_IMPORT_KEYS=0
 ETC_OVERLAY_PATTERN='^[^[:space:]]\+[[:space:]]\+\/etc[[:space:]]\+overlay[[:space:]]\+\([^[:space:]]*,\|\)workdir=\/sysroot\/var\/lib\/overlay\/work-etc[,[:space:]]'
 
@@ -710,7 +711,7 @@ fi
 if [ ${DO_ROLLBACK} -eq 1 ]; then
     NEED_REBOOT_WARNING=1
 
-    if [ ${ROLLBACK_SNAPSHOT} -eq 0 ]; then
+    if [ ${ROLLBACK_SNAPSHOT} -eq 0 -o ${ROLLBACK_SNAPSHOT} -eq ${CURRENT_SNAPSHOT_ID} ]; then
 	ROLLBACK_SNAPSHOT=${CURRENT_SNAPSHOT_ID}
 	NEED_REBOOT_WARNING=0
     fi
@@ -734,6 +735,10 @@ if [ ${DO_ROLLBACK} -eq 1 ]; then
 	fi
 	# Remove possible cleanup algo
 	snapper ${SNAPPER_NO_DBUS} modify -c '' ${ROLLBACK_SNAPSHOT}
+
+	if [ ${NEED_REBOOT_WARNING} -eq 0 ]; then
+	    rm -f "${NEEDS_RESTARTING_FILE}"
+	fi
     else
 	snapper rollback ${ROLLBACK_SNAPSHOT}
 	NEED_REBOOT_WARNING=1
@@ -1152,6 +1157,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	quit ${EXITCODE}
     elif [ $REBOOT_AFTERWARDS -eq 0 ]; then
 	echo "Please reboot your machine to activate the changes and avoid data loss."
+	touch "${NEEDS_RESTARTING_FILE}"
     fi
 fi
 
