@@ -231,6 +231,7 @@ quit() {
     fi
     if [ -n "${ETC_OVERLAY_DIR}" ] ; then
 	log_error "Removing overlay directory ${ETC_OVERLAY_DIR%/*}..."
+	umount "${ETC_OVERLAY_DIR}"
 	rm -rf "${ETC_OVERLAY_DIR%/*}" |& tee -a ${LOGFILE}
     fi
     if [ $USE_SALT_GRAINS -eq 1 ]; then
