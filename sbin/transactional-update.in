@@ -385,23 +385,14 @@ add_unique_id() {
 }
 
 check_registration_on_next_reboot() {
-    if [ ${HAS_SEPARATE_VAR} -eq 0 ]; then
-	# /var own subvolume, not mounted during update, so touch the
-	# file in the running system.
-	test -d  /var/lib/rollback || mkdir -p /var/lib/rollback
-	touch /var/lib/rollback/check-registration
-    else
-	# check if /var/lib/rollback is own subvolume
-	grep -q "[[:space:]]/var/lib/rollback[[:space:]]" /proc/mounts
-	if [ $? -eq 0 ]; then
-	    # Extra subvolume, not mounted in chroot, touch outside.
-	    touch /var/lib/rollback/check-registration
-	else
-	    # no subvolumes,
-	    test -d ${MOUNT_DIR}/var/lib/rollback || mkdir -p ${MOUNT_DIR}/var/lib/rollback
-	    touch ${MOUNT_DIR}/var/lib/rollback/check-registration
-	fi
+    local VARDIR="/var/lib/rollback"
+    # If VARDIR is part of the root file system (usually on rw systems), then
+    # create the file in the new snapshot
+    if [ "$(findmnt --noheadings --output TARGET --target "${VARDIR}")" = "/" ]; then
+	VARDIR="${MOUNT_DIR}/${VARDIR}"
     fi
+    test -d "${VARDIR}" || mkdir -p "${VARDIR}"
+    touch "${VARDIR}/check-registration"
 }
 
 get_etc_overlay_from() {
