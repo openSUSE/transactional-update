@@ -460,14 +460,14 @@ sync_etc() {
     mount_opts+="`echo ${fstab_lowerdirs[@]///sysroot/$1} | tr ' ' ':'`"
     mount -t overlay overlay "${ETC_OVERLAY_DIR}" -o ${mount_opts}
     if [ $? -ne 0 ]; then
-        log_error "ERROR: mount of old overlay stack from $1 failed!"
-        quit 1
+	log_error "ERROR: mount of old overlay stack from $1 failed!"
+	quit 1
     fi
 
     rsync --archive --inplace --xattrs --filter='-x security.selinux' --acls --delete --quiet "${ETC_OVERLAY_DIR}" "$2"
     if [ $? -ne 0 ]; then
-        log_error "ERROR: syncing $1 into snapshot $2 failed!"
-        quit 1
+	log_error "ERROR: syncing $1 into snapshot $2 failed!"
+	quit 1
     fi
     umount "${ETC_OVERLAY_DIR}"
 }
