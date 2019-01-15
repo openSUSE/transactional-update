@@ -121,7 +121,7 @@ usage() {
     echo "reboot                 Reboot after update"
     echo ""
     echo "Package Commands:"
-    echo "dup                    Call 'zypper dup --no-allow-vendor-change' (n)"
+    echo "dup                    Call 'zypper dup' (n)"
     echo "up                     Call 'zypper up' (n)"
     echo "patch                  Call 'zypper patch' (n)"
     echo "migration              Updates systems registered via SCC / SMT (i)"
@@ -491,7 +491,7 @@ while [ 1 ]; do
 	    ;;
 	dup)
 	    DO_DUP=1
-	    ZYPPER_ARG="--no-cd dup --no-allow-vendor-change"
+	    ZYPPER_ARG="--no-cd dup"
 	    shift
 	    ;;
         up|patch)
