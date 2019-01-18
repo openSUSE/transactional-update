@@ -811,12 +811,14 @@ if [ ${DO_CLEANUP} -eq 1 ]; then
     fi
 
     # Clean up old unused overlays
-    for overlay in /var/lib/overlay/[0-9]* /var/lib/overlay; do
-	if ! grep -q "${overlay}/etc" /.snapshots/*/snapshot/etc/fstab.sys; then
-	    log_info "Deleting unused overlay ${overlay}"
-	    rm -rf "${overlay}"
-	fi
-    done
+    if [ ${RO_ROOT} == "true" ]; then
+	for overlay in /var/lib/overlay/[0-9]* /var/lib/overlay; do
+	    if ! grep -q "${overlay}/etc" /.snapshots/*/snapshot/etc/fstab.sys; then
+		log_info "Deleting unused overlay ${overlay}"
+		rm -rf "${overlay}"
+	    fi
+	done
+    fi
 fi
 
 if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
