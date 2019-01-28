@@ -131,7 +131,8 @@ usage() {
     echo "Defaults: (i) interactive command; (n) non-interactive command"
     echo ""
     echo "Standalone Commands:"
-    echo "rollback <number>      Set given snapshot as default snapshot"
+    echo "rollback [<number>]    Set the current or given snapshot as default snapshot"
+    echo "rollback last          Set the last working snapshot as default snapshot"
     echo ""
     echo "Options:"
     echo "--interactive, -i      Use interactive mode for package command"
@@ -703,7 +704,13 @@ fi
 if [ ${DO_ROLLBACK} -eq 1 ]; then
     NEED_REBOOT_WARNING=1
 
-    if [ ${ROLLBACK_SNAPSHOT} -eq 0 -o ${ROLLBACK_SNAPSHOT} -eq ${CURRENT_SNAPSHOT_ID} ]; then
+    if [ ${ROLLBACK_SNAPSHOT} -eq "last" ]; then
+	if [ -n "${LAST_WORKING_SNAPSHOTS}" ]; then
+	    ROLLBACK_SNAPSHOT=${LAST_WORKING_SNAPSHOTS%% *}
+	else
+	    log_error "No last working snapshot saved; please use 'snapper list' for manual selection"
+	fi
+    elif [ ${ROLLBACK_SNAPSHOT} -eq 0 -o ${ROLLBACK_SNAPSHOT} -eq ${CURRENT_SNAPSHOT_ID} ]; then
 	ROLLBACK_SNAPSHOT=${CURRENT_SNAPSHOT_ID}
 	NEED_REBOOT_WARNING=0
     fi

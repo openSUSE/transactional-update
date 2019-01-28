@@ -210,6 +210,7 @@ for more information.
     <term><option>shell</option></term>
     <listitem>
       <para>
+	Opens a shell to execute commands like zypper manually.
 	After all actions are done, before the snapshot with the changes is
 	unmounted and switched to read-only, a shell is started in the new
 	snapshot as chroot environment for testing and debugging.
@@ -352,12 +353,16 @@ for more information.
 	Sets the default root file system. On a read-only system the root
 	file system is set directly using <command>btrfs</command>. On
 	read-write systems
-	<citerefentry
-	    project='snapper'><refentrytitle>snapper</refentrytitle><manvolnum>8</manvolnum></citerefentry>
-	<option>rollback</option> is called. If no snapshot number is given
-	the current root file system is made the new default root file system.
-	Otherwise the snapshot with <option>number</option> is made the
-	new default root filesystem.
+	<citerefentry project='snapper'><refentrytitle>snapper</refentrytitle><manvolnum>8</manvolnum></citerefentry>
+	<option>rollback</option> is called.
+      </para>
+      <para>
+	If no snapshot number is given, the current root file system is set as
+	the new default root file system.
+	Otherwise <replaceable>number</replaceable> can either be a snapshot
+	number (as displayed by <command>snapper list</command>) or the word
+	<option>last</option>. <option>last</option> will try to reset to the
+	latest working snapshot.
       </para>
     </listitem>
   </varlistentry>
@@ -370,14 +375,14 @@ for more information.
     <term><option>--interactive</option></term>
     <term><option>-i</option></term>
     <listitem>
-      <para>Ignores package command categorization, calls zypper in interactive mode.</para>
+      <para>Calls zypper in interactive mode, even if the default for this command is non-interactive.</para>
     </listitem>
   </varlistentry>
   <varlistentry>
     <term><option>--non-interactive</option></term>
     <term><option>-n</option></term>
     <listitem>
-      <para>Ignores package command categorization, calls zypper in non-interactive mode.</para>
+      <para>Calls zypper in non-interactive mode, even if the default for this command is interactive.</para>
     </listitem>
   </varlistentry>
   <varlistentry>
