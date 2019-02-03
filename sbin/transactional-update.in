@@ -60,7 +60,7 @@ if [ -r ${CONFFILE} ]; then
 fi
 
 # Initialize internal variables
-HAS_SEPARATE_ETC=0
+ETC_IS_OVERLAY=0
 HAS_SEPARATE_VAR=0
 VAR_CACHE_CLEANUP=0
 FORCE_NONINTERACTIVE=""
@@ -397,15 +397,24 @@ check_registration_on_next_reboot() {
 }
 
 get_etc_overlay_from() {
-    local fstab="$1"
-    local overlay_options="`sed -n "/${ETC_OVERLAY_PATTERN}/p" "${fstab}" | cut -d ' ' -f 4`"
+    local overlay_options
     local option lowerdir overlay_id
 
+    fstab=""
     fstab_active_lowerdirs=()
     fstab_lowerdirs=()
     fstab_upper=""
     fstab_oldest_active_snapshot=""
     fstab_otheroptions=""
+
+    # Check for /etc overlay
+    for fstab in "$1"/etc/fstab{,.sys}; do
+	if [ -e "$fstab" ] ; then
+	    overlay_options="`awk '$2 == "/etc" && $3 == "overlay" && $4 ~ "workdir=/sysroot/var/lib/overlay/work-etc" { print $4 }' "$fstab"`"
+	    [ -n "${overlay_options}" ] && break
+	fi
+    done
+    [ -n "${overlay_options}" ] || return
 
     for option in `echo ${overlay_options} | tr ',' ' '`; do
 	case "${option%=*}" in
@@ -434,6 +443,8 @@ get_etc_overlay_from() {
 		;;
 	    workdir)
 		;;
+	    x-systemd.requires-mounts-for|x-initrd.mount)
+		;;
 	    *)
 		fstab_otheroptions="${fstab_otheroptions}${option},"
 		;;
@@ -445,7 +456,7 @@ get_etc_overlay_from() {
 # Sync /etc mount contents to target directory
 sync_etc() {
     log_info "Syncing /etc of oldest snapshot $1 as base into new snapshot $2"
-    get_etc_overlay_from "$1"/etc/fstab.sys
+    get_etc_overlay_from "$1"
     fstab_lowerdirs=("${fstab_lowerdirs[@]///sysroot\/var//var}")
     mount_opts="defaults,"
     mount_opts+="lowerdir=${fstab_upper#/sysroot}:"
@@ -693,18 +704,16 @@ CURRENT_SNAPSHOT_ID=`grep subvol=/@/.snapshots/ /proc/mounts | grep "/ btrfs" | 
 DEFAULT_SNAPSHOT_ID=`btrfs subvolume get-default / | sed -e 's|.*.snapshots/\(.*\)/snapshot|\1|g'`
 RO_ROOT=`btrfs property get / ro | sed -e 's|ro=||'`
 
-if [ -e "/.snapshots/${CURRENT_SNAPSHOT_ID}/snapshot/etc/fstab.sys" ]; then
-    get_etc_overlay_from "/.snapshots/${CURRENT_SNAPSHOT_ID}/snapshot/etc/fstab.sys"
-    if [ -n "$fstab_upper" ]; then
-	log_info "Separate /etc detected."
-	HAS_SEPARATE_ETC=1
-    fi
+get_etc_overlay_from "/.snapshots/${CURRENT_SNAPSHOT_ID}/snapshot"
+if [ -n "$fstab_upper" ]; then
+    log_info "/etc on overlayfs detected."
+    ETC_IS_OVERLAY=1
 fi
 
 if [ ${DO_ROLLBACK} -eq 1 ]; then
     NEED_REBOOT_WARNING=1
 
-    if [ ${ROLLBACK_SNAPSHOT} -eq "last" ]; then
+    if [ "${ROLLBACK_SNAPSHOT}" = "last" ]; then
 	if [ -n "${LAST_WORKING_SNAPSHOTS}" ]; then
 	    ROLLBACK_SNAPSHOT=${LAST_WORKING_SNAPSHOTS%% *}
 	else
@@ -820,7 +829,7 @@ if [ ${DO_CLEANUP} -eq 1 ]; then
     # Clean up old unused overlays
     if [ ${RO_ROOT} == "true" ]; then
 	for overlay in /var/lib/overlay/[0-9]* /var/lib/overlay; do
-	    if ! grep -q "${overlay}/etc" /.snapshots/*/snapshot/etc/fstab.sys; then
+	    if ! grep -q "${overlay}/etc" /.snapshots/*/snapshot/etc/fstab{,.sys}; then
 		log_info "Deleting unused overlay ${overlay}"
 		rm -rf "${overlay}"
 	    fi
@@ -894,7 +903,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	quit 1
     fi
 
-    if [ ${HAS_SEPARATE_ETC} -eq 1 ]; then
+    if [ ${ETC_IS_OVERLAY} -eq 1 ]; then
 	# Create new /etc overlay for snapshot
 	ETC_OVERLAY_DIR="/var/lib/overlay/${SNAPSHOT_ID}/etc"
 	ETC_OVERLAY_WORK_DIR="${ETC_OVERLAY_DIR}-work"
@@ -902,14 +911,45 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 
 	# Copy the contents of oldest /etc layer into snapshot
 	sync_etc "${fstab_oldest_active_snapshot}" "${SNAPSHOT_DIR}"
+	get_etc_overlay_from "/.snapshots/${CURRENT_SNAPSHOT_ID}/snapshot"
 
-	# Update fstab.sys entries for /etc overlays
-	get_etc_overlay_from "/.snapshots/${CURRENT_SNAPSHOT_ID}/snapshot/etc/fstab.sys"
+	# Special handling /etc/fstab{.sys}: dracut needs the *current* version
+	# of the files in the snapshot, as the overlay is not yet mounted
+	# during early boot - in fact the files are required to be able to
+	# mount the overlays
+	cp /etc/fstab "${SNAPSHOT_DIR}/etc"
+	cp -a /etc/fstab.sys "${SNAPSHOT_DIR}/etc"
+
+	# Migrate fstab.sys' /var and overlay entries to regular fstab
+	if [ -e "${SNAPSHOT_DIR}/etc/fstab.sys" ] && grep -qE "^overlay /etc" "${SNAPSHOT_DIR}/etc/fstab.sys"; then
+	    awk '$3 == "overlay" && $4 ~ /=\/sysroot\/var\/lib\/overlay/' "${SNAPSHOT_DIR}/etc/fstab.sys" >> "${SNAPSHOT_DIR}/etc/fstab"
+	    # Remove /etc, /var and /var/lib/overlay (legacy) from fstab.sys
+	    gawk -i inplace '$2 != "/etc" && $2 != "/var" && $2 != "/var/lib/overlay" &&
+		($3 != "overlay" || $4 !~ /=\/sysroot\/var\/lib\/overlay\//)' "${SNAPSHOT_DIR}/etc/fstab.sys"
+	    # Append x-initrd.mount to /var mount options (bsc#1121279)
+	    gawk -i inplace '$2 == "/var" || $2 == "/var/lib/overlay" { $4 = $4",x-initrd.mount"; } 1' "${SNAPSHOT_DIR}/etc/fstab"
+	    gawk -i inplace '$3 == "overlay" && $4 ~ "=/sysroot/var/lib/overlay/" { $4 = $4",x-systemd.requires-mounts-for=/var,x-systemd.requires-mounts-for=/var/lib/overlay,x-systemd.requires-mounts-for=/sysroot/var,x-systemd.requires-mounts-for=/sysroot/var/lib/overlay,x-initrd.mount"; } 1' "${SNAPSHOT_DIR}/etc/fstab"
+	fi
+
+	# Update fstab{,.sys} entries for /etc overlays
 	fstab_line="overlay /etc overlay ${fstab_otheroptions}"
 	fstab_line+="lowerdir=${fstab_upper}:`echo ${fstab_active_lowerdirs[@]} | tr ' ' ':'`,"
 	fstab_line+="upperdir=/sysroot${ETC_OVERLAY_DIR},"
-	fstab_line+="workdir=/sysroot/var/lib/overlay/work-etc 0 0"
-	sed -i "/${ETC_OVERLAY_PATTERN}/c ${fstab_line}" "${SNAPSHOT_DIR}/etc/fstab.sys"
+	fstab_line+="workdir=/sysroot/var/lib/overlay/work-etc,"
+	fstab_line+="x-systemd.requires-mounts-for=/var,"
+	fstab_line+="x-systemd.requires-mounts-for=/var/lib/overlay,"
+	fstab_line+="x-systemd.requires-mounts-for=/sysroot/var,"
+	fstab_line+="x-systemd.requires-mounts-for=/sysroot/var/lib/overlay,"
+	fstab_line+="x-initrd.mount 0 0"
+	sed -i "/${ETC_OVERLAY_PATTERN}/c ${fstab_line}" "${SNAPSHOT_DIR}/etc/fstab"
+
+	# Prettify fstab
+	gawk -i inplace 'NR==FNR { for(i=1;i<=NF;i++) { len=length($i); collen[i]=collen[i]>len?collen[i]:(len>42?42:len); } print }
+	    NR!=FNR { for(i=1;i<=NF;i++) { printf("%-"collen[i]"s  ", $i); } print ""}' "${SNAPSHOT_DIR}/etc/fstab" "${SNAPSHOT_DIR}/etc/fstab"
+
+	# Make the diff visible to the admin by copying /etc/fstab into the
+	# overlay (dracut itself wouldn't need it)
+	cp "${SNAPSHOT_DIR}/etc/fstab" "${ETC_OVERLAY_DIR}"
     fi
 
     # Remember all snapshots we create for update. If transactional-update is
@@ -958,7 +998,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
         log_error "ERROR: mount of sys failed!"
         quit 1
     fi
-    if [ ${HAS_SEPARATE_ETC} -eq 1 ]; then
+    if [ ${ETC_IS_OVERLAY} -eq 1 ]; then
 	etc_opts="defaults,"
 	etc_opts+="lowerdir=/etc,"
 	etc_opts+="upperdir=${ETC_OVERLAY_DIR},"
