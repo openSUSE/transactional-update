@@ -2,6 +2,28 @@ transactional-update NEWS -- history of user-visible changes.
 
 Copyright (C) 2016, 2017, 2018 Thorsten Kukuk
 
+Version 2.12
+* Implements support for needs-restart (Fate#326451)
+* Adds easy rollback to last known working snapshot by using "last"
+  as the snapshot number
+* Migrate /etc/fstab.sys entires to /etc/fstab for systemd being
+  able to create mount units; this will prevent errors on unmount
+  during shutdown for /var and /etc
+* Remove implicit --no-allow-vendor-change - this option can be
+  configured in zypper's configuration file now
+* Add support for mounting the /etc overlay file system as a systemd
+  unit in /etc/fstab on a read-only system (replacing /etc/fstab.sys
+  in the long run)
+* Various bugfixes:
+  * Only remove /etc overlays on read-only root file systems
+    [boo#1122455]
+  * Disable "Persistent" flag in systemd timer unit to prevent
+    updates during or immediately after the boot phase
+  * Don't set global zypper options during migration - this is not
+    supported by the migration plugin
+  * Fix error handling when interrupting while rsync is running
+  * Filter out security.selinux attributes during rsync
+
 Version 2.11
 * Update man page to explain new /etc overlay handling
 * Add special handling for migrating away from old overlay directory
