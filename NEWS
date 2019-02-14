@@ -2,6 +2,12 @@ transactional-update NEWS -- history of user-visible changes.
 
 Copyright (C) 2016, 2017, 2018 Thorsten Kukuk
 
+Version 2.13
+* Fix a serious data loss problem (deleting all files in /etc
+  overlays) in case /var/lib/overlay/etc is not part of any snapshot
+  any more.
+* Avoid error message in case a system has no /etc/fstab.sys
+
 Version 2.12
 * Implements support for needs-restart (Fate#326451)
 * Adds easy rollback to last known working snapshot by using "last"
