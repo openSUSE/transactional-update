@@ -833,7 +833,7 @@ if [ ${DO_CLEANUP} -eq 1 ]; then
 	    if [ -e ${overlay} ] && ! grep -qs "${overlay}" /.snapshots/*/snapshot/etc/fstab{,.sys}; then
 		log_info "Deleting unused overlay ${overlay}"
 		rm -rf "${overlay}"
-		rmdir --ignore-fail-on-non-empty "${overlay}/.."
+		rmdir --ignore-fail-on-non-empty "$(dirname "${overlay}")"
 	    fi
 	done
 	shopt -u nullglob
