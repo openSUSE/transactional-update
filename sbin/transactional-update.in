@@ -921,7 +921,9 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	# during early boot - in fact the files are required to be able to
 	# mount the overlays
 	cp /etc/fstab "${SNAPSHOT_DIR}/etc"
-	cp -a /etc/fstab.sys "${SNAPSHOT_DIR}/etc"
+	if [ -e /etc/fstab.sys ]; then
+	    cp -a /etc/fstab.sys "${SNAPSHOT_DIR}/etc"
+	fi
 
 	# Migrate fstab.sys' /var and overlay entries to regular fstab
 	if [ -e "${SNAPSHOT_DIR}/etc/fstab.sys" ] && grep -qE "^overlay /etc" "${SNAPSHOT_DIR}/etc/fstab.sys"; then
