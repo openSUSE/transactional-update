@@ -93,13 +93,15 @@ self_update() {
 	    quit 1
 	fi
 	export TA_UPDATE_TMPFILE
-	cd "${TA_UPDATE_TMPFILE}"
+	pushd "${TA_UPDATE_TMPFILE}" >/dev/null
 	zypper --non-interactive --pkg-cache-dir "${TA_UPDATE_TMPFILE}" download transactional-update
 	find . -name transactional-update*.rpm -exec rpm2cpio {} \; | cpio -idmv 2>/dev/null
 	if [ $? -ne 0 ]; then
 	    log_error "ERROR: Couldn't extract the update."
 	    quit 1
 	fi
+	# Reset CWD before restart
+	popd >/dev/null
 	exec "${TA_UPDATE_TMPFILE}/usr/sbin/transactional-update" "$@"
     fi
 }
