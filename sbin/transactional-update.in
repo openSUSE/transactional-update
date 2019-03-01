@@ -3,7 +3,7 @@
 # transactional-update - apply updates to the system in an atomic way
 #
 # Author: Thorsten Kukuk <kukuk@suse.com>
-# Copyright (C) 2016, 2017, 2018 SUSE Linux GmbH
+# Copyright (C) 2016, 2017, 2018, 2019 SUSE Linux GmbH
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -42,6 +42,9 @@ REBOOT_AFTERWARDS=0
 REBOOT_METHOD="auto"
 RUN_SHELL=0
 USE_SALT_GRAINS=0
+USE_TELEMETRICS=0
+TELEM_PAYLOAD="PACKAGE_NAME=transactional-update\nPACKAGE_VERSION=@VERSION@"
+TELEM_CLASS=""
 CONFFILE="@sysconfdir@/transactional-update.conf"
 SYSTEMCONFFILE="@prefix@@sysconfdir@/transactional-update.conf"
 LOGFILE="/var/log/transactional-update.log"
@@ -216,6 +219,30 @@ rebuild_kdump_initrd() {
     fi
 }
 
+# start telemetry system if installed
+telem_start() {
+    if [ -x /usr/bin/telem-record-gen ]; then
+	USE_TELEMETRICS=1
+	TELEM_START_TIME=`echo $(($(date +%s%N)/1000000))`
+	source <(grep VERSION_ID /etc/os-release)
+	TELEM_PAYLOAD="${TELEM_PAYLOAD}\noptions=${ORIG_ARGS[@]}\ncurrent_version=${VERSION_ID}"
+    fi
+}
+
+telem_finish () {
+    if [ ${USE_TELEMETRICS} -eq 1 ]; then
+	TELEM_END_TIME=`echo $(($(date +%s%N)/1000000))`
+	ELAPSED_TIME=`echo "($TELEM_END_TIME - $TELEM_START_TIME)/1000" | bc -l`
+	TELEM_PAYLOAD="${TELEM_PAYLOAD}\ntime=${ELAPSED_TIME} Seconds"
+	if [ $1 -gt 0 ]; then
+	  TELEM_SEVERITY=3
+	else
+	  TELEM_SEVERITY=1
+	fi
+	echo -e "${TELEM_PAYLOAD}" | telem-record-gen -s ${TELEM_SEVERITY} -c "org.opensuse/txupdate/$TELEM_CLASS"
+    fi
+}
+
 # Only called in error case; reverts everything to previous state.
 quit() {
     teardown
@@ -253,6 +280,7 @@ quit() {
 	    echo "tx_update_failed: true" > /etc/salt/grains
 	fi
     fi
+    telem_finish $1
     log_info "transactional-update finished"
     exit $1
 }
@@ -336,6 +364,8 @@ reboot_via_salt() {
     fi
     # Reset tx_update_failed if exist
     sed -i -e 's|tx_update_failed:.*|tx_update_failed: false|g' /etc/salt/grains
+    TELEM_PAYLOAD="${TELEM_PAYLOAD}\nreboot=salt"
+    telem_finish 0
     exit 0
 }
 
@@ -343,6 +373,8 @@ reboot_via_rebootmgr() {
     /usr/sbin/rebootmgrctl is-active --quiet
     if [ $? -eq 0 ]; then
 	# rebootmgrctl is running
+	TELEM_PAYLOAD="${TELEM_PAYLOAD}\nreboot=rebootmgr"
+	telem_finish 0
 	/usr/sbin/rebootmgrctl reboot
 	log_info "transactional-update finished - informed rebootmgr"
 	exit 0
@@ -350,6 +382,8 @@ reboot_via_rebootmgr() {
 }
 
 reboot_via_systemd() {
+    TELEM_PAYLOAD="${TELEM_PAYLOAD}\nreboot=systemctl reboot"
+    telem_finish 0
     log_info "transactional-update finished - rebooting machine"
     sync
     systemctl reboot |& tee -a ${LOGFILE}
@@ -358,12 +392,16 @@ reboot_via_systemd() {
 
 reboot_via_kured() {
     log_info "transactional-update finished - informed kured"
+    TELEM_PAYLOAD="${TELEM_PAYLOAD}\nreboot=kured"
+    telem_finish 0
     touch /var/run/reboot-required
     exit 0
 }
 
 reboot_via_kexec() {
     log_info "transactional-update finished - re-initializing system with kexec"
+    TELEM_PAYLOAD="${TELEM_PAYLOAD}\nreboot=kexec"
+    telem_finish 0
     kexec -l /boot/vmlinuz --initrd=/boot/initrd --reuse-cmdline
     sync
     systemctl kexec |& tee -a ${LOGFILE}
@@ -484,6 +522,7 @@ ORIG_ARGS=("$@")
 # If no option is given, assume "up"
 if [ $# -eq 0 ]; then
     ZYPPER_ARG="up"
+    TELEM_CLASS="update"
 fi
 
 while [ 1 ]; do
@@ -500,12 +539,15 @@ while [ 1 ]; do
 	    DO_DUP=1
 	    ZYPPER_ARG="--no-cd dup"
 	    shift
+	    TELEM_CLASS="upgrade"
 	    ;;
         up|patch)
 	    ZYPPER_ARG=$1
 	    shift
+	    TELEM_CLASS="update"
 	    ;;
 	ptf|pkg|package)
+	    TELEM_CLASS="package"
 	    shift
 	    if [ $# -eq 0 ]; then
 		usage 1
@@ -547,6 +589,7 @@ while [ 1 ]; do
 	    done
 	    ;;
 	migration)
+	    TELEM_CLASS="migration"
 	    __NO_RESET=0
 	    DO_MIGRATION=1
 	    ZYPPER_ARG="migration --no-snapshots --no-selfupdate"
@@ -560,24 +603,29 @@ while [ 1 ]; do
 	    shift
 	    ;;
 	bootloader)
+	    test -z "$TELEM_CLASS" && TELEM_CLASS="bootloader"
 	    REWRITE_BOOTLOADER=1
 	    REWRITE_GRUB_CFG=1
 	    shift
 	    ;;
 	grub.cfg)
+	    test -z "$TELEM_CLASS" && TELEM_CLASS="bootloader"
 	    REWRITE_GRUB_CFG=1
 	    shift
 	    ;;
 	shell)
+	    test -z "$TELEM_CLASS" && TELEM_CLASS="shell"
 	    RUN_SHELL=1
 	    shift
 	    ;;
 	initrd)
+	    test -z "$TELEM_CLASS" && TELEM_CLASS="initrd"
 	    REWRITE_INITRD=1
 	    REBUILD_KDUMP_INITRD=1
 	    shift
 	    ;;
 	kdump)
+	    test -z "$TELEM_CLASS" && TELEM_CLASS="kdump"
 	    REBUILD_KDUMP_INITRD=1
 	    shift
 	    ;;
@@ -586,6 +634,7 @@ while [ 1 ]; do
 	    shift
 	    ;;
 	rollback)
+	    TELEM_CLASS="rollback"
 	    DO_ROLLBACK=1
 	    DO_SELF_UPDATE=0
 	    shift
@@ -676,15 +725,21 @@ fi
 log_info "transactional-update @VERSION@ started"
 log_info "Options: ${ORIG_ARGS[@]}"
 
+telem_start
+
 if [ "`stat -f -c %T /`" != "btrfs" ]; then
   log_error "ERROR: not using btrfs as root file system!"
   log_info "transactional-update finished"
+  TELEM_PAYLOAD="${TELEM_PAYLOAD}\nmsg=No btrfs"
+  telem_finish 1
   exit 1
 fi
 
 if [ ! -d /.snapshots ]; then
   log_error "ERROR: no snapshots for root file system configured!"
   log_info "transactional-update finished"
+  TELEM_PAYLOAD="${TELEM_PAYLOAD}\nmsg=No snapshots configured"
+  telem_finish 1
   exit 1
 fi
 
@@ -758,6 +813,7 @@ if [ ${DO_ROLLBACK} -eq 1 ]; then
     if [ ${NEED_REBOOT_WARNING} -eq 1 ]; then
 	echo "Please reboot to finish rollback!"
     fi
+    telem_finish 0
     exit 0
 fi
 
@@ -875,6 +931,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	SIZE_OF_UPDATES=`grep "install-summary.*space-usage-diff" ${TMPFILE} | sed -e 's|.*install-summary.*space-usage-diff=\"\([^"]*\)\".*|\1|g'`
 	NUM_OF_UPDATES=`grep "install-summary.*packages-to-change" ${TMPFILE} | sed -e 's|.*install-summary.*packages-to-change=\"\([^"]*\)\".*|\1|g'`
 	rm -f ${TMPFILE}
+	TELEM_PAYLOAD="${TELEM_PAYLOAD}\npackages=${NUM_OF_UPDATES}\ndownload_size=${PACKAGE_UPDATES}\nspace-usage=${SIZE_OF_UPDATES}"
 	if [ "${NUM_OF_UPDATES}" = "0" ] || [ -z "${NUM_OF_UPDATES}" -a "${PACKAGE_UPDATES}" = "0" -a "${SIZE_OF_UPDATES}" = "0" ]; then
 	    log_info "zypper: nothing to update"
 	    log_info "transactional-update finished"
@@ -886,6 +943,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 		    sed -i -e 's|tx_update_failed:.*|tx_update_failed: false|g' /etc/salt/grains
 		fi
 	    fi
+	    telem_finish 0
 	    exit 0
 	fi
     fi
@@ -1123,8 +1181,11 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	    if [ $? -ne 0 ]; then
 	        REWRITE_GRUB_CFG=1
 	    fi
+	    source <(grep VERSION_ID ${MOUNT_DIR}/etc/os-release)
+	    TELEM_PAYLOAD="${TELEM_PAYLOAD}\nnext_version=${VERSION_ID}"
 	else
 	    log_error "ERROR: zypper ${ZYPPER_ARG} on ${MOUNT_DIR} failed with exit code ${RETVAL}!"
+	    TELEM_PAYLOAD="${TELEM_PAYLOAD}\nzypper_exitcode=${RETVAL}"
 	    EXITCODE=1
 	fi
     fi
@@ -1245,5 +1306,7 @@ if [ ${EXITCODE} -eq 0 ]; then
 fi
 
 log_info "transactional-update finished"
+
+telem_finish $EXITCODE
 
 exit $EXITCODE
