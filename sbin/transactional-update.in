@@ -162,6 +162,7 @@ log_info() {
 }
 
 log_error() {
+    TELEM_PAYLOAD="${TELEM_PAYLOAD}\nmessage=$@"
     echo `date "+%Y-%m-%d %H:%M"` "$@" >> ${LOGFILE}
     echo "$@" 1>&4
 }
@@ -232,7 +233,7 @@ telem_start() {
 telem_finish () {
     if [ ${USE_TELEMETRICS} -eq 1 ]; then
 	TELEM_END_TIME=`echo $(($(date +%s%N)/1000000))`
-	ELAPSED_TIME=`echo "($TELEM_END_TIME - $TELEM_START_TIME)/1000" | bc -l`
+	ELAPSED_TIME=`echo "scale=3; ($TELEM_END_TIME - $TELEM_START_TIME)/1000" | bc -l`
 	TELEM_PAYLOAD="${TELEM_PAYLOAD}\ntime=${ELAPSED_TIME} Seconds"
 	if [ $1 -gt 0 ]; then
 	  TELEM_SEVERITY=3
@@ -730,7 +731,6 @@ telem_start
 if [ "`stat -f -c %T /`" != "btrfs" ]; then
   log_error "ERROR: not using btrfs as root file system!"
   log_info "transactional-update finished"
-  TELEM_PAYLOAD="${TELEM_PAYLOAD}\nmsg=No btrfs"
   telem_finish 1
   exit 1
 fi
@@ -738,7 +738,6 @@ fi
 if [ ! -d /.snapshots ]; then
   log_error "ERROR: no snapshots for root file system configured!"
   log_info "transactional-update finished"
-  TELEM_PAYLOAD="${TELEM_PAYLOAD}\nmsg=No snapshots configured"
   telem_finish 1
   exit 1
 fi
@@ -1185,7 +1184,6 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	    TELEM_PAYLOAD="${TELEM_PAYLOAD}\nnext_version=${VERSION_ID}"
 	else
 	    log_error "ERROR: zypper ${ZYPPER_ARG} on ${MOUNT_DIR} failed with exit code ${RETVAL}!"
-	    TELEM_PAYLOAD="${TELEM_PAYLOAD}\nzypper_exitcode=${RETVAL}"
 	    EXITCODE=1
 	fi
     fi
