@@ -994,8 +994,8 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 
 	# Update fstab{,.sys} entries for /etc overlays
 	fstab_line="overlay /etc overlay ${fstab_otheroptions}"
-	fstab_line+="lowerdir=${fstab_upper}:`echo ${fstab_active_lowerdirs[@]} | tr ' ' ':'`,"
 	fstab_line+="upperdir=/sysroot${ETC_OVERLAY_DIR},"
+	fstab_line+="lowerdir=${fstab_upper}:`echo ${fstab_active_lowerdirs[@]} | tr ' ' ':'`,"
 	fstab_line+="workdir=/sysroot/var/lib/overlay/work-etc,"
 	fstab_line+="x-systemd.requires-mounts-for=/var,"
 	fstab_line+="x-systemd.requires-mounts-for=/var/lib/overlay,"
