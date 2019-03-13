@@ -51,6 +51,7 @@ LOGFILE="/var/log/transactional-update.log"
 STATE_FILE="/var/lib/misc/transactional-update.state"
 NEW_SNAPSHOT_FLAG="/var/lib/overlay/transactional-update.newsnapshot"
 NEEDS_RESTARTING_FILE="/var/run/reboot-needed"
+LOCKFILE="/var/run/transactional-update.pid"
 ZYPPER_AUTO_IMPORT_KEYS=0
 ETC_OVERLAY_PATTERN='^[^[:space:]]\+[[:space:]]\+\/etc[[:space:]]\+overlay[[:space:]]\+\([^[:space:]]*,\|\)workdir=\/sysroot\/var\/lib\/overlay\/work-etc[,[:space:]]'
 
@@ -168,12 +169,6 @@ log_error() {
 }
 
 bashlock() {
-    if [ "$#" -ne 1 ]; then
-	echo 'Usage: bashlock [LOCKFILENAME]' 1>&2
-	return 2
-    fi
-    LOCKFILE="$1"
-
     echo "$$" >"$LOCKFILE.$$"
     if ! ln "$LOCKFILE.$$" "$LOCKFILE" 2>/dev/null; then
 	PID=`head -1 "$LOCKFILE"`
@@ -705,7 +700,7 @@ fi
 # Check if this is a self-updated transactional-update; if it isn't lock and
 # check for update
 if [ -z "${TA_UPDATE_TMPFILE}" ]; then
-    bashlock "/var/run/transactional-update.pid"
+    bashlock
     if [ $? -ne 0 ]; then
 	echo "Couldn't get lock, is another instance already running?"
 	exit 1
