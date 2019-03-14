@@ -1257,6 +1257,21 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	EXITCODE=1
     fi
 
+    # Check for installation artefacts in /var, but filter out acceptable hits
+    if [ ${HAS_SEPARATE_VAR} -eq 1 ]; then
+	filelist="$(find ${SNAPSHOT_DIR}/var \
+		-not \( -path ${SNAPSHOT_DIR}/var/lib/systemd/migrated -prune \) \
+		-not \( -path ${SNAPSHOT_DIR}/var/run/zypp.pid -prune \) \
+		-cnewer ${LOCKFILE} -not -type d)"
+	if [ -n "${filelist}" ]; then
+	    echo
+	    echo "Warning: The following files in /var were changed in the snapshot, but"
+	    echo "will not be visible to the system:"
+	    echo "${filelist}"
+	    echo
+	fi
+    fi
+
     if [ ${EXITCODE} -ne 0 ]; then
 	quit ${EXITCODE}
     elif [ $REBOOT_AFTERWARDS -eq 0 ]; then
