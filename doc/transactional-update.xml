@@ -10,13 +10,22 @@
         <surname>Kukuk</surname>
         <email>kukuk@thkukuk.de</email>
       </author>
+      <author>
+        <firstname>Ignaz</firstname>
+        <surname>Forster</surname>
+        <email>iforster@suse.com</email>
+      </author>
     </authorgroup>
-    <releaseinfo>Version 0.1, 15. December 2017</releaseinfo>
+    <releaseinfo>Version 0.2, 14. March 2019</releaseinfo>
     <abstract>
       <para>
-	This documentation describes how transactional update with btrfs
-	works, what an administrator needs to know about the system setup and
-	what a packager needs to know for his package.
+	This is the documentation for transactional-update and is intended for
+	users, administrators and packagers.
+      </para>
+      <para> It describes how transactional-update with Btrfs works by giving
+	an overview of the design, what an administrator needs to know about
+	setting up and operating such a system and what a packager needs to
+	know for creating compatible packages.
       </para>
     </abstract>
   </bookinfo>
@@ -27,61 +36,76 @@
       <title>Description</title>
       <para>
         <emphasis remap='B'>transactional-update</emphasis>
-	is an application that allows to apply intrusive updates to a running
-	system in an <emphasis>atomic</emphasis> way without influencing the
-	running	system, taking the system down for a longer period or blocks
-	the boot process. It is not a package manager, while implemented for
-	zypper with RPMs, it can be changed to use other package managers
-	and package formats. The idea and reason for this is, that you can
-	continue to use your existing packages and tool chain to deliver
-	and apply updates.
+	is an application that allows to update a Linux system and its
+	applications in an <emphasis>atomic</emphasis> way: The update will
+	be performed in the background, not influencing the currently
+	running system. The update will be activated by	a reboot instead,
+	similar to
+	<ulink url="https://rpm-ostree.readthedocs.io/en/latest/">rpm-ostree</ulink>
+	or CoreOS' previous Container OS. However
+	<emphasis remap='B'>transactional-update</emphasis> is not another
+	package manager, but is reusing the existing system tools such as
+	<emphasis>RPM</emphasis> as the packaging format and
+	<emphasis>zypper</emphasis> as the package manager. It depends on
+	<emphasis>Btrfs</emphasis> due to its snapshotting and
+	copy-on-write features.
       </para>
       <para>
-	To archive this, <emphasis remap='B'>transactional-update</emphasis>
-	creates for every update a new snapshot with
-	<emphasis>btrfs</emphasis> and updates this to the latest version of
-	the product. Since snapshots contain only the difference between two
-	versions and thus are mostly very small, this is very space efficient.
-        Which also means you can have more parallel installations than just
-        two bootable root partitions.
+	The idea and reason to build up on existing tools is the ability
+	to continue using existing packages and tool chains for delivery and
+	application of updates. While currently only implemented for (open)SUSE
+	environments the concept is vendor independent and may also be
+	implemented for other package managers and package formats.
+      </para>
+      <para>
+	Conceptually <emphasis remap='B'>transactional-update</emphasis>
+	creates a new snapshot with <emphasis>btrfs</emphasis> before
+	performing any update and uses that snapshot for modifications.
+	Since btrfs snapshots contain only the difference between two versions
+	and thus are usually very small updates done with
+	<emphasis remap='B'>transactional-update</emphasis> are very space
+	efficient.
+	This also means several snapshots can be installed at the same time
+	without a problem.
       </para>
     </section>
 
     <section id="tu-introduction-definition">
       <title>Definition</title>
       <para>
-	A <emphasis>transactional update</emphasis> is a kind of update that:
+	A <emphasis>transactional update</emphasis> (also known as
+	<emphasis>atomic upgrade</emphasis>) is an update that
       </para>
       <itemizedlist>
 	<listitem>
 	  <para>
-	    is atomic
+	    is atomic:
 	  </para>
 	  <itemizedlist>
 	    <listitem>
 	      <para>
-		the update does not influence your running system.
+		The update does not influence the running system.
 	      </para>
 	    </listitem>
 	    <listitem>
 	      <para>
-		you can at every time power off your machine. If you power it
-		on again, either you have your unmodified old state, or the
-		complete new one.
+		The machine can be powered off at any time. When powered on
+		again either the unmodified old state or the new state is
+		active, but no state in between.
 	      </para>
 	    </listitem>
 	  </itemizedlist>
 	</listitem>
 	<listitem>
 	  <para>
-	    can be rolled back
-	    </para>
+	    can be rolled back:
+	  </para>
 	  <itemizedlist>
 	    <listitem>
 	      <para>
-		if the upgrade fails or if the newer software
-		version is not compatible with your infrastructure, you can
-		quickly  restore the situation as it was before the upgrade.
+		If the upgrade fails or if a newer software version turns out
+		to not be compatible with your infrastructure, the system can
+		quickly be restored to a previous state.
 	      </para>
 	    </listitem>
 	  </itemizedlist>
@@ -90,72 +114,106 @@
     </section>
 
     <section id="tu-introduction-reason">
-      <title>Why transactional updates?</title>
+      <title>Motivation</title>
       <para>
-	Linux distributions have working update mechanism since many, many
-	years, why do we need something new? There are different users,
-	which have different requirements. We have the Desktop user on a very
-	stable distribution, for whom the current update mechanism good
-	enough. But we also have the bleeding edge distribtuion with rolling
-	updates and the enterprise customer with critical applications, which
-	have different requirements.
+	Linux distributions have had working update mechanisms for many, many
+	years - so why do we need something new? Distributions evolved,
+	introducing new concepts such as rolling releases, containers or long
+	time support releases. While the classical update mechanisms are
+	probably perfectly fine for a regular desktop user, using a
+	distribution with regular releases, other concepts may require
+	different concepts.
       </para>
       <para>
-	Distributions wit "rolling" updates face the problem: how should
-	intrusive updates be applied in a running system? Without breaking the
-	update mechanism itself? Like the migration from SysV init to
-	systemd. Or the big version update of the Desktop while the Desktop is
-	running. Very likely will this update kill the currently running
-	Desktop, which would kill the update process, which leaves the system
-	in a broken, undefined state. Additional, if an update breaks such a
-	system, there needs to be a quick way to rollback the system to the
-	last working state.
+	Distributions with <emphasis role="bold">rolling updates</emphasis> face
+	the problem: how should intrusive updates be applied to a running system
+	- without breaking the update mechanism itself? Examples like the
+	migration from SysV init to systemd, a major version update of a desktop
+	environment while the desktop is still running or even only a small
+	update to D-Bus may give a good idea of the problem. The desktop
+	environment may simply terminate, killing the update process and leaving
+	the system in a broken, undefined state. If any update breaks such a
+	system there needs to be a quick way to roll back the system to the last
+	working state.
       </para>
       <para>
-	On mission critical systems, the update is not allowed to interrupt
-	the running services. On such systems, interrupting running services
-	is more expensive than a scheduled reboot. And the system needs always
-	to be in a defined state. Which means, the updates are applied without
-	error or no change is done. E.g. if a post-install script of a RPM
-	fails, the system is in an undefined state, which should never happen.
+	On <emphasis role="bold">mission critical systems</emphasis> you want to
+	make sure that no service or user behaviour interferes with the update
+	of the system. And conversely the update should not modify the system,
+	e.g. by uncontrolled restarts of services or unexpected modifications to
+	the system in post scripts. Potential interruptions are deferred to a
+	defined maintenance window instead. For really critical systems the
+	update can be verified (e.g. using <command>snapper diff</command>) or
+	discarded before actually booting into the new system. If an update
+	encounters an error the new snapshot will be discarded automatically.
       </para>
       <para>
-	Sometimes, new software versions of the kernel or software are
-	incompatible with your hardware or other software. In this case, there
-	should be a quick and easy way to rollback to the state before the
+	For <emphasis role="bold">cluster nodes</emphasis> it is important that
+	the system is always in a consistent state, requires no manual
+	interaction and is able to recover itself from error conditions.
+	For these systems transactional-updates provides automatic
+	updates; snapshots with failed updates will be automatically removed.
+	Automatic reboots can be triggered using a variety of different reboot
+	methods (e.g. rebootmgr, kured or systemd), making the appliance of
+	the updates cluster aware.
+      </para>
+      <para>
+	Sometimes new kernel versions or software updates are
+	incompatible with your hardware or other software. In this case there
+	should be a quick and easy way to roll back to the state before the
 	update was applied.
       </para>
       <para>
 	There are other solutions available for the above problems, like
-	downloading all RPMs upfront and apply them during the boot phase. But
-	this blocks the user from using his PC if there is something urgently
-	todo.
+	downloading all RPMs upfront and apply them during the boot phase.
+	This however will block the system for an unknown period of time
+	while the update is running, delaying the availablility of the system.
       </para>
     </section>
   </chapter>
 
   <chapter id="tu-howitworks">
-    <title>How it works</title>
-    <section id="tu-howitworks-filesystem">
+    <title>Concept</title>
+    <section id="tu-concept">
       <title>Filesystem</title>
       <para>
-	For transactional updates the snapshot functionality of
-	<emphasis>btrfs</emphasis> is used. <emphasis>Btrfs</emphasis> is a
-	general purpose Copy-on-Write (Cow) filesystem. The main feature of
-	<emphasis>btrfs</emphasis> is, that it provides subvolumes. This looks
-	like a directory, but behave like a mount point. They can be accessed
-	from the parent subvolume like a directory, or they can be mounted on
-	other directories of the same filesytem.
-	Snapshots will be created from existing subvolumes, excluding other
-	subvolumes inside of it, and are by default read-only.
+	This chapter describes the handling of the root file system, i.e. the
+	core functionality of
+	<emphasis remap='B'>transactional-update</emphasis>. Of course not
+	all information (such as
+	<filename class='directory'>/var</filename> or
+	<filename class='directory'>/home</filename>) should be stored on the
+	root volume, see <xref linkend="tu-setup" /> for a real world setup.
       </para>
       <para>
-	In theory this can be implemented with any CoW filesystem, as long as
-	it provides snapshot functionality.
+	<emphasis remap='B'>transactional-update</emphasis> is based around
+	several concepts of the <emphasis>Btrfs</emphasis> file system, a
+	general purpose Copy-on-Write (Cow) filesystem with snapshot and
+	subvolume support.
+	Subvolumes look like a directory, but behave like a mount point. They
+	can be accessed from the parent subvolume like a directory, or they can
+	be mounted on other directories of the same filesytem.
+	Snapshots will be created from existing subvolumes, excluding other
+	subvolumes inside of it, and are read-only by default.
+      </para>
+      <para>
+	Implementation note: <emphasis remap='B'>transactional-update</emphasis>
+	may also be implemented for any other file system as long as it provides
+	snapshot functionality and the ability to boot from snapshots. See
+	<xref linkend="tu-porting" /> for requirements and porting information.
       </para>
     </section>
-    <section id="tu-howitworks-update">
-      <title>Update</title>
+    <section id="tu-howitworks-chroot">
+      <title>Updating the correct snapshot</title>
+      <para>
+	transactional-update is using <emphasis>zypper</emphasis> with the
+	<option>--root</option>	option pointing to the new snapshot for package
+	management. Other commands (such as the creation of initrd) will be
+	called with <command>chroot</command>.
+      </para>
+    </section>
+    <section id="tu-howitworks-example">
+      <title>Workflow</title>
       <mediaobject>
         <imageobject>
           <imagedata fileref="png/Workflow-Start.png"/>
@@ -209,7 +267,9 @@
 	<caption>
 	  <para>
 	    In the third step the snapshot will be updated. This can be
-	    <emphasis>zypper up</emphasis> or <emphasis>zypper dup</emphasis>.
+	    <emphasis>zypper up</emphasis> or <emphasis>zypper dup</emphasis>,
+	    the installation or removal of a package or any other modification
+	    to the root file system.
 	  </para>
 	</caption>
       </mediaobject>
@@ -237,7 +297,7 @@
 	<caption>
 	  <para>
 	    The last step is to mark the updated snapshot as new root
-	    filesystem. This is now the atomic step: If the power would have
+	    filesystem. This is the atomic step: If the power would have
 	    been pulled before, the unchanged old system would have been
 	    booted. Now the new, updated system will boot.
 	  </para>
@@ -254,8 +314,8 @@
 	<caption>
 	  <para>
 	    After reboot, the newly prepared snapshot is the new root
-	    filesystem. If something bad happens, we can rollback to any of
-	    the older snapshots.
+	    filesystem. In case anything goes wrong a rollback to any of
+	    the older snapshots can be performed.
 	  </para>
 	</caption>
       </mediaobject>
@@ -269,24 +329,23 @@
         </textobject>
 	<caption>
 	  <para>
-	    If we don't reboot and call
-	    <emphasis>transactional-update</emphasis> again, a new snapshot
-	    will be created and updated. This new snapshot is based again on
-	    the current running root filesystem. It is not based on newer
-	    snapshots. Newer snapshots cannot be used as base for the next
-	    snapshot, since we don't know if they work or not. It could be,
-	    that the admin found out that a newer snapshot did not boot and
-	    made a rollback. If we always base our new snapshots on the latest
-	    one, it could happen that the system ends in a non-working,
-	    non-fixable state.
+	    If the system is not rebooted and
+	    <emphasis>transactional-update</emphasis> is called again a new
+	    snapshot will be created and updated. This new snapshot is based
+	    on the <emphasis>current</emphasis> running root filesystem again,
+	    <emphasis>not</emphasis> on the new default snapshot!
+	    For stacking changes (i.e. if several commands are supposed to be
+	    combined in one single snapshot) the <option>shell</option> command
+	    can be used to perform any number of operations.
 	  </para>
 	</caption>
       </mediaobject>
     </section>
-    <section id="tu-howitworks-commands">
-      <title>Commands used</title>
+    <section id="tu-howitworks-simplified">
+      <title>Simplified workflow</title>
       <para>
-	In the end, creating and updating snapshots are only a few commands:
+	In essence the logic of transactional-update can be summarized as
+	follows:
       </para>
       <itemizedlist>
 	<listitem>
@@ -301,7 +360,7 @@ btrfs property set ${SNAPSHOT_DIR} ro false
 	</listitem>
 	<listitem>
 	  <programlisting>
-zypper -R ${SNAPSHOT_DIR} up|patch|dup
+zypper -R ${SNAPSHOT_DIR} up|patch|dup|...
 	  </programlisting>
 	</listitem>
 	<listitem>
@@ -312,12 +371,6 @@ btrfs property set ${SNAPSHOT_DIR} ro true
 	<listitem>
 	  <programlisting>
 btrfs subvol set-default ${SNAPSHOT_DIR}
-	  </programlisting>
-	  <para>
-	    or with a read-write root filesystem:
-	  </para>
-	  <programlisting>
-snapper rollback ${SNAPSHOT_ID}
 	  </programlisting>
 	</listitem>
 	<listitem>
@@ -330,13 +383,151 @@ systemctl reboot
   </chapter>
 
   <chapter id="tu-setup">
-    <title> Setup of system </title>
+    <title>System setup</title>
+    <section id="tu-setup-readonly">
+      <title>Read-only file system</title>
+      <para>
+	<emphasis remap='B'>transactional-update</emphasis> is typically used
+	on a read-only root file system, even though it also supports
+	regular read-write systems.
+      </para>
+    </section>
+    <section id="tu-setup-var">
+      <title>/var</title>
+      <para>
+	On a system with snapshot support
+	<filename class='directory'>/var</filename> should not be part of the
+	root file system, otherwise doing a rollback to a previous state would
+	also roll back the <filename class='directory'>/var</filename>
+	contents. On a read-only system this directory also has be mounted in
+	read-write mode anyway, as several variable data is written into it.
+      </para>
+      <para>
+	Due to the volatile nature of
+	<filename class='directory'>/var</filename> the directory will
+	<emphasis>not</emphasis> be mounted into the new snapshot during the
+	<emphasis remap='B'>transactional-update</emphasis> run, as this would
+	break atomicity: The currently running system depends on the old state
+	of the data (imagine a database migration was triggered by a package).
+	Any modifications to <filename class='directory'>/var</filename>
+	therefore have to be in the new system, i.e. modifying the contents of
+	<filename class='directory'>/var</filename> as part of the packaging
+	scripts is not allowed.
+      </para>
+      <para>
+	The only exception to this rule are directories: Those will be
+	recreated during the first boot into the updated system by the
+	<emphasis>create-dirs-from-rpmdb.service</emphasis> helper service. For
+	all other cases please use one of the options described in
+	<ulink url="https://en.opensuse.org/openSUSE:Packaging_for_transactional-updates">Packaging for transactional-updates</ulink>
+	and
+	<ulink url="https://en.opensuse.org/openSUSE:Packaging_guidelines#Migration_.2F_Upgrades">Migration / Upgrade</ulink>
+	in the Packaging guidelines for more information. If a package is
+	breaking this rule a warning message indicating the affected file is
+	printed at the end of the
+	<emphasis remap='B'>transactional-update</emphasis> run.
+      </para>
+    </section>
+    <section id="tu-setup-etc">
+      <title>/etc</title>
+      <para>
+	<emphasis remap='B'>transactional-update</emphasis> also supports
+	write support to <filename class='directory'>/etc</filename> on an
+	otherwise read-only file system. To do so an
+	<emphasis>overlayfs</emphasis> layer is put on top of the system's
+	<filename class='directory'>/etc</filename> directory. All modified
+	configuration files will end up in the current snapshot's overlay in
+	<filename class='directory'>/var/lib/overlay/&lt;snapshotnum&gt;/etc</filename>.
+      </para>
+      <para>
+	Each snapshot will have one associated overlay directory. The overlay
+	directories are mounted using overlay stacking, i.e. the current
+	snapshot will mount its associated overlay as the
+	<option>upperdir</option> and the previous snapshot's overlays as
+	<option>lowerdir</option>. That means that the current snapshot will
+	see all the changes accumulated in the previous snapshots, but older
+	snapshots will not see changes applied to newer snapshots.
+      </para>
+      <para>
+	Let's have a look at an example <filename>fstab</filename> entry:
+	<programlisting>overlay  /etc  overlay  defaults,upperdir=/sysroot/var/lib/overlay/83/etc,lowerdir=/sysroot/var/lib/overlay/81/etc:/sysroot/var/lib/overlay/80/etc:/sysroot/var/lib/overlay/77/etc:/sysroot/var/lib/overlay/76/etc:/sysroot/etc,workdir=/sysroot/var/lib/overlay/work-etc,x-systemd.requires-mounts-for=/var,x-systemd.requires-mounts-for=/var/lib/overlay,x-systemd.requires-mounts-for=/sysroot/var,x-systemd.requires-mounts-for=/sysroot/var/lib/overlay,x-initrd.mount  0  0</programlisting>
+      </para>
+      <itemizedlist>
+      <listitem><para>
+	We are currently in snapshot <emphasis>83</emphasis> as indicated by the
+	<option>upperdir</option> directory. This can be confirmed by typing
+	<command>snapper list</command> or
+	<command>btrfs subvolume get-default /</command>. All changes to
+	<filename class='directory'>/etc</filename> will end up in this
+	directory.
+      </para></listitem>
+      <listitem><para>
+	<option>lowerdir</option> contains several overlays from previous
+	snapshots. In this case it seem the snapshots were not created
+	consecutively - maybe there were a few rollbacks in between or a
+	snapshot wasn't applied by rebooting into it. The lowest snapshot is
+	always <filename class='directory'>/sysroot/etc</filename>, containing
+	the root file system's contents.
+      </para></listitem>
+      <listitem><para>
+	As <filename class='directory'>/etc</filename> is mounted by
+	<application>dracut</application> during early boot the options have to
+	be prefixed with <emphasis>/sysroot</emphasis>. The
+	<command>x-systemd.</command> options are setting up the volume's
+	<application>systemd</application> dependencies correctly.
+      </para></listitem>
+      </itemizedlist>
+      <para>
+	To prevent the <filename class='directory'>/etc</filename> overlays
+	from growing infinitely they will be synced into the root file system if
+	no snapshot is referencing them any more. So please be aware that the
+	root file system's <filename class='directory'>/etc</filename> state by
+	itself does neither contain the original package contents nor the
+	snapshot's current state. Only the snapshot plus all overlay layers
+	represents the state of <filename class='directory'>/etc</filename>
+	correctly. Overlays no longer needed because they have been merged into
+	all snapshots will be deleted during the <command>transactional-update
+	cleanup</command> run.
+      </para>
+    </section>
+<!--
     <para>
       Read-only root filesystem or Read-Write filesystem? Requirements for
       RPMs, what is allowed and what not. Config files in /etc with
       overlayfs. Special handling for passwd, shadow, group. Rollback. Strict
       seperation from data and applications.
     </para>
+-->
+  </chapter>
+
+  <chapter id='tu-files'>
+    <title>Files</title>
+    <variablelist>
+      <varlistentry>
+        <term><filename>/usr/etc/transactional-update.conf</filename></term>
+        <listitem>
+          <para>
+	    TBD
+          </para>
+        </listitem>
+      </varlistentry>
+      <varlistentry>
+        <term><filename>/etc/transactional-update.conf</filename></term>
+        <listitem>
+          <para>
+	    TBD
+          </para>
+        </listitem>
+      </varlistentry>
+      <varlistentry>
+        <term><filename>/var/lib/overlay/</filename></term>
+        <listitem>
+          <para>
+	    TDB
+          </para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
   </chapter>
 
   <chapter id='tu-porting'>
@@ -347,35 +538,11 @@ systemctl reboot
     </para>
   </chapter>
 
-  <chapter id='tu-files'>
-    <title>Files</title>
-    <variablelist>
-      <varlistentry>
-        <term><filename>/usr/include/security/pam_appl.h</filename></term>
-        <listitem>
-          <para>
-            Header file with interfaces for
-            <emphasis remap='B'>Linux-PAM</emphasis> applications.
-           </para>
-        </listitem>
-      </varlistentry>
-      <varlistentry>
-        <term><filename>/usr/include/security/pam_misc.h</filename></term>
-        <listitem>
-          <para>
-            Header file for useful library functions for making
-            applications easier to write.
-          </para>
-        </listitem>
-      </varlistentry>
-    </variablelist>
-  </chapter>
-
   <chapter id='tu-author'>
     <title>Author/acknowledgments</title>
     <para>
       This document was written by Thorsten Kukuk &lt;kukuk@suse.com&gt;
-      with many contributions from ...
+      with many contributions from Ignaz Forster &lt;iforster@suse.com&gt;.
     </para>
   </chapter>
 
