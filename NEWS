@@ -2,6 +2,13 @@ transactional-update NEWS -- history of user-visible changes.
 
 Copyright (C) 2016-2019 Thorsten Kukuk
 
+Version 2.14
+* Warn user if contents of /var have been changed
+* Small cleanups
+  * Noteworthy: swapped position of upperdir and lowerdir in fstab for better
+    readability
+* Major update to the transactional-update guide
+
 Version 2.13.2
 * Add hooks for telemetrics
 
