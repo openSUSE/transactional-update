@@ -54,6 +54,7 @@ NEEDS_RESTARTING_FILE="/var/run/reboot-needed"
 LOCKFILE="/var/run/transactional-update.pid"
 ZYPPER_AUTO_IMPORT_KEYS=0
 ETC_OVERLAY_PATTERN='^[^[:space:]]\+[[:space:]]\+\/etc[[:space:]]\+overlay[[:space:]]\+\([^[:space:]]*,\|\)workdir=\/sysroot\/var\/lib\/overlay\/work-etc[,[:space:]]'
+NON_ROOTFS_WHITELIST=("/var/lib/systemd/migrated" "/var/run/zypp.pid")
 
 # Load config
 if [ -r ${SYSTEMCONFFILE} ]; then
@@ -1257,18 +1258,32 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	EXITCODE=1
     fi
 
-    # Check for installation artefacts in /var, but filter out acceptable hits
-    if [ ${HAS_SEPARATE_VAR} -eq 1 ]; then
-	filelist="$(find ${SNAPSHOT_DIR}/var \
-		-not \( -path ${SNAPSHOT_DIR}/var/lib/systemd/migrated -prune \) \
-		-not \( -path ${SNAPSHOT_DIR}/var/run/zypp.pid -prune \) \
-		-cnewer ${LOCKFILE} -not -type d)"
-	if [ -n "${filelist}" ]; then
-	    echo
-	    echo "Warning: The following files in /var were changed in the snapshot, but"
-	    echo "will not be visible to the system:"
-	    echo "${filelist}"
-	    echo
+    # Check for installation artefacts: Packages may have created files in
+    # directories outside of the root file system; these files will not be
+    # visible in the actual system as they are shadowed by the real mount
+    # points, so warn the user
+    searchdirs=""
+    for mountdir in $(awk '$2 ~ "^/.*" { print $2 }' ${SNAPSHOT_DIR}/etc/fstab); do
+	# Filter out root fs and fstab entries which we bind mounted anyway
+	if [[ ! $mountdir =~ ^(/|/etc|${DIR_TO_MOUNT// /|})$ ]]; then
+	    searchdirs+="${SNAPSHOT_DIR}${mountdir} "
+	fi
+    done
+    if [ -n "${searchdirs}" ]; then
+	filelist="$(find ${searchdirs} -cnewer ${LOCKFILE} -not -type d 2>/dev/null)"
+	# Filter acceptable hits
+	whitelist=""
+	for wlentry in "${NON_ROOTFS_WHITELIST[@]}"; do
+	    whitelist+="${SNAPSHOT_DIR}${wlentry}\|"
+	done
+	filelist="$(echo "$filelist" | grep -v "^\(${whitelist::-2}\)")"
+
+	if [ -n "$filelist" ]; then
+	    log_info
+	    log_info "Warning: The following files were changed in the snapshot, but are shadowed by"
+	    log_info "other mounts and will not be visible to the system:"
+	    log_info "${filelist}"
+	    log_info
 	fi
     fi
 
