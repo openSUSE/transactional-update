@@ -121,7 +121,7 @@ snapshot is using it any more.
 On <emphasis>read-write systems</emphasis> please be aware that all changes
 done to the running root filesystem after snapshot creation are lost after the
 next reboot. For this reason the system should be rebooted as fast as possible
-after an successful update.
+after a successful update.
 </para>
 <para>For easier maintenance of big clusters,
 <command>transactional-update</command> is run by
