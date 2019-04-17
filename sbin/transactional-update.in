@@ -1099,8 +1099,10 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
     # will delete again later.
     if [ ${HAS_SEPARATE_VAR} -eq 1 ]; then
 	mkdir ${SNAPSHOT_DIR}/var/tmp
-	mkdir -p ${SNAPSHOT_DIR}/var/lib/zypp
-	cp /var/lib/zypp/RequestedLocales ${SNAPSHOT_DIR}/var/lib/zypp/
+	if [ -f /var/lib/zypp/RequestedLocales ]; then
+	    mkdir -p ${SNAPSHOT_DIR}/var/lib/zypp
+	    cp /var/lib/zypp/RequestedLocales ${SNAPSHOT_DIR}/var/lib/zypp/
+	fi
     fi
 
     # Check if we have /var/lib/rpm, otherwise zypper will
