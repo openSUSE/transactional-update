@@ -497,9 +497,11 @@ get_etc_overlay_from() {
 sync_etc() {
     log_info "Syncing /etc of oldest snapshot $1 as base into new snapshot $2"
     get_etc_overlay_from "$1"
-    fstab_lowerdirs=("${fstab_lowerdirs[@]///sysroot\/var//var}")
     mount_opts="defaults,"
     mount_opts+="lowerdir=${fstab_upper#/sysroot}:"
+    # Replace all /sysroot prefixes; for /var it can simply be removed, the
+    # remaining root file system has to be replaced with the oldest snapshot
+    fstab_lowerdirs=("${fstab_lowerdirs[@]///sysroot\/var//var}")
     mount_opts+="`echo ${fstab_lowerdirs[@]///sysroot/$1} | tr ' ' ':'`"
     mount -t overlay overlay "${ETC_OVERLAY_DIR}" -o ${mount_opts}
     if [ $? -ne 0 ]; then
