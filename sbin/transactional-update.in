@@ -1046,6 +1046,9 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	if [ ${RUN_SHELL} -eq 1 ]; then
 	    DIR_TO_MOUNT="${DIR_TO_MOUNT} root"
 	fi
+	if [ -d /boot/writable ]; then
+	    DIR_TO_MOUNT="${DIR_TO_MOUNT} /boot/writable"
+	fi
     fi
 
     # Check which directories in /boot/grub2 need to be mounted,
