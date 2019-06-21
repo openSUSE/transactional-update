@@ -301,6 +301,7 @@ teardown() {
     if [ ${HAS_SEPARATE_VAR} -eq 1 ]; then
 	rm -rf ${SNAPSHOT_DIR}/var/tmp
 	rm -rf ${SNAPSHOT_DIR}/var/lib/zypp
+	rm -rf ${SNAPSHOT_DIR}/var/run
     fi
 
     # Unmount everything we don't need anymore:
@@ -1114,6 +1115,12 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	-e ${SNAPSHOT_DIR}/usr/lib/sysimage/rpm ]; then
 	mkdir -p ${SNAPSHOT_DIR}/var/lib
 	ln -sf ../../usr/lib/sysimage/rpm ${SNAPSHOT_DIR}/var/lib/rpm
+    fi
+
+    # Copy network configuration into chroot
+    if [ -e /var/run/netconfig ]; then
+	mkdir -p ${SNAPSHOT_DIR}/var/run
+	cp -r /var/run/netconfig ${SNAPSHOT_DIR}/var/run/
     fi
 
     # Do we need to cleanup the /var/cache directory?
