@@ -496,10 +496,26 @@ get_etc_overlay_from() {
 
 # Sync /etc mount contents to target directory
 sync_etc() {
-    log_info "Syncing /etc of oldest snapshot $1 as base into new snapshot $2"
+    local mount_opts overlay_id current_upper
+
+    get_etc_overlay_from /
+    current_upper="${fstab_upper}"
     get_etc_overlay_from "$1"
+
+    # After fresh installations there's no overlay to sync yet
+    if [ ${#fstab_lowerdirs[@]} -le 1 ]; then
+	return
+    fi
+    log_info "Syncing /etc of oldest snapshot $1 as base into new snapshot $2"
+
     mount_opts="defaults,"
-    mount_opts+="lowerdir=${fstab_upper#/sysroot}:"
+    mount_opts+="lowerdir="
+    # Special case: If the current in-use snapshot is the oldest snapshot
+    # already it will be added as a lowerdir, so don't mount it for
+    # syncing (it may change at any time anyway).
+    if [ "${fstab_upper}" != "${current_upper}" ]; then
+	mount_opts+="${fstab_upper#/sysroot}:"
+    fi
     # Replace all /sysroot prefixes; for /var it can simply be removed, the
     # remaining root file system has to be replaced with the oldest snapshot
     fstab_lowerdirs=("${fstab_lowerdirs[@]///sysroot\/var//var}")
