@@ -67,7 +67,7 @@ JH_CHECK_XML_CATALOG([http://docbook.sourceforge.net/release/xsl/current/manpage
                 [DocBook XSL Stylesheets], [], enable_man=no)
 
 m4_ifdef([AX_PYTHON_MODULE],
-	[AX_PYTHON_MODULE([lxml], , [python])],
+	[AX_PYTHON_MODULE([lxml])],
 	[m4_warn([unsupported], [Missing macro AX_PYTHON_MODULE: please install
 	  autoconf-archive to enable Python module checks.])])
 AS_IF([test "${HAVE_PYMOD_LXML}" != "yes"], enable_man=no)

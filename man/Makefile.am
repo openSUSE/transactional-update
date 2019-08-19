@@ -43,7 +43,7 @@ define html_alias
 endef
 
 transactional-update.index.xml: make-man-index.py $(XMLS)
-	python $(srcdir)/make-man-index.py $(srcdir)/$@ $(XMLS)
+	python3 $(srcdir)/make-man-index.py $(srcdir)/$@ $(XMLS)
 
 transactional-update.8: transactional-update.8.xml
 	$(XSLTPROC) -o $(srcdir)/$@ --path $(srcdir) $(XSLTPROC_FLAGS_MAN) $<
