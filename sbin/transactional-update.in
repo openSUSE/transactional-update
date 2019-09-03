@@ -935,7 +935,14 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	TMPFILE=`mktemp /tmp/transactional-update.XXXXXXXXXX`
 	zypper --xml ${ZYPPER_ARG} ${ZYPPER_NONINTERACTIVE} --dry-run "${ZYPPER_ARG_PKGS[@]}" > ${TMPFILE}
 	if [ $? -ne 0 ]; then
-	    LOG_MESSAGES=`awk -v RS='<' -v FS='>' '{if ($1 ~ /^(message|description)/) print $2}' ${TMPFILE} | perl -MHTML::Entities -pe 'decode_entities($_);'`
+	    LOG_MESSAGES=`xsltproc - ${TMPFILE} << EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+<xsl:output method="text" omit-xml-declaration="yes" indent="no"/>
+<xsl:template match="/stream/message"><xsl:value-of select="."/><xsl:text>&#xa;</xsl:text></xsl:template>
+<xsl:template match="/stream/description"><xsl:value-of select="."/><xsl:text>&#xa;</xsl:text></xsl:template>
+<xsl:template match="text()|@*"/></xsl:stylesheet>
+EOF`
 	    log_error "ERROR: Zypper failed with the following message(s):"
 	    log_error "${LOG_MESSAGES}"
 	    rm -f ${TMPFILE}
