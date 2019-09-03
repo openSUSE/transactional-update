@@ -1298,7 +1298,8 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
     # visible in the actual system as they are shadowed by the real mount
     # points, so warn the user
     searchdirs=""
-    for mountdir in $(awk '$2 ~ "^/.*" { print $2 }' ${SNAPSHOT_DIR}/etc/fstab); do
+    # Filter out commented lines and swap partition
+    for mountdir in $(awk '$1 !~ "^#.*" && $2 ~ "^/.*" { print $2 }' ${SNAPSHOT_DIR}/etc/fstab); do
 	# Filter out root fs and fstab entries which we bind mounted anyway
 	if [[ ! $mountdir =~ ^(/|/etc|${DIR_TO_MOUNT// /|})$ ]]; then
 	    searchdirs+="${SNAPSHOT_DIR}${mountdir} "
