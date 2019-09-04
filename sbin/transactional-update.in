@@ -536,12 +536,6 @@ sync_etc() {
 
 ORIG_ARGS=("$@")
 
-# If no option is given, assume "up"
-if [ $# -eq 0 ]; then
-    ZYPPER_ARG="up"
-    TELEM_CLASS="update"
-fi
-
 while [ 1 ]; do
     if [ $# -eq 0 ]; then
 	break
@@ -714,8 +708,11 @@ while [ 1 ]; do
     esac
 done
 
-if [ $# -ne 0 ]; then
-    usage 1
+# If no commands were given, assume "up"
+if [ -z "${ZYPPER_ARG}" -a -z "${TELEM_CLASS}" -a "${REBOOT_AFTERWARDS}" -eq 0 \
+	-a "${DO_REGISTRATION}" -eq 0 -a "${DO_CLEANUP}" -eq 0 ]; then
+    ZYPPER_ARG="up"
+    TELEM_CLASS="update"
 fi
 
 # Check if this is a self-updated transactional-update; if it isn't lock and
