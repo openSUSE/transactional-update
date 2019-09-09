@@ -1142,7 +1142,8 @@ EOF`
     fi
 
     # Copy network configuration into chroot
-    if [ -e /var/run/netconfig ]; then
+    if [ -e /var/run/netconfig -a ${HAS_SEPARATE_VAR} -eq 1 ]; then
+	rm -rf ${SNAPSHOT_DIR}/var/run
 	mkdir -p ${SNAPSHOT_DIR}/var/run
 	cp -r /var/run/netconfig ${SNAPSHOT_DIR}/var/run/
     fi
