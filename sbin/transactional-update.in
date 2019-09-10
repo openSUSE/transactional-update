@@ -1169,26 +1169,13 @@ EOF`
     if [ -n "${ZYPPER_ARG}" ]; then
 
 	log_info "Calling zypper ${ZYPPER_ARG}"
-	if [ -n "${ZYPPER_NONINTERACTIVE}" ]; then
-	    # In non-interactive mode, we redirect everything to a log file
-	    if [ ${DO_MIGRATION} -eq 1 ]; then
-		# transactional-update migration
-		env DISABLE_RESTART_ON_UPDATE=yes zypper ${ZYPPER_ARG} --root ${MOUNT_DIR} ${ZYPPER_NONINTERACTIVE} "${ZYPPER_ARG_PKGS[@]}" |& tee -a ${LOGFILE}
-		RETVAL=${PIPESTATUS[0]}
-	    else
-		env DISABLE_RESTART_ON_UPDATE=yes zypper -R ${MOUNT_DIR} ${ZYPPER_ARG} ${ZYPPER_NONINTERACTIVE} "${ZYPPER_ARG_PKGS[@]}" |& tee -a ${LOGFILE}
-		RETVAL=${PIPESTATUS[0]}
-	    fi
+	if [ ${DO_MIGRATION} -eq 1 ]; then
+	    # transactional-update migration
+	    env DISABLE_RESTART_ON_UPDATE=yes zypper ${ZYPPER_ARG} --root ${MOUNT_DIR} ${ZYPPER_NONINTERACTIVE} "${ZYPPER_ARG_PKGS[@]}" |& tee -a ${LOGFILE}
+	    RETVAL=${PIPESTATUS[0]}
 	else
-	    # in interactive mode, we don't redirect to a log file
-	    if [ ${DO_MIGRATION} -eq 1 ]; then
-		# transactional-update migration
-		env DISABLE_RESTART_ON_UPDATE=yes zypper ${ZYPPER_ARG} --root ${MOUNT_DIR} "${ZYPPER_ARG_PKGS[@]}"
-		RETVAL=$?
-	    else
-		env DISABLE_RESTART_ON_UPDATE=yes zypper -R ${MOUNT_DIR} ${ZYPPER_ARG} "${ZYPPER_ARG_PKGS[@]}"
-		RETVAL=$?
-	    fi
+	    env DISABLE_RESTART_ON_UPDATE=yes zypper -R ${MOUNT_DIR} ${ZYPPER_ARG} ${ZYPPER_NONINTERACTIVE} "${ZYPPER_ARG_PKGS[@]}" |& tee -a ${LOGFILE}
+	    RETVAL=${PIPESTATUS[0]}
 	fi
 	# in case of migration, we need to do a little bit more:
 	if [ ${DO_MIGRATION} -eq 1 ]; then
