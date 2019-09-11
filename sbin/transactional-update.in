@@ -924,49 +924,6 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
        log_info "WARNING: Any changes within the previous snapshot will be discarded!"
     fi
 
-    # Check if there are updates at all. Don't check if we do
-    # a registration, as this can change the zypper result.
-    if [ -n "${ZYPPER_ARG}" -a -n "${ZYPPER_NONINTERACTIVE}" \
-         -a ${DO_REGISTRATION} -eq 0 -a ${DO_MIGRATION} -eq 0 ]; then
-
-	TMPFILE=`mktemp /tmp/transactional-update.XXXXXXXXXX`
-	zypper --xml ${ZYPPER_ARG} ${ZYPPER_NONINTERACTIVE} --dry-run "${ZYPPER_ARG_PKGS[@]}" > ${TMPFILE}
-	if [ $? -ne 0 ]; then
-	    LOG_MESSAGES=`xsltproc - ${TMPFILE} << EOF
-<?xml version="1.0" encoding="UTF-8"?>
-<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
-<xsl:output method="text" omit-xml-declaration="yes" indent="no"/>
-<xsl:template match="/stream/message"><xsl:value-of select="."/><xsl:text>&#xa;</xsl:text></xsl:template>
-<xsl:template match="/stream/description"><xsl:value-of select="."/><xsl:text>&#xa;</xsl:text></xsl:template>
-<xsl:template match="text()|@*"/></xsl:stylesheet>
-EOF`
-	    log_error "ERROR: Zypper failed with the following message(s):"
-	    log_error "${LOG_MESSAGES}"
-	    rm -f ${TMPFILE}
-	    echo "Use '--interactive' for manual problem resolution."
-	    quit 1
-	fi
-	PACKAGE_UPDATES=`grep "install-summary download-size" ${TMPFILE} | sed -e 's|.*install-summary download-size=\"\(.*\)\" space-usage-diff.*|\1|g'`
-	SIZE_OF_UPDATES=`grep "install-summary.*space-usage-diff" ${TMPFILE} | sed -e 's|.*install-summary.*space-usage-diff=\"\([^"]*\)\".*|\1|g'`
-	NUM_OF_UPDATES=`grep "install-summary.*packages-to-change" ${TMPFILE} | sed -e 's|.*install-summary.*packages-to-change=\"\([^"]*\)\".*|\1|g'`
-	rm -f ${TMPFILE}
-	TELEM_PAYLOAD="${TELEM_PAYLOAD}\npackages=${NUM_OF_UPDATES}\ndownload_size=${PACKAGE_UPDATES}\nspace-usage=${SIZE_OF_UPDATES}"
-	if [ "${NUM_OF_UPDATES}" = "0" ] || [ -z "${NUM_OF_UPDATES}" -a "${PACKAGE_UPDATES}" = "0" -a "${SIZE_OF_UPDATES}" = "0" ]; then
-	    log_info "zypper: nothing to update"
-	    log_info "transactional-update finished"
-	    if [ $USE_SALT_GRAINS -eq 1 ]; then
-		log_info "Updating salt grains"
-		if [ -f /etc/salt/grains ]; then
-		    # Reset tx_update_failed if it exists. Could have been set due to wrong
-		    # repository configuration or another temporary error before.
-		    sed -i -e 's|tx_update_failed:.*|tx_update_failed: false|g' /etc/salt/grains
-		fi
-	    fi
-	    telem_finish 0
-	    exit 0
-	fi
-    fi
-
     # Create the working snapshot
     SNAPSHOT_ID=`snapper create -p -u "transactional-update-in-progress=yes" -d "Snapshot Update of #${CURRENT_SNAPSHOT_ID}"`
     if [ $? -ne 0 ]; then
@@ -1174,6 +1131,27 @@ EOF`
 	    env DISABLE_RESTART_ON_UPDATE=yes zypper ${ZYPPER_ARG} --root ${MOUNT_DIR} ${ZYPPER_NONINTERACTIVE} "${ZYPPER_ARG_PKGS[@]}" |& tee -a ${LOGFILE}
 	    RETVAL=${PIPESTATUS[0]}
 	else
+	    # Check if there are updates at all.
+	    TMPFILE=`mktemp /tmp/transactional-update.XXXXXXXXXX`
+	    zypper -R ${MOUNT_DIR} --xml ${ZYPPER_ARG} -y --auto-agree-with-product-licenses --dry-run "${ZYPPER_ARG_PKGS[@]}" > ${TMPFILE}
+	    PACKAGE_UPDATES=`grep "install-summary download-size" ${TMPFILE} | sed -e 's|.*install-summary download-size=\"\(.*\)\" space-usage-diff.*|\1|g'`
+	    SIZE_OF_UPDATES=`grep "install-summary.*space-usage-diff" ${TMPFILE} | sed -e 's|.*install-summary.*space-usage-diff=\"\([^"]*\)\".*|\1|g'`
+	    NUM_OF_UPDATES=`grep "install-summary.*packages-to-change" ${TMPFILE} | sed -e 's|.*install-summary.*packages-to-change=\"\([^"]*\)\".*|\1|g'`
+	    rm -f ${TMPFILE}
+	    TELEM_PAYLOAD="${TELEM_PAYLOAD}\npackages=${NUM_OF_UPDATES}\ndownload_size=${PACKAGE_UPDATES}\nspace-usage=${SIZE_OF_UPDATES}"
+	    if [ "${NUM_OF_UPDATES}" = "0" ] || [ -z "${NUM_OF_UPDATES}" -a "${PACKAGE_UPDATES}" = "0" -a "${SIZE_OF_UPDATES}" = "0" ]; then
+		log_info "zypper: nothing to update"
+		if [ $USE_SALT_GRAINS -eq 1 ]; then
+		    log_info "Updating salt grains"
+		    if [ -f /etc/salt/grains ]; then
+			# Reset tx_update_failed if it exists. Could have been set due to wrong
+			# repository configuration or another temporary error before.
+			sed -i -e 's|tx_update_failed:.*|tx_update_failed: false|g' /etc/salt/grains
+		    fi
+		fi
+		quit 0
+	    fi
+
 	    env DISABLE_RESTART_ON_UPDATE=yes zypper -R ${MOUNT_DIR} ${ZYPPER_ARG} ${ZYPPER_NONINTERACTIVE} "${ZYPPER_ARG_PKGS[@]}" |& tee -a ${LOGFILE}
 	    RETVAL=${PIPESTATUS[0]}
 	fi
@@ -1207,6 +1185,9 @@ EOF`
 	    TELEM_PAYLOAD="${TELEM_PAYLOAD}\nnext_version=${VERSION_ID}"
 	else
 	    log_error "ERROR: zypper ${ZYPPER_ARG} on ${MOUNT_DIR} failed with exit code ${RETVAL}!"
+	    if [ -n "${ZYPPER_NONINTERACTIVE}" ]; then
+		echo "Use '--interactive' for manual problem resolution."
+	    fi
 	    EXITCODE=1
 	fi
     fi
