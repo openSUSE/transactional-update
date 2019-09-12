@@ -134,10 +134,15 @@ for more information.
 </refsect1>
 
 <refsect1 id='commands'><title>COMMANDS</title>
+<para>
+  If none of the following commands is given <option>up</option> will be
+  assumed.
+</para>
 <refsect2 id='general_commands'><title>General Commands</title>
 <para>
   General Commands can be used together in any combination; additionally they
   can be extended with one <link linkend='pkg_commands'>Package Command</link>.
+  The order of the General Commands doesn't matter.
 </para>
 <variablelist remap='TP'>
   <varlistentry>
@@ -197,12 +202,17 @@ for more information.
     <term><option>reboot</option></term>
     <listitem>
       <para>
-	If a new snapshot with updates was created, the system should be
-	rebooted. This option will trigger the necessary reboot. If the
+	Trigger a reboot after updating the system.
+      </para>
+      <para>
+	Several different reboot methods are supported, configurable via the
+	<option>REBOOT_METHOD</option> configuration option in
+	<citerefentry><refentrytitle>transactional-update.conf</refentrytitle><manvolnum>5</manvolnum></citerefentry>.
+	By default
 	<citerefentry><refentrytitle>rebootmgrd</refentrytitle><manvolnum>8</manvolnum></citerefentry>
-	is running, <command>transactional-update</command> will tell the
-	daemon to reboot the system according to the configured policies. Else
-	<command>systemctl reboot</command> is called.
+	will be used to reboot the system according to the configured policies
+	if the service is running, otherwise <command>systemctl reboot</command>
+	will be called.
       </para>
     </listitem>
   </varlistentry>
@@ -236,9 +246,10 @@ for more information.
   <option>--non-interactive</option> options.
 </para>
 <para>
-  Note that when using Package Commands non-interactively and combining them
-  with <link linkend='general_commands'>General Commands</link> the General
-  Commands will only be executed if the Package Command updated any packages.
+  To facilitate scripting Package Commands will exit early if no packages were
+  updated; if combined with
+  <link linkend='general_commands'>General Commands</link> those will not be
+  executed any more in that case.
 </para>
 <refsect3 id='ni_pkg_commands'><title>Non-interactive Package Commands</title>
 <variablelist>
