@@ -16,7 +16,7 @@
         <email>iforster@suse.com</email>
       </author>
     </authorgroup>
-    <releaseinfo>Version 0.2, 14. March 2019</releaseinfo>
+    <releaseinfo>Version 0.3, 12. September 2019</releaseinfo>
     <abstract>
       <para>
 	This is the documentation for transactional-update and is intended for
@@ -26,6 +26,12 @@
 	an overview of the design, what an administrator needs to know about
 	setting up and operating such a system and what a packager needs to
 	know for creating compatible packages.
+      </para>
+      <para>
+	For specific usage see the
+	<ulink url="https://kubic.opensuse.org/documentation/man-pages/transactional-update.8.html">transactional-update man page</ulink>
+	or the
+	<ulink url="https://kubic.opensuse.org/documentation/man-pages/">list of Kubic related commands</ulink>.
       </para>
     </abstract>
   </bookinfo>
@@ -507,7 +513,10 @@ systemctl reboot
         <term><filename>/usr/etc/transactional-update.conf</filename></term>
         <listitem>
           <para>
-	    TBD
+	    This is the reference configuration file for
+	    <command>transactional-update</command>, containing distribution
+	    default values. This file should not be changed by the
+	    administrator.
           </para>
         </listitem>
       </varlistentry>
@@ -515,7 +524,12 @@ systemctl reboot
         <term><filename>/etc/transactional-update.conf</filename></term>
         <listitem>
           <para>
-	    TBD
+	    To change the default configuration for
+	    <command>transactional-update</command> copy or create this file
+	    and change the options accordingly. See
+	    <ulink url="https://kubic.opensuse.org/documentation/man-pages/transactional-update.conf.5.html">transactional-update.conf(5)</ulink>
+	    for a description of the configuration options. Values from this
+	    file will overwride the distribution default values.
           </para>
         </listitem>
       </varlistentry>
@@ -523,7 +537,8 @@ systemctl reboot
         <term><filename>/var/lib/overlay/</filename></term>
         <listitem>
           <para>
-	    TDB
+	    See <xref linkend="tu-setup-etc" /> for an explanation of this
+	    directory's contents.
           </para>
         </listitem>
       </varlistentry>
