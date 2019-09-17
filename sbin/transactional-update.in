@@ -1302,6 +1302,8 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	echo "Please reboot your machine to activate the changes and avoid data loss."
 	touch "${NEEDS_RESTARTING_FILE}"
     fi
+
+    log_info "New default snapshot is #${SNAPSHOT_ID} (${SNAPSHOT_DIR})"
 fi
 
 if [ ${EXITCODE} -eq 0 ]; then
