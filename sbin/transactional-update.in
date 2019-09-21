@@ -1292,18 +1292,18 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	    log_info "Warning: The following files were changed in the snapshot, but are shadowed by"
 	    log_info "other mounts and will not be visible to the system:"
 	    log_info "${filelist}"
-	    log_info
 	fi
     fi
 
     if [ ${EXITCODE} -ne 0 ]; then
 	quit ${EXITCODE}
     elif [ $REBOOT_AFTERWARDS -eq 0 ]; then
+	echo
 	echo "Please reboot your machine to activate the changes and avoid data loss."
 	touch "${NEEDS_RESTARTING_FILE}"
     fi
 
-    log_info "New default snapshot is #${SNAPSHOT_ID} (${SNAPSHOT_DIR})"
+    log_info "New default snapshot is #${SNAPSHOT_ID} (${SNAPSHOT_DIR})."
 fi
 
 if [ ${EXITCODE} -eq 0 ]; then
