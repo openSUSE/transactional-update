@@ -1097,10 +1097,13 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
     fi
 
     # Copy network configuration into chroot
-    if [ -e /var/run/netconfig -a ${HAS_SEPARATE_VAR} -eq 1 ]; then
-	rm -rf ${SNAPSHOT_DIR}/var/run
-	mkdir -p ${SNAPSHOT_DIR}/var/run
-	cp -r /var/run/netconfig ${SNAPSHOT_DIR}/var/run/
+    # The links in /etc may either point to /var/run or /run, and the root file
+    # system snapshot may already contain the /var/run -> /run link or not.
+    if [ -e /run/netconfig ]; then
+	if [ ${HAS_SEPARATE_VAR} -eq 1 ]; then
+	    ln -sf /run ${SNAPSHOT_DIR}/var/run
+	fi
+	cp -r /run/netconfig ${SNAPSHOT_DIR}/run/
     fi
 
     # Do we need to cleanup the /var/cache directory?
