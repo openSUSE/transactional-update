@@ -1,5 +1,5 @@
 dnl Process this file with autoconf to produce a configure script.
-AC_INIT(transactional-update, 2.16)
+AC_INIT(transactional-update, 2.17)
 AM_INIT_AUTOMAKE
 AC_CONFIG_SRCDIR([sbin/transactional-update.in])
 AC_PREFIX_DEFAULT(/usr)
