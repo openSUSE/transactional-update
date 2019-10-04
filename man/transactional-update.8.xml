@@ -453,6 +453,7 @@ for more information.
 <refsect1 id='see_also'><title>SEE ALSO</title>
 <para><citerefentry><refentrytitle>transactional-update.conf</refentrytitle><manvolnum>5</manvolnum></citerefentry>,
 <citerefentry project='systemd'><refentrytitle>systemd.timer</refentrytitle><manvolnum>5</manvolnum></citerefentry>,
-<citerefentry project='systemd'><refentrytitle>systemd.time</refentrytitle><manvolnum>7</manvolnum></citerefentry></para>
+<citerefentry project='systemd'><refentrytitle>systemd.time</refentrytitle><manvolnum>7</manvolnum></citerefentry>,
+<ulink url="https://kubic.opensuse.org/documentation/transactional-update-guide/transactional-update.html">The Transactional Update Guide</ulink></para>
 </refsect1>
 </refentry>
