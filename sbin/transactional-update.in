@@ -72,6 +72,7 @@ VAR_CACHE_CLEANUP=0
 FORCE_NONINTERACTIVE=""
 SNAPSHOT_ID=""
 SNAPSHOT_DIR=""
+BASE_SNAPSHOT_ID=""
 MOUNT_DIR=""
 SNAPPER_NO_DBUS=""
 TMPFILE=""
@@ -120,35 +121,36 @@ usage() {
     echo "system."
     echo ""
     echo "General Commands:"
-    echo "cleanup                Mark unused snapshots for snapper removal"
-    echo "grub.cfg               Regenerate grub.cfg"
-    echo "bootloader             Reinstall the bootloader"
-    echo "initrd                 Regenerate initrd"
-    echo "kdump                  Regenerate kdump initrd"
-    echo "shell                  Open rw shell in new snapshot before exiting"
-    echo "reboot                 Reboot after update"
+    echo "cleanup                    Mark unused snapshots for snapper removal"
+    echo "grub.cfg                   Regenerate grub.cfg"
+    echo "bootloader                 Reinstall the bootloader"
+    echo "initrd                     Regenerate initrd"
+    echo "kdump                      Regenerate kdump initrd"
+    echo "shell                      Open rw shell in new snapshot before exiting"
+    echo "reboot                     Reboot after update"
     echo ""
     echo "Package Commands:"
     echo "Defaults: (i) interactive command; (n) non-interactive command"
-    echo "dup                    Call 'zypper dup' (n)"
-    echo "up                     Call 'zypper up' (n)"
-    echo "patch                  Call 'zypper patch' (n)"
-    echo "migration              Updates systems registered via SCC / SMT (i)"
-    echo "pkg install ...        Install individual packages (i)"
-    echo "pkg remove ...         Remove individual packages (i)"
-    echo "pkg update ...         Updates individual packages (i)"
+    echo "dup                        Call 'zypper dup' (n)"
+    echo "up                         Call 'zypper up' (n)"
+    echo "patch                      Call 'zypper patch' (n)"
+    echo "migration                  Updates systems registered via SCC / SMT (i)"
+    echo "pkg install ...            Install individual packages (i)"
+    echo "pkg remove ...             Remove individual packages (i)"
+    echo "pkg update ...             Updates individual packages (i)"
     echo ""
     echo "Standalone Commands:"
-    echo "rollback [<number>]    Set the current or given snapshot as default snapshot"
-    echo "rollback last          Set the last working snapshot as default snapshot"
+    echo "rollback [<number>]        Set the current or given snapshot as default snapshot"
+    echo "rollback last              Set the last working snapshot as default snapshot"
     echo ""
     echo "Options:"
-    echo "--interactive, -i      Use interactive mode for package command"
-    echo "--non-interactive, -n  Use non-interactive mode for package command"
-    echo "--no-selfupdate        Skip checking for newer version"
-    echo "--quiet                Don't print warnings and infos to stdout"
-    echo "--help, -h             Display this help and exit"
-    echo "--version              Display version and exit"
+    echo "--interactive, -i          Use interactive mode for package command"
+    echo "--non-interactive, -n      Use non-interactive mode for package command"
+    echo "--continue [<number>], -c  Use latest or given snapshot as base"
+    echo "--no-selfupdate            Skip checking for newer version"
+    echo "--quiet                    Don't print warnings and infos to stdout"
+    echo "--help, -h                 Display this help and exit"
+    echo "--version                  Display version and exit"
     exit $1
 }
 
@@ -494,12 +496,19 @@ get_etc_overlay_from() {
     fstab_oldest_active_snapshot="${fstab_oldest_active_snapshot:-/.snapshots/${CURRENT_SNAPSHOT_ID}/snapshot}"
 }
 
+# Replace all /sysroot prefixes from /etc fstab entry; for the overlays in /var
+# the prefix can simply be removed, while the lowest layer - the /etc directory
+# on the root file system - has to be replaced with the actual snapshot path,
+# as /etc overmounted with the current overlay already.
+parse_lowerdirs_for_mount() {
+    fstab_lowerdirs=("${fstab_lowerdirs[@]///sysroot\/var//var}")
+    echo ${fstab_lowerdirs[@]///sysroot/$1} | tr ' ' ':'
+}
+
 # Sync /etc mount contents to target directory
 sync_etc() {
-    local mount_opts overlay_id current_upper
+    local mount_opts overlay_id
 
-    get_etc_overlay_from /
-    current_upper="${fstab_upper}"
     get_etc_overlay_from "$1"
 
     # After fresh installations there's no overlay to sync yet
@@ -516,10 +525,7 @@ sync_etc() {
     if [ "${fstab_upper}" != "${current_upper}" ]; then
 	mount_opts+="${fstab_upper#/sysroot}:"
     fi
-    # Replace all /sysroot prefixes; for /var it can simply be removed, the
-    # remaining root file system has to be replaced with the oldest snapshot
-    fstab_lowerdirs=("${fstab_lowerdirs[@]///sysroot\/var//var}")
-    mount_opts+="`echo ${fstab_lowerdirs[@]///sysroot/$1} | tr ' ' ':'`"
+    mount_opts+="`parse_lowerdirs_for_mount $1`"
     mount -t overlay overlay "${ETC_OVERLAY_DIR}" -o ${mount_opts}
     if [ $? -ne 0 ]; then
 	log_error "ERROR: mount of old overlay stack from $1 failed!"
@@ -668,6 +674,16 @@ while [ 1 ]; do
 	    FORCE_NONINTERACTIVE="${ZYPPER_NONINTERACTIVE}"
 	    shift
 	    ;;
+	-c|--continue)
+	    # Check whether we got an optional snapshot number argument
+	    if [[ $2 =~ ^[0-9]+$ ]]; then
+		BASE_SNAPSHOT_ID="$2"
+		shift
+	    else
+		BASE_SNAPSHOT_ID="default"
+	    fi
+	    shift
+	    ;;
 	--no-selfupdate)
 	    DO_SELF_UPDATE=0
 	    shift
@@ -741,6 +757,14 @@ log_info "Options: ${ORIG_ARGS[@]}"
 
 telem_start
 
+SNAPPER_VERSION=`snapper --version | head -1 | cut -d ' ' -f 2`
+if [ -n "${BASE_SNAPSHOT_ID}" -a $(zypper --terse versioncmp $SNAPPER_VERSION 0.8.4) -lt 0 ]; then
+    echo "ERROR: snapper >= 0.8.4 required for --continue option!"
+    log_info "transactional-update finished"
+    telem_finish 1
+    exit 1
+fi
+
 if [ "`stat -f -c %T /`" != "btrfs" ]; then
   log_error "ERROR: not using btrfs as root file system!"
   log_info "transactional-update finished"
@@ -775,7 +799,13 @@ CURRENT_SNAPSHOT_ID=`grep subvol=/@/.snapshots/ /proc/mounts | grep "/ btrfs" | 
 DEFAULT_SNAPSHOT_ID=`btrfs subvolume get-default / | sed -e 's|.*.snapshots/\(.*\)/snapshot|\1|g'`
 RO_ROOT=`btrfs property get / ro | sed -e 's|ro=||'`
 
-get_etc_overlay_from "/.snapshots/${CURRENT_SNAPSHOT_ID}/snapshot"
+if [ -z "${BASE_SNAPSHOT_ID}" ]; then
+    BASE_SNAPSHOT_ID="${CURRENT_SNAPSHOT_ID}"
+elif [ "${BASE_SNAPSHOT_ID}" = "default" ]; then
+    BASE_SNAPSHOT_ID="${DEFAULT_SNAPSHOT_ID}"
+fi
+
+get_etc_overlay_from "/.snapshots/${BASE_SNAPSHOT_ID}/snapshot"
 if [ -n "$fstab_upper" ]; then
     log_info "/etc on overlayfs detected."
     ETC_IS_OVERLAY=1
@@ -917,18 +947,25 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
     -o ${RUN_SHELL} -eq 1 -o ${REWRITE_BOOTLOADER} -eq 1 \
     -o ${DO_REGISTRATION} -eq 1 ]; then
 
-    # If the current snapshot and the default snapshot differ
-    # there have been changes that we are now discarding.
-    if [ "${DEFAULT_SNAPSHOT_ID}" -ne "${CURRENT_SNAPSHOT_ID}" ]; then
-       log_info "WARNING: Default snapshot differs from current snapshot."
-       log_info "WARNING: Any changes within the previous snapshot will be discarded!"
+    if [ "${DEFAULT_SNAPSHOT_ID}" -ne "${BASE_SNAPSHOT_ID}" ]; then
+	log_info "WARNING: You are creating a snapshot from a different base (${BASE_SNAPSHOT_ID}) than the"
+	log_info "         current default snapshot (${DEFAULT_SNAPSHOT_ID})."
+	if [ "${BASE_SNAPSHOT_ID}" -eq "${CURRENT_SNAPSHOT_ID}" ]; then
+	    log_info "         If you want to continue a previous snapshot use the --continue"
+	    log_info "         option, otherwise the previous changes will be discarded."
+	fi
     fi
 
     # Create the working snapshot
-    SNAPSHOT_ID=`snapper create -p -u "transactional-update-in-progress=yes" -d "Snapshot Update of #${CURRENT_SNAPSHOT_ID}"`
+    snapper_args=(create --print-number --userdata "transactional-update-in-progress=yes")
+    if [ "${BASE_SNAPSHOT_ID}" -ne "${CURRENT_SNAPSHOT_ID}" ]; then
+	snapper_args+=(--from ${BASE_SNAPSHOT_ID})
+    fi
+    snapper_args+=(--description "Snapshot Update of #${BASE_SNAPSHOT_ID}")
+    SNAPSHOT_ID=`snapper "${snapper_args[@]}"`
     if [ $? -ne 0 ]; then
 	SNAPPER_NO_DBUS="--no-dbus"
-	SNAPSHOT_ID=`snapper --no-dbus create -p -u "transactional-update-in-progress=yes" -d "Snapshot Update of #${CURRENT_SNAPSHOT_ID}"`
+	SNAPSHOT_ID=`snapper ${SNAPPER_NO_DBUS} "${snapper_args[@]}"`
 	if [ $? -ne 0 ]; then
 	    log_error "ERROR: snapper create failed!"
 	    quit 1
@@ -947,20 +984,24 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
     if [ ${ETC_IS_OVERLAY} -eq 1 ]; then
 	# Create new /etc overlay for snapshot
 	ETC_OVERLAY_DIR="/var/lib/overlay/${SNAPSHOT_ID}/etc"
+	ETC_OVERLAY_DIR_PREV="/var/lib/overlay/${BASE_SNAPSHOT_ID}/etc"
 	ETC_OVERLAY_WORK_DIR="${ETC_OVERLAY_DIR}-work"
 	mkdir -p "${ETC_OVERLAY_DIR}" "${ETC_OVERLAY_WORK_DIR}"
 
+	get_etc_overlay_from /
+	current_upper="${fstab_upper}"
+
 	# Copy the contents of oldest /etc layer into snapshot
 	sync_etc "${fstab_oldest_active_snapshot}" "${SNAPSHOT_DIR}"
-	get_etc_overlay_from "/.snapshots/${CURRENT_SNAPSHOT_ID}/snapshot"
+	get_etc_overlay_from "/.snapshots/${BASE_SNAPSHOT_ID}/snapshot"
 
 	# Special handling /etc/fstab{.sys}: dracut needs the *current* version
 	# of the files in the snapshot, as the overlay is not yet mounted
 	# during early boot - in fact the files are required to be able to
 	# mount the overlays
-	cp /etc/fstab "${SNAPSHOT_DIR}/etc"
-	if [ -e /etc/fstab.sys ]; then
-	    cp -a /etc/fstab.sys "${SNAPSHOT_DIR}/etc"
+	cp "${ETC_OVERLAY_DIR_PREV}/fstab" "${SNAPSHOT_DIR}/etc"
+	if [ -e "${ETC_OVERLAY_DIR_PREV}/fstab.sys" ]; then
+	    cp -a "${ETC_OVERLAY_DIR_PREV}/fstab.sys" "${SNAPSHOT_DIR}/etc"
 	fi
 
 	# Migrate fstab.sys' /var and overlay entries to regular fstab
@@ -1047,8 +1088,15 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
         quit 1
     fi
     if [ ${ETC_IS_OVERLAY} -eq 1 ]; then
+	lowerdir="${fstab_upper///sysroot\/var//var}:"
+	lowerdir+="`parse_lowerdirs_for_mount "/.snapshots/${BASE_SNAPSHOT_ID}/snapshot"`"
+	# Check whether the current upper directory is part of the snapshot's lower
+	# directory stack; if so use reuse /etc directly instead, as mounting
+	# the same upper directory multiple times is not supported by overlayfs
+	lowerdir="${lowerdir/${current_upper#/sysroot}*/\/etc}"
+
 	etc_opts="defaults,"
-	etc_opts+="lowerdir=/etc,"
+	etc_opts+="lowerdir=${lowerdir},"
 	etc_opts+="upperdir=${ETC_OVERLAY_DIR},"
 	etc_opts+="workdir=${ETC_OVERLAY_WORK_DIR}"
 	mount -t overlay overlay ${SNAPSHOT_DIR}/etc -o ${etc_opts}

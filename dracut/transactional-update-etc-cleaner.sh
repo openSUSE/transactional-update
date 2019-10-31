@@ -56,7 +56,36 @@ if [ -e "${TU_FLAGFILE}" ]; then
   PREV_ETC_OVERLAY="${NEWROOT}/var/lib/overlay/${PREV_SNAPSHOT_ID}/etc"
 
   if [ "${CURRENT_SNAPSHOT_ID}" = "${EXPECTED_SNAPSHOT_ID}" -a -e "${CURRENT_ETC_OVERLAY}" ]; then
+    NEW_OVERLAYS=()
+    for option in `findmnt --noheadings --output OPTIONS /${NEWROOT}/etc | tr ',' ' '`; do
+      case "${option%=*}" in
+        upperdir)
+          NEW_OVERLAYS[0]="${option#*=}"
+          ;;
+        lowerdir)
+          # If the previous overlay is not part of the stack just skip
+          if [[ $option != *"${PREV_ETC_OVERLAY}"* ]]; then
+            NEW_OVERLAYS=()
+            break
+          fi
+
+          i=1
+          for lowerdir in `echo ${option#*=} | tr ':' ' '`; do
+            if [ ${lowerdir} = ${PREV_ETC_OVERLAY} ]; then
+              break
+            fi
+            NEW_OVERLAYS[$i]="${lowerdir}"
+            ((i++))
+          done
+          ;;
+      esac
+    done
+
     rm "${TU_FLAGFILE}"
-    warn_on_conflicting_files
+
+    for overlay in "${NEW_OVERLAYS[@]}"; do
+      CURRENT_ETC_OVERLAY="${overlay}"
+      warn_on_conflicting_files
+    done
   fi
 fi
