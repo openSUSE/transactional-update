@@ -72,6 +72,7 @@ VAR_CACHE_CLEANUP=0
 FORCE_NONINTERACTIVE=""
 SNAPSHOT_ID=""
 SNAPSHOT_DIR=""
+BASE_SNAPSHOT_ID=""
 MOUNT_DIR=""
 SNAPPER_NO_DBUS=""
 TMPFILE=""
@@ -120,35 +121,36 @@ usage() {
     echo "system."
     echo ""
     echo "General Commands:"
-    echo "cleanup                Mark unused snapshots for snapper removal"
-    echo "grub.cfg               Regenerate grub.cfg"
-    echo "bootloader             Reinstall the bootloader"
-    echo "initrd                 Regenerate initrd"
-    echo "kdump                  Regenerate kdump initrd"
-    echo "shell                  Open rw shell in new snapshot before exiting"
-    echo "reboot                 Reboot after update"
+    echo "cleanup                    Mark unused snapshots for snapper removal"
+    echo "grub.cfg                   Regenerate grub.cfg"
+    echo "bootloader                 Reinstall the bootloader"
+    echo "initrd                     Regenerate initrd"
+    echo "kdump                      Regenerate kdump initrd"
+    echo "shell                      Open rw shell in new snapshot before exiting"
+    echo "reboot                     Reboot after update"
     echo ""
     echo "Package Commands:"
     echo "Defaults: (i) interactive command; (n) non-interactive command"
-    echo "dup                    Call 'zypper dup' (n)"
-    echo "up                     Call 'zypper up' (n)"
-    echo "patch                  Call 'zypper patch' (n)"
-    echo "migration              Updates systems registered via SCC / SMT (i)"
-    echo "pkg install ...        Install individual packages (i)"
-    echo "pkg remove ...         Remove individual packages (i)"
-    echo "pkg update ...         Updates individual packages (i)"
+    echo "dup                        Call 'zypper dup' (n)"
+    echo "up                         Call 'zypper up' (n)"
+    echo "patch                      Call 'zypper patch' (n)"
+    echo "migration                  Updates systems registered via SCC / SMT (i)"
+    echo "pkg install ...            Install individual packages (i)"
+    echo "pkg remove ...             Remove individual packages (i)"
+    echo "pkg update ...             Updates individual packages (i)"
     echo ""
     echo "Standalone Commands:"
-    echo "rollback [<number>]    Set the current or given snapshot as default snapshot"
-    echo "rollback last          Set the last working snapshot as default snapshot"
+    echo "rollback [<number>]        Set the current or given snapshot as default snapshot"
+    echo "rollback last              Set the last working snapshot as default snapshot"
     echo ""
     echo "Options:"
-    echo "--interactive, -i      Use interactive mode for package command"
-    echo "--non-interactive, -n  Use non-interactive mode for package command"
-    echo "--no-selfupdate        Skip checking for newer version"
-    echo "--quiet                Don't print warnings and infos to stdout"
-    echo "--help, -h             Display this help and exit"
-    echo "--version              Display version and exit"
+    echo "--interactive, -i          Use interactive mode for package command"
+    echo "--non-interactive, -n      Use non-interactive mode for package command"
+    echo "--continue [<number>], -c  Use latest or given snapshot as base"
+    echo "--no-selfupdate            Skip checking for newer version"
+    echo "--quiet                    Don't print warnings and infos to stdout"
+    echo "--help, -h                 Display this help and exit"
+    echo "--version                  Display version and exit"
     exit $1
 }
 
@@ -668,6 +670,16 @@ while [ 1 ]; do
 	    FORCE_NONINTERACTIVE="${ZYPPER_NONINTERACTIVE}"
 	    shift
 	    ;;
+	-c|--continue)
+	    # Check whether we got an optional snapshot number argument
+	    if [[ $2 =~ ^[0-9]+$ ]]; then
+		BASE_SNAPSHOT_ID="$2"
+		shift
+	    else
+		BASE_SNAPSHOT_ID="default"
+	    fi
+	    shift
+	    ;;
 	--no-selfupdate)
 	    DO_SELF_UPDATE=0
 	    shift
@@ -740,6 +752,14 @@ log_info "transactional-update @VERSION@ started"
 log_info "Options: ${ORIG_ARGS[@]}"
 
 telem_start
+
+SNAPPER_VERSION=`snapper --version | head -1 | cut -d ' ' -f 2`
+if [ -n "${BASE_SNAPSHOT_ID}" -a $(zypper --terse versioncmp $SNAPPER_VERSION 0.8.4) -lt 0 ]; then
+    echo "ERROR: snapper version is too old for --continue option!"
+    log_info "transactional-update finished"
+    telem_finish 1
+    exit 1
+fi
 
 if [ "`stat -f -c %T /`" != "btrfs" ]; then
   log_error "ERROR: not using btrfs as root file system!"
@@ -917,18 +937,28 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
     -o ${RUN_SHELL} -eq 1 -o ${REWRITE_BOOTLOADER} -eq 1 \
     -o ${DO_REGISTRATION} -eq 1 ]; then
 
-    # If the current snapshot and the default snapshot differ
-    # there have been changes that we are now discarding.
-    if [ "${DEFAULT_SNAPSHOT_ID}" -ne "${CURRENT_SNAPSHOT_ID}" ]; then
-       log_info "WARNING: Default snapshot differs from current snapshot."
-       log_info "WARNING: Any changes within the previous snapshot will be discarded!"
+    if [ -z "${BASE_SNAPSHOT_ID}" ]; then
+	BASE_SNAPSHOT_ID="${CURRENT_SNAPSHOT_ID}"
+    elif [ "${BASE_SNAPSHOT_ID}" = "default" ]; then
+	BASE_SNAPSHOT_ID="${DEFAULT_SNAPSHOT_ID}"
+    fi
+
+    if [ "${DEFAULT_SNAPSHOT_ID}" -ne "${BASE_SNAPSHOT_ID}" ]; then
+	log_info "WARNING: You are creating a snapshot from a different base than the current"
+	log_info "         default snapshot. If you want to continue a previous snapshot use the"
+	log_info "         --continue option, otherwise the previous changes will be discarded."
     fi
 
     # Create the working snapshot
-    SNAPSHOT_ID=`snapper create -p -u "transactional-update-in-progress=yes" -d "Snapshot Update of #${CURRENT_SNAPSHOT_ID}"`
+    snapper_args=(create --print-number --userdata "transactional-update-in-progress=yes")
+    if [ "${BASE_SNAPSHOT_ID}" -ne "${CURRENT_SNAPSHOT_ID}" ]; then
+	snapper_args+=(--from ${BASE_SNAPSHOT_ID})
+    fi
+    snapper_args+=(--description "Snapshot Update of #${BASE_SNAPSHOT_ID}")
+    SNAPSHOT_ID=`snapper "${snapper_args[@]}"`
     if [ $? -ne 0 ]; then
 	SNAPPER_NO_DBUS="--no-dbus"
-	SNAPSHOT_ID=`snapper --no-dbus create -p -u "transactional-update-in-progress=yes" -d "Snapshot Update of #${CURRENT_SNAPSHOT_ID}"`
+	SNAPSHOT_ID=`snapper ${SNAPPER_NO_DBUS} "${snapper_args[@]}"`
 	if [ $? -ne 0 ]; then
 	    log_error "ERROR: snapper create failed!"
 	    quit 1
