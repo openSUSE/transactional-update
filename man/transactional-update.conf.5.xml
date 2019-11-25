@@ -135,6 +135,15 @@
                 </para>
               </listitem>
             </varlistentry>
+            <varlistentry>
+              <term><literal>none</literal></term>
+              <listitem>
+                <para>
+                  Ignores any reboot request, the user has to reboot the
+                  machine manually or by other means.
+                </para>
+              </listitem>
+            </varlistentry>
           </variablelist>
 	</listitem>
       </varlistentry>

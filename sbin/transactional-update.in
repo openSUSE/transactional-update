@@ -1377,6 +1377,8 @@ if [ ${EXITCODE} -eq 0 ]; then
 	    kexec)
 		reboot_via_kexec
 		;;
+	    none)
+		;;
 	    *)
 	        log_info "Unsupported reboot method, falling back to 'auto'; please"
 	        log_info "check your configuration in ${CONFFILE}."
