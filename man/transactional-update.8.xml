@@ -79,12 +79,13 @@ needs to be rebooted.
 </para>
 <para>
 To achieve this <command>transactional-update</command> is using Btrfs'
-snapshot mechanism. Updates will be performed in a new snapshot of the root
-file system. The snapshot is created with
-<citerefentry project='snapper'><refentrytitle>snapper</refentrytitle><manvolnum>8</manvolnum></citerefentry>,
-for the update
+snapshot mechanism, combined with the default distribution tools. Whenever an
+update of the root file system is going to be performed,
+<citerefentry project='snapper'><refentrytitle>snapper</refentrytitle><manvolnum>8</manvolnum></citerefentry>
+will create a new snapshot of the root file system first. This new snapshot is
+then used to perform the update, e.g. by calling
 <citerefentry project='zypper'><refentrytitle>zypper</refentrytitle><manvolnum>8</manvolnum></citerefentry>
-is called with the <option>-R</option> option pointing to the new snapshot.
+with the <option>-R</option> option pointing to the new snapshot.
 If no errors occured the snapshot will be set as the new default snapshot and
 set as read-only. In case of errors the snapshot will be deleted again.
 </para>
@@ -102,12 +103,11 @@ snapshot is synchronized into the new root file system; unused overlays will be
 removed at a later time (see the <option>cleanup</option> option).
 </para>
 <warning>
-If a file was changed both in the new snapshot (e.g. if a package installed a
-new version of the configuration file or used fillup-templates) and in the
-currently running system after creation of the new snapshot (e.g. if the
-administrator or configuration management software changed a file) only the
-version of the new snapshot will be visible. When rebooting into the new
-snapshot for the first time
+If a file in <filename class='directory'>/etc</filename> has been changed
+during the update and is <emphasis>also</emphasis> changed in the running
+system after the snapshot has been taken, then only the version of the new
+snapshot will be visible after a reboot.
+When booting into the new snapshot for the first time
 <filename>transactional-update-etc-cleaner.service</filename> will print a
 warning about such conflicts to the system log file.
 </warning>
