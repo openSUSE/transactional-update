@@ -453,7 +453,7 @@ get_etc_overlay_from() {
     # Check for /etc overlay
     for fstab in "$1"/etc/fstab{,.sys}; do
 	if [ -e "$fstab" ] ; then
-	    overlay_options="`awk '$2 == "/etc" && $3 == "overlay" && $4 ~ "workdir=/sysroot/var/lib/overlay/work-etc" { print $4 }' "$fstab"`"
+	    overlay_options="`findmnt --noheadings --types "overlay" --options "workdir=/sysroot/var/lib/overlay/work-etc" --output OPTIONS --tab-file "$fstab" /etc`"
 	    [ -n "${overlay_options}" ] && break
 	fi
     done
