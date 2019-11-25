@@ -26,18 +26,23 @@ TU_FLAGFILE="${NEWROOT}/var/lib/overlay/transactional-update.newsnapshot"
 warn_on_conflicting_files() {
   local dir="${1:-.}"
   local file
-  local snapdir="${PREV_ETC_OVERLAY}/${dir}"
+  local basedir="${PREV_ETC_OVERLAY}/${dir}"
+  local checkdir="${CURRENT_ETC_OVERLAY}/${dir}"
 
-  pushd "${CURRENT_ETC_OVERLAY}/${dir}" >/dev/null
+  echo "Checking for conflicts between ${PREV_ETC_OVERLAY}/${dir} and ${CURRENT_ETC_OVERLAY}/${dir}..."
+
+  pushd "${checkdir}" >/dev/null
   for file in .[^.]* ..?* *; do
     # Filter unexpanded globs of "for" loop
     if [ ! -e "${file}" ]; then
       continue
     fi
 
-    if [ -e "${snapdir}/${file}" -a "${snapdir}/${file}" -nt "${CURRENT_ETC_OVERLAY}" ]; then
+    # Check whether a file present in a newer layer is also present in the
+    # original layer and has a timestamp from after branching the (first)
+    # snapshot.
+    if [ -e "${basedir}/${file}" -a "${basedir}/${file}" -nt "${NEW_OVERLAYS[-1]}" ]; then
       echo "WARNING: ${dir}/${file} or its contents changed in both old and new snapshot after snapshot creation!"
-      continue
     fi
 
     # Recursively process directories
