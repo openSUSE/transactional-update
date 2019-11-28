@@ -986,6 +986,11 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	ETC_OVERLAY_DIR="/var/lib/overlay/${SNAPSHOT_ID}/etc"
 	ETC_OVERLAY_DIR_PREV="/var/lib/overlay/${BASE_SNAPSHOT_ID}/etc"
 	ETC_OVERLAY_WORK_DIR="${ETC_OVERLAY_DIR}-work"
+
+	# If the user is calling `snapper delete` on the latest snapshot, then
+	# the snapshot number will be reused; make sure to delete any artifacts
+	rm -f "${ETC_OVERLAY_DIR}"
+
 	mkdir -p "${ETC_OVERLAY_DIR}" "${ETC_OVERLAY_WORK_DIR}"
 
 	get_etc_overlay_from /
