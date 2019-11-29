@@ -90,6 +90,15 @@ If no errors occured the snapshot will be set as the new default snapshot and
 set as read-only. In case of errors the snapshot will be deleted again.
 </para>
 <para>
+By default the snapshot is always branched off from the current root file
+system, i.e. calling <command>transactional-update</command> multiple times
+without rebooting will create separate, independent snapshots, not containing
+the changes of the previous run. If multiple consecutive actions are to be
+executed, the <option>--continue</option> option can be used. This will still
+create a separate snapshot for each call, so it is possible to roll back to
+previous intermediate steps in case of errors.
+</para>
+<para>
 On <emphasis>read-only systems</emphasis> each snapshot will have a
 corresponding <filename class='directory'>/etc</filename> overlay located in
 <filename class='directory'>/var/lib/overlay</filename>. As configuration files
@@ -394,6 +403,14 @@ for more information.
     <term><option>-n</option></term>
     <listitem>
       <para>Calls zypper in non-interactive mode, even if the default for this command is interactive.</para>
+    </listitem>
+  </varlistentry>
+  <varlistentry>
+    <term><option>--continue</option> <optional><replaceable>number</replaceable></optional></term>
+    <term><option>-c</option> <optional><replaceable>number</replaceable></optional></term>
+    <listitem>
+      <para>Use the given snapshot or, if no number is given, the current
+	default snapshot as a base for the next snapshot.</para>
     </listitem>
   </varlistentry>
   <varlistentry>
