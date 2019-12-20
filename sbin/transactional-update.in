@@ -1004,7 +1004,9 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	# of the files in the snapshot, as the overlay is not yet mounted
 	# during early boot - in fact the files are required to be able to
 	# mount the overlays
-	cp "${ETC_OVERLAY_DIR_PREV}/fstab" "${SNAPSHOT_DIR}/etc"
+	if [ -e "${ETC_OVERLAY_DIR_PREV}/fstab" ]; then
+	    cp "${ETC_OVERLAY_DIR_PREV}/fstab" "${SNAPSHOT_DIR}/etc"
+	fi
 	if [ -e "${ETC_OVERLAY_DIR_PREV}/fstab.sys" ]; then
 	    cp -a "${ETC_OVERLAY_DIR_PREV}/fstab.sys" "${SNAPSHOT_DIR}/etc"
 	fi
