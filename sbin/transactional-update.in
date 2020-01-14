@@ -343,6 +343,8 @@ teardown() {
     if [ $VAR_CACHE_CLEANUP -eq 1 ]; then
 	rm -rf ${SNAPSHOT_DIR}/var/cache/*
     fi
+    # Remove temporary mount point
+    rmdir --ignore-fail-on-non-empty ${SNAPSHOT_DIR}/var/lib/ca-certificates
     # systemd-tmpfiles creates directories/files even if /run is no tmpfs:
     rm -rf ${SNAPSHOT_DIR}/run/*
     # WARNING: /var/spool/ can contain changes through RPM!
@@ -1159,6 +1161,12 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	    ln -sf /run ${SNAPSHOT_DIR}/var/run
 	fi
 	cp -r /run/netconfig ${SNAPSHOT_DIR}/run/
+    fi
+
+    # Create bind mount for CA certificates to support HTTPS connections
+    if [ ${HAS_SEPARATE_VAR} -eq 1 ]; then
+	mkdir -p ${SNAPSHOT_DIR}/var/lib/ca-certificates
+	mount -o bind,ro /var/lib/ca-certificates ${SNAPSHOT_DIR}/var/lib/ca-certificates
     fi
 
     # Do we need to cleanup the /var/cache directory?
