@@ -42,6 +42,7 @@ ROLLBACK_SNAPSHOT=0
 REBOOT_AFTERWARDS=0
 REBOOT_METHOD="auto"
 RUN_SHELL=0
+SHELL_CMD=""
 USE_SALT_GRAINS=0
 USE_TELEMETRICS=0
 TELEM_PAYLOAD="PACKAGE_NAME=transactional-update\nPACKAGE_VERSION=@VERSION@"
@@ -636,6 +637,15 @@ while [ 1 ]; do
 	    test -z "$TELEM_CLASS" && TELEM_CLASS="shell"
 	    RUN_SHELL=1
 	    shift
+	    if [ "$1" = "-c" ]; then
+		if [ -z "$2" ]; then
+		    SHELL_CMD="-"
+		else
+		    SHELL_CMD="$2"
+		    shift
+		fi
+		shift
+	    fi
 	    ;;
 	initrd)
 	    test -z "$TELEM_CLASS" && TELEM_CLASS="initrd"
@@ -1070,7 +1080,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
         rm -f ${SNAPSHOT_DIR}/var/update_snapshot.test
     fi
 
-    if [ ${RUN_SHELL} -eq 1 ]; then
+    if [ ${RUN_SHELL} -eq 1 -a -z "${SHELL_CMD}" ]; then
 	DIR_TO_MOUNT="${DIR_TO_MOUNT} root"
     fi
     if [ -d /boot/writable ]; then
@@ -1291,8 +1301,16 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
     fi
 
     if [ ${RUN_SHELL} -eq 1 ]; then
-	echo "Opening chroot in snapshot ${SNAPSHOT_ID}, continue with 'exit'"
-	env PS1="transactional update # " chroot ${MOUNT_DIR} bash 2>&4
+	if [ "${SHELL_CMD}" = "-" ]; then
+	    while read line; do
+		chroot ${MOUNT_DIR} $line
+	    done < /dev/stdin
+	elif [ -n "${SHELL_CMD}" ]; then
+	    chroot ${MOUNT_DIR} ${SHELL_CMD}
+	else
+	    echo "Opening chroot in snapshot ${SNAPSHOT_ID}, continue with 'exit'"
+	    env PS1="transactional update # " chroot ${MOUNT_DIR} bash 2>&4
+	fi
     fi
 
     teardown
