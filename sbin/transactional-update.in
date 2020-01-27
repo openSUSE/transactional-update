@@ -57,6 +57,7 @@ LOCKFILE="/var/run/transactional-update.pid"
 ZYPPER_AUTO_IMPORT_KEYS=0
 ETC_OVERLAY_PATTERN='^[^[:space:]]\+[[:space:]]\+\/etc[[:space:]]\+overlay[[:space:]]\+\([^[:space:]]*,\|\)workdir=\/sysroot\/var\/lib\/overlay\/work-etc[,[:space:]]'
 NON_ROOTFS_WHITELIST=("/var/lib/rpm" "/var/lib/systemd/migrated" "/var/run/zypp.pid")
+INOTIFY_EXCLUDES=""
 
 # Load config
 if [ -r ${SYSTEMCONFFILE} ]; then
@@ -79,6 +80,7 @@ SNAPPER_NO_DBUS=""
 TMPFILE=""
 ETC_OVERLAY_DIR=""
 ETC_OVERLAY_WORK_DIR=""
+INOTIFY_PID=""
 
 # Create stderr alias for things that shouldn't be logged into logfile
 if [ ! -e /proc/$$/fd/4 ]; then
@@ -277,6 +279,14 @@ quit() {
 teardown() {
     # Unset variable
     unset TRANSACTIONAL_UPDATE
+
+    # Roll back snapshot if no changes were performed
+    if [ -n "${INOTIFY_PID}" ] && ps -q ${INOTIFY_PID} 2>&1 >/dev/null; then
+	kill ${INOTIFY_PID}
+	log_info "The snapshot does not contain any changed files."
+	INOTIFY_PID=""
+	quit 0
+    fi
 
     # Cleanup temporary files
     rm -f ${TMPFILE}
@@ -1143,6 +1153,14 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
     MOUNT_DIR=`mktemp -d`
     mount -o rbind ${SNAPSHOT_DIR} ${MOUNT_DIR}
     mount -o bind,ro /.snapshots ${MOUNT_DIR}/.snapshots
+
+    if [ $USE_SALT_GRAINS -eq 1 ]; then
+	#TODO: Handle directories with special characters (space, newline, apostrophe etc)
+	for snapmount in `findmnt --noheadings --submounts --target "${SNAPSHOT_DIR}" --output TARGET --raw | grep "${SNAPSHOT_DIR}"`; do
+	    INOTIFY_EXCLUDES="${INOTIFY_EXCLUDES} @${snapmount}"
+	done
+	INOTIFY_PID=$( ( inotifywait -r -e modify -e move -e create -e delete -e attrib "${SNAPSHOT_DIR}" ${INOTIFY_EXCLUDES} 2>&1 & echo "PID: $!" ) | ( grep -m1 '^PID: ' | cut -d ' ' -f 2 && grep -q "Watches established" ) )
+    fi
 
     # Set indicator for RPM pre/post sections to detect whether we run in a
     # transactional update
