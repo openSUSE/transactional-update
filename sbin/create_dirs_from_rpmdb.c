@@ -67,18 +67,29 @@ struct node
   uid_t user_id;
   gid_t group_id;
   time_t fmtime;
-  struct node *next;
 };
 
 struct node *dir_list = NULL;
+size_t dir_list_size = 0, dir_list_capacity = 0;
 
 /* A utility function to insert a node at the beginning of linked list */
 void
-insert_node (struct node** head_ref, const char *dirname, rpm_mode_t fmode,
+insert_node (const char *dirname, rpm_mode_t fmode,
 	     uid_t user_id, gid_t group_id, time_t fmtime)
 {
-  /* allocate node */
-  struct node* new_node = malloc(sizeof(struct node));
+  /* allocate space for the new node */
+  dir_list_size += 1;
+  size_t new_capacity = dir_list_capacity ? dir_list_capacity : 1;
+  while (new_capacity < dir_list_size)
+      new_capacity *= 2;
+
+  if (new_capacity != dir_list_capacity)
+    {
+      dir_list = realloc(dir_list, new_capacity * sizeof(struct node));
+      dir_list_capacity = new_capacity;
+    }
+
+  struct node *new_node = &dir_list[dir_list_size - 1];
 
   /* put in the data  */
   new_node->dirname  = strdup (dirname);
@@ -86,112 +97,12 @@ insert_node (struct node** head_ref, const char *dirname, rpm_mode_t fmode,
   new_node->user_id = user_id;
   new_node->group_id = group_id;
   new_node->fmtime = fmtime;
-
-  /* link the old list off the new node */
-  new_node->next = (*head_ref);
-
-  /* move the head to point to the new node */
-  (*head_ref) = new_node;
 }
 
-/* Returns the last node of the list */
-struct node *
-get_last_node (struct node *cur)
+int
+nodecmp (const void *p1, const void *p2)
 {
-  while (cur != NULL && cur->next != NULL)
-    cur = cur->next;
-  return cur;
-}
-
-/* Partitions the list taking the last element as the pivot */
-struct node *
-partition(struct node *head, struct node *end,
-	  struct node **newHead, struct node **newEnd)
-{
-  struct node *pivot = end;
-  struct node *prev = NULL, *cur = head, *tail = pivot;
-
-  /* During partition, both the head and end of the list might change
-     which is updated in the newHead and newEnd variables */
-  while (cur != pivot)
-    {
-      if (strcmp (cur->dirname, pivot->dirname) < 0)
-        {
-	  /* First node that has a value less than the pivot - becomes
-	     the new head */
-	  if ((*newHead) == NULL)
-	    (*newHead) = cur;
-
-	  prev = cur;
-	  cur = cur->next;
-        }
-      else  /* If cur node is greater than pivot */
-        {
-	  /* Move cur node to next of tail, and change tail */
-	  if (prev)
-	    prev->next = cur->next;
-	  struct node *tmp = cur->next;
-	  cur->next = NULL;
-	  tail->next = cur;
-	  tail = cur;
-	  cur = tmp;
-        }
-    }
-
-  /* If the pivot data is the smallest element in the current list,
-     pivot becomes the head */
-  if ((*newHead) == NULL)
-    (*newHead) = pivot;
-
-  (*newEnd) = tail;
-
-  return pivot;
-}
-
-
-struct node *
-quicksort_rec(struct node *head, struct node *end)
-{
-  struct node *newHead = NULL, *newEnd = NULL;
-  struct node *pivot;
-
-  if (!head || head == end)
-    return head;
-
-  /* Partition the list, newHead and newEnd will be updated
-     by the partition function */
-  pivot = partition(head, end, &newHead, &newEnd);
-
-  /* If pivot is the smallest element - no need to recur for
-     the left part. */
-  if (newHead != pivot)
-    {
-      /* Set the node before the pivot node as NULL */
-      struct node *tmp = newHead;
-      while (tmp->next != pivot)
-	tmp = tmp->next;
-      tmp->next = NULL;
-
-      newHead = quicksort_rec(newHead, tmp);
-
-      /* Change next of last node of the left half to pivot */
-      tmp = get_last_node(newHead);
-      tmp->next =  pivot;
-    }
-
-  /* Recur for the list after the pivot element */
-  pivot->next = quicksort_rec(pivot->next, newEnd);
-
-  return newHead;
-}
-
-/* The main function for quick sort. This is a wrapper over recursive
-   function quicksort_rec() */
-void
-quicksort (struct node **headRef)
-{
-  (*headRef) = quicksort_rec(*headRef, get_last_node(*headRef));
-    return;
+    return strcmp(((const struct node*)p1)->dirname, ((const struct node*)p2)->dirname);
 }
 
 static char *
@@ -318,7 +229,7 @@ check_package (rpmts ts, Header h)
 		  user_id = pwd->pw_uid;
 		  group_id = grp->gr_gid;
 
-		  insert_node (&dir_list, fn, fmode, user_id, group_id, fmtime);
+		  insert_node (fn, fmode, user_id, group_id, fmtime);
 		}
 	    }
 	}
@@ -331,11 +242,11 @@ check_package (rpmts ts, Header h)
 }
 
 int
-create_dirs (struct node *node)
+create_dirs (struct node *node, size_t size)
 {
-  int rc = 0;
+  int rc = 0, i;
 
-  while (node != NULL)
+  for(i = 0; i < size; ++i, ++node)
     {
       struct timeval stamps[2] = {
 	{ .tv_sec = node->fmtime, .tv_usec = 0 },
@@ -349,7 +260,7 @@ create_dirs (struct node *node)
 	{
 	  fprintf (stderr, "Failed to create directory '%s': %m\n", node->dirname);
 	  rc = 1;
-	  goto exit;
+	  continue;
 	}
 
       rc = chown (node->dirname, node->user_id, node->group_id);
@@ -359,12 +270,10 @@ create_dirs (struct node *node)
 	  /* wrong permissions are bad, remove dir and continue */
 	  rmdir (node->dirname);
 	  rc = 1;
-	  goto exit;
+	  continue;
 	}
       /* ignore errors here, time stamps are not critical */
       utimes (node->dirname, stamps);
-    exit:
-      node = node->next;
     }
 
   return rc;
@@ -451,8 +360,8 @@ main (int argc, char *argv[])
   if (dir_list != NULL)
     {
       int rc;
-      quicksort (&dir_list);
-      if ((rc = create_dirs (dir_list)) != 0)
+      qsort (dir_list, dir_list_size, sizeof(struct node), nodecmp);
+      if ((rc = create_dirs (dir_list, dir_list_size)) != 0)
 	ec = rc;
     }
 
