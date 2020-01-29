@@ -21,6 +21,7 @@
 #include <config.h>
 #endif
 
+#include <fcntl.h>
 #include <sys/types.h>
 #include <pwd.h>
 #include <grp.h>
@@ -279,6 +280,46 @@ create_dirs (struct node *node, size_t size)
   return rc;
 }
 
+int
+rpmCookieUnchanged (const char *rpmdb_cookie)
+{
+  int unchanged = 0, size = 0;
+  char *oldcookie = NULL;
+  FILE *cookiefile = fopen("/var/create_dirs_from_rpmdb/cookie", "rb");
+
+  if (!cookiefile || fseek(cookiefile, 0, SEEK_END) != 0 || (size = ftell(cookiefile)) < 1 || fseek(cookiefile, 0, SEEK_SET) != 0)
+    goto end;
+
+  if (size == strlen(rpmdb_cookie))
+    {
+      oldcookie = malloc(size);
+      if (oldcookie && fread(oldcookie, size, 1, cookiefile) == 1)
+        unchanged = (strncmp(rpmdb_cookie, oldcookie, size) == 0);
+    }
+
+  end:
+
+  if (oldcookie)
+    free (oldcookie);
+
+  if (cookiefile)
+    fclose(cookiefile);
+
+  return unchanged;
+}
+
+void
+rpmCookieWrite (const char *rpmdb_cookie)
+{
+  mkdir("/var/create_dirs_from_rpmdb", 0755);
+  FILE *cookief = fopen("/var/create_dirs_from_rpmdb/cookie", "w");
+  if(!cookief)
+      return;
+
+  fwrite(rpmdb_cookie, strlen(rpmdb_cookie), 1, cookief);
+  fclose(cookief);
+}
+
 
 int
 main (int argc, char *argv[])
@@ -286,6 +327,7 @@ main (int argc, char *argv[])
   Header h;
   rpmts ts = NULL;
   int ec = 0;
+  const char *rpmdb_cookie = NULL;
 
 
   while (1)
@@ -345,6 +387,18 @@ main (int argc, char *argv[])
   ts = rpmtsCreate ();
   rpmtsSetRootDir (ts, rpmcliRootDir);
 
+  rpmtsOpenDB (ts, O_RDONLY);
+  rpmdbOpenAll (rpmtsGetRdb (ts));
+  rpmdb_cookie = rpmdbCookie (rpmtsGetRdb (ts));
+  rpmtsCloseDB (ts);
+  if (rpmdb_cookie && rpmCookieUnchanged(rpmdb_cookie))
+    {
+      if (verbose_flag)
+        puts("RPM cookie unchanged, not doing anything");
+      rpmtsFree (ts);
+      return 0;
+    }
+
   rpmdbMatchIterator mi = rpmtsInitIterator (ts, RPMDBI_PACKAGES, NULL, 0);
   if (mi == NULL)
     return 1;
@@ -366,6 +420,10 @@ main (int argc, char *argv[])
     }
 
   /* XXX missing: free list */
+
+  /* Can't do anything if this fails anyway. */
+  if (rpmdb_cookie)
+    rpmCookieWrite(rpmdb_cookie);
 
   rpmdbFreeIterator (mi);
   rpmtsFree (ts);
