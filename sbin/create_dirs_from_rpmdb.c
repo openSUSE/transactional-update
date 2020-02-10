@@ -285,7 +285,7 @@ rpmCookieUnchanged (const char *rpmdb_cookie)
 {
   int unchanged = 0, size = 0;
   char *oldcookie = NULL;
-  FILE *cookiefile = fopen("/var/create_dirs_from_rpmdb/cookie", "rb");
+  FILE *cookiefile = fopen("/var/lib/create-dirs-from-rpmdb/cookie", "rb");
 
   if (!cookiefile || fseek(cookiefile, 0, SEEK_END) != 0 || (size = ftell(cookiefile)) < 1 || fseek(cookiefile, 0, SEEK_SET) != 0)
     goto end;
@@ -311,8 +311,9 @@ rpmCookieUnchanged (const char *rpmdb_cookie)
 void
 rpmCookieWrite (const char *rpmdb_cookie)
 {
-  mkdir("/var/create_dirs_from_rpmdb", 0755);
-  FILE *cookief = fopen("/var/create_dirs_from_rpmdb/cookie", "w");
+  mkdir("/var/lib", 0755);
+  mkdir("/var/lib/create-dirs-from-rpmdb", 0755);
+  FILE *cookief = fopen("/var/lib/create-dirs-from-rpmdb/cookie", "w");
   if(!cookief)
       return;
 
