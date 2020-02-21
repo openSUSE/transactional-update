@@ -1,0 +1,13 @@
+Makefile
+Makefile.am.user
+Makefile.in
+autom4te.cache/
+/config.*
+/configure
+/depcomp
+/install-sh
+/missing
+.deps/
+.dirstamp
+*.o
+/src/transactional-update
