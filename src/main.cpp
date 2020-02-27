@@ -24,7 +24,7 @@ using namespace std;
 
 int main(int argc, const char *argv[]) {
     try {
-        TransactionalUpdate ta(argc, argv);
+        TransactionalUpdate ta{argc, argv};
     } catch (const exception &e) {
         cerr << "ERROR: " << e.what() << endl;
         return 1;

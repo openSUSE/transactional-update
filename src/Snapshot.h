@@ -22,6 +22,7 @@
 
 #include <filesystem>
 #include <memory>
+#include <string>
 
 class Snapshot {
 public:
@@ -29,6 +30,7 @@ public:
     virtual ~Snapshot() = default;
     virtual void close() = 0;
     virtual void abort() = 0;
+    virtual std::string getRoot() = 0;
 };
 
 class SnapshotFactory {

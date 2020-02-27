@@ -29,6 +29,7 @@ public:
     virtual ~Snapper();
     void close();
     void abort();
+    std::string getRoot();
 
 private:
     std::string snapshotId;

@@ -18,7 +18,9 @@
  */
 
 #include "Transaction.h"
+#include "Mount.h"
 #include <iostream>
+#include <vector>
 using namespace std;
 
 Transaction::Transaction() {
@@ -37,6 +39,37 @@ bool Transaction::isInitialized() {
 
 void Transaction::open() {
     snapshot = SnapshotFactory::create();
+
+    vector<unique_ptr<Mount>> dirsToMount;
+
+    Mount mntVar{"/var"};
+    if (mntVar.isMounted()) {
+        dirsToMount.push_back(make_unique<BindMount>("/var/cache"));
+        dirsToMount.push_back(make_unique<BindMount>("/var/lib/alternatives"));
+    }
+    Mount mntEtc{"/etc"};
+    if (mntEtc.isMounted() && mntEtc.getFS() == "overlay") {
+        // Lots of things TODO
+    }
+
+    unique_ptr<Mount> mntProc{new Mount{"/proc"}};
+    mntProc->setType("proc");
+    mntProc->setSource("none");
+    dirsToMount.push_back(std::move(mntProc));
+
+    unique_ptr<Mount> mntSys{new Mount{"/sys"}};
+    mntSys->setType("sysfs");
+    mntSys->setSource("sys");
+    dirsToMount.push_back(std::move(mntSys));
+
+    // Create bind mounts, required by GRUB
+    //dirsToMount.push_back(make_unique<BindMount>(snapshot->getRoot(), MS_REC));
+    dirsToMount.push_back(make_unique<BindMount>("/.snapshots", MS_RDONLY));
+
+    for (auto it = dirsToMount.begin(); it != dirsToMount.end(); ++it) {
+        cout << "Mounting " << it->get()->getTarget() << endl;
+        it->get()->mount(snapshot->getRoot());
+    }
 }
 
 void Transaction::abort() {

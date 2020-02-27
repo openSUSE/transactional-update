@@ -24,7 +24,8 @@ using namespace std;
 
 Snapper::Snapper() {
     cout << "Konstruktor Snapper" << endl;
-    snapshotId = Util::exec("snapper create --print-number --userdata 'transactional-update-in-progress=yes'");
+    snapshotId = Util::exec("snapper create --read-write --print-number --userdata 'transactional-update-in-progress=yes'");
+    Util::rtrim(snapshotId);
 }
 
 Snapper::~Snapper() {
@@ -37,4 +38,8 @@ void Snapper::close() {
 
 void Snapper::abort() {
     Util::exec("snapper delete " + snapshotId);
+}
+
+string Snapper::getRoot() {
+    return string("/.snapshots/" + snapshotId + "/snapshot");
 }
