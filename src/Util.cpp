@@ -18,6 +18,7 @@
  */
 
 #include "Util.h"
+#include <algorithm>
 
 string Util::exec(const string cmd) {
     array<char, 128> buffer;
@@ -46,3 +47,20 @@ string Util::exec(const string cmd) {
     return result;
 }
 
+// trim from start (in place)
+void Util::ltrim(string &s) {
+    s.erase(s.begin(), std::find_if(s.begin(), s.end(),
+            std::not1(std::ptr_fun<int, int>(std::isspace))));
+}
+
+// trim from end (in place)
+void Util::rtrim(string &s) {
+    s.erase(std::find_if(s.rbegin(), s.rend(),
+            std::not1(std::ptr_fun<int, int>(std::isspace))).base(), s.end());
+}
+
+// trim from both ends (in place)
+void Util::trim(string &s) {
+    ltrim(s);
+    rtrim(s);
+}
