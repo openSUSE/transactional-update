@@ -24,7 +24,7 @@ string Util::exec(const string cmd) {
     array<char, 128> buffer;
     string result;
 
-    cout << "Executing:\t" << cmd << endl;
+    cout << "Executing `" << cmd << "`:" << endl;
 
     auto pipe = popen(cmd.c_str(), "r");
 
@@ -39,9 +39,9 @@ string Util::exec(const string cmd) {
     auto rc = pclose(pipe);
 
     if (rc == EXIT_SUCCESS) {
-        cout << "Output:\t\t" << result << endl;
+        cout << "◸" << result << "◿" << endl;
     } else {
-        throw runtime_error("'" + cmd + "' returned with error code " + to_string(rc) + ".");
+        throw runtime_error("`" + cmd + "` returned with error code " + to_string(rc) + ".");
     }
 
     return result;
