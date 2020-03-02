@@ -46,7 +46,8 @@ AC_PROG_LN_S
 dnl
 dnl Check for librpm
 dnl
-PKG_CHECK_MODULES([LIBRPM], [rpm])
+PKG_CHECK_MODULES([LIBRPM], [rpm >= 4.15], AC_DEFINE([HAVE_RPMDBCOOKIE]),
+	[PKG_CHECK_MODULES([LIBRPM], [rpm])])
 
 AC_ARG_WITH([doc],
 	[AS_HELP_STRING([--with-doc], [Build documentation])], ,

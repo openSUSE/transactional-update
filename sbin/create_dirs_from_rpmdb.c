@@ -388,10 +388,12 @@ main (int argc, char *argv[])
   ts = rpmtsCreate ();
   rpmtsSetRootDir (ts, rpmcliRootDir);
 
+#ifdef HAVE_RPMDBCOOKIE
   rpmtsOpenDB (ts, O_RDONLY);
   rpmdbOpenAll (rpmtsGetRdb (ts));
   rpmdb_cookie = rpmdbCookie (rpmtsGetRdb (ts));
   rpmtsCloseDB (ts);
+#endif
   if (rpmdb_cookie && rpmCookieUnchanged(rpmdb_cookie))
     {
       if (verbose_flag)
