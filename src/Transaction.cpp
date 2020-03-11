@@ -37,6 +37,11 @@ bool Transaction::isInitialized() {
     return snapshot ? true : false;
 }
 
+string Transaction::getChrootDir()
+{
+    return snapshot->getRoot();
+}
+
 void Transaction::open() {
     snapshot = SnapshotFactory::create();
 

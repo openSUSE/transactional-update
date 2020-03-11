@@ -17,22 +17,24 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef TRANSACTION_H_
-#define TRANSACTION_H_
+#ifndef PACKAGEMANAGER_H
+#define PACKAGEMANAGER_H
 
-#include "Snapshot.h"
-#include <algorithm>
+#include "Util.h"
+#include <filesystem>
+#include <memory>
+#include <string>
 
-class Transaction {
+class PackageManager {
 public:
-    Transaction();
-    virtual ~Transaction();
-    void open();
-    void close();
-    bool isInitialized();
-    std::string getChrootDir();
-private:
-    std::unique_ptr<Snapshot> snapshot;
+    PackageManager() = default;
+    virtual ~PackageManager() = default;
+    virtual void doDistUpgrade(string chrootDir) { Util::stub("DistUpgrade"); };
 };
 
-#endif /* TRANSACTION_H_ */
+class PackageManagerFactory {
+public:
+    static std::unique_ptr<PackageManager> create();
+};
+
+#endif // PACKAGEMANAGER_H

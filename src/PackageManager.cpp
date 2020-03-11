@@ -17,22 +17,14 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef TRANSACTION_H_
-#define TRANSACTION_H_
+#include "PackageManager.h"
+#include "Packages/Zypper.h"
+using namespace std;
 
-#include "Snapshot.h"
-#include <algorithm>
-
-class Transaction {
-public:
-    Transaction();
-    virtual ~Transaction();
-    void open();
-    void close();
-    bool isInitialized();
-    std::string getChrootDir();
-private:
-    std::unique_ptr<Snapshot> snapshot;
-};
-
-#endif /* TRANSACTION_H_ */
+unique_ptr<PackageManager> PackageManagerFactory::create() {
+    if (filesystem::exists("/usr/bin/zypper")) {
+        return make_unique<Zypper>();
+    } else {
+        throw runtime_error{"No supported package manager found."};
+    }
+}

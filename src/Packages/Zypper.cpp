@@ -17,22 +17,16 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef TRANSACTION_H_
-#define TRANSACTION_H_
+#include "Zypper.h"
+#include "Exceptions.h"
+#include "Util.h"
+#include <iostream>
 
-#include "Snapshot.h"
-#include <algorithm>
-
-class Transaction {
-public:
-    Transaction();
-    virtual ~Transaction();
-    void open();
-    void close();
-    bool isInitialized();
-    std::string getChrootDir();
-private:
-    std::unique_ptr<Snapshot> snapshot;
-};
-
-#endif /* TRANSACTION_H_ */
+void Zypper::doDistUpgrade(string chrootDir) {
+    try {
+        Util::exec("zypper -R " + chrootDir + " dup -y --auto-agree-with-product-licenses");
+    }  catch (const ExecutionException &e) {
+        // TODO: Ignore some of the return codes
+        throw;
+    }
+}

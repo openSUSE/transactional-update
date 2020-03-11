@@ -29,6 +29,8 @@ class TransactionalCommand: public Command {
 public:
     TransactionalCommand(shared_ptr<Transaction> transaction);
     virtual ~TransactionalCommand();
+protected:
+    string chrootDir;
 private:
     shared_ptr<Transaction> transaction{};
 };

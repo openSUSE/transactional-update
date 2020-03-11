@@ -17,22 +17,17 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef TRANSACTION_H_
-#define TRANSACTION_H_
+#ifndef ZYPPER_H
+#define ZYPPER_H
 
-#include "Snapshot.h"
-#include <algorithm>
+#include "PackageManager.h"
 
-class Transaction {
+class Zypper : public PackageManager
+{
 public:
-    Transaction();
-    virtual ~Transaction();
-    void open();
-    void close();
-    bool isInitialized();
-    std::string getChrootDir();
-private:
-    std::unique_ptr<Snapshot> snapshot;
+    Zypper() = default;
+    virtual ~Zypper() = default;
+    virtual void doDistUpgrade(string chrootDir) override;
 };
 
-#endif /* TRANSACTION_H_ */
+#endif // ZYPPER_H

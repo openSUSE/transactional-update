@@ -18,6 +18,8 @@
  */
 
 #include "DistUpgrade.h"
+#include "PackageManager.h"
+#include <algorithm>
 
 DistUpgrade::DistUpgrade(shared_ptr<Transaction> transaction) : TransactionalCommand(transaction) {
 }
@@ -26,6 +28,8 @@ DistUpgrade::~DistUpgrade() {
 }
 
 void DistUpgrade::execute() {
-    cout << "Hello distupgrade" << endl;
+    cout << "Performing distribution upgrade" << endl;
+    unique_ptr<PackageManager> pkgmgr = PackageManagerFactory::create();
+    pkgmgr->doDistUpgrade(chrootDir);
 }
 
