@@ -27,7 +27,6 @@ public:
     TransactionalUpdate(int argc, const char *argv[]);
     virtual ~TransactionalUpdate();
 
-    void stub(std::string option);
     void getHelp();
     int parseOptions(int argc, const char *argv[]);
 };

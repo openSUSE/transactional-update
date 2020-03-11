@@ -59,6 +59,10 @@ void Util::rtrim(string &s) {
             std::not1(std::ptr_fun<int, int>(std::isspace))).base(), s.end());
 }
 
+void Util::stub(string option) {
+    cerr << "STUB: '" << option << "' not implemented yet." << endl;
+}
+
 // trim from both ends (in place)
 void Util::trim(string &s) {
     ltrim(s);

@@ -19,6 +19,7 @@
 
 #include "TransactionalUpdate.h"
 #include "Configuration.h"
+#include "Util.h"
 #include "Commands/Cleanup.h"
 #include "Commands/DistUpgrade.h"
 #include "Commands/Update.h"
@@ -35,10 +36,6 @@
 #include <typeinfo>
 
 Configuration config;
-
-void TransactionalUpdate::stub(string option) {
-    cerr << "STUB: '" << option << "' not implemented yet." << endl;
-}
 
 void TransactionalUpdate::getHelp() {
     cout << "Syntax: transactional-update [option...] [general-command...] [package-command]" << endl;
@@ -111,10 +108,10 @@ int TransactionalUpdate::parseOptions(int argc, const char *argv[]) {
             || arg == "--no-selfupdate"
             || arg == "--quiet"
             || arg == "--version") {
-            stub(arg);
+            Util::stub(arg);
         }
         else if (arg == "--continue" || arg == "-c") {
-            stub(arg);
+            Util::stub(arg);
             // Check if followed by a (snapshot) number
             if (i + 1 < argc) {
                 string num = argv[i + 1];
@@ -127,7 +124,7 @@ int TransactionalUpdate::parseOptions(int argc, const char *argv[]) {
         else if (arg == "rollback"
               || arg == "ptf" || arg == "pkg" || arg == "package"
               || arg == "register") {
-            stub(arg);
+            Util::stub(arg);
             break;
         }
         else if (arg == "--help" || arg == "-h" ) {

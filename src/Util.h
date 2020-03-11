@@ -29,6 +29,7 @@ struct Util {
     static string exec(const string cmd);
     static void ltrim(string &s);
     static void rtrim(string &s);
+    static void stub(std::string option);
     static void trim(string &s);
 };
 
