@@ -21,8 +21,7 @@
 #include "Snapshot/Snapper.h"
 using namespace std;
 
-// TODO: Make configurable to force a certain implementation
-// TODO: Use smart pointers
+// TODO: Make configurable to be able to force a certain implementation
 unique_ptr<Snapshot> SnapshotFactory::create() {
     if (filesystem::exists("/usr/bin/snapper")) {
         return make_unique<Snapper>();

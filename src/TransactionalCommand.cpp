@@ -25,7 +25,7 @@ TransactionalCommand::TransactionalCommand(shared_ptr<Transaction> transaction) 
     if (transaction->isInitialized() == false) {
         this->transaction->open();
     }
-    cout << transaction.use_count() << endl;
+    cout << "Transaction Use Count: " << transaction.use_count() << endl;
 }
 
 TransactionalCommand::~TransactionalCommand() {

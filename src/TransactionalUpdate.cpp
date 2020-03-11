@@ -144,6 +144,7 @@ int TransactionalUpdate::parseOptions(int argc, const char *argv[]) {
         commandList.front()->execute();
         commandList.pop_front();
     }
+    transaction->close();
     cout << "Programmende" << endl;
     return 0;
 }

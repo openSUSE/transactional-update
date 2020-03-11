@@ -30,7 +30,7 @@ Transaction::Transaction() {
 Transaction::~Transaction() {
     cout << "Destruktor Transaktion" << endl;
     if (isInitialized())
-        snapshot->close();
+        snapshot->abort();
 }
 
 bool Transaction::isInitialized() {
@@ -72,6 +72,7 @@ void Transaction::open() {
     }
 }
 
-void Transaction::abort() {
-
+void Transaction::close() {
+    snapshot->close();
+    snapshot.reset();
 }

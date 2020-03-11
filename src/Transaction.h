@@ -28,7 +28,7 @@ public:
     Transaction();
     virtual ~Transaction();
     void open();
-    void abort();
+    void close();
     bool isInitialized();
 private:
     std::unique_ptr<Snapshot> snapshot;
