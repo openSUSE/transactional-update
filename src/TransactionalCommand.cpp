@@ -1,5 +1,6 @@
 /*
-  transactional-update - apply updates to the system in an atomic way
+  Base class for commands (see "Commands" directory) which require a writeable
+  root file system
 
   Copyright (c) 2016 - 2020 SUSE LLC
 

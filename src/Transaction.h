@@ -1,5 +1,9 @@
 /*
-  transactional-update - apply updates to the system in an atomic way
+  A Transaction is unique instance, shared between all classes derived from
+  the "TransactionalCommand" base class; that way it is made sure that all
+  commands operate on the same snapshot. In case the destructor should be
+  called before the transaction instance is closed, an eventual snapshot will
+  be deleted again.
 
   Copyright (c) 2016 - 2020 SUSE LLC
 

@@ -1,5 +1,5 @@
 /*
-  transactional-update - apply updates to the system in an atomic way
+  Zypper implementation of the PackageManager class
 
   Copyright (c) 2016 - 2020 SUSE LLC
 

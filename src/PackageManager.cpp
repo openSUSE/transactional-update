@@ -1,5 +1,6 @@
 /*
-  transactional-update - apply updates to the system in an atomic way
+  Factory / interface class for actual package manager implementations;
+  implementations can be found in the "Packages" directory
 
   Copyright (c) 2016 - 2020 SUSE LLC
 

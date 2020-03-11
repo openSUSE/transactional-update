@@ -1,5 +1,5 @@
 /*
-  transactional-update - apply updates to the system in an atomic way
+  Helper class
 
   Copyright (c) 2016 - 2020 SUSE LLC
 
