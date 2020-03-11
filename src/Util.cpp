@@ -18,6 +18,7 @@
  */
 
 #include "Util.h"
+#include "Exceptions.h"
 #include <algorithm>
 
 string Util::exec(const string cmd) {
@@ -29,19 +30,19 @@ string Util::exec(const string cmd) {
     auto pipe = popen(cmd.c_str(), "r");
 
     if (!pipe)
-        throw runtime_error("popen() failed!");
+        throw runtime_error{"popen() failed!"};
 
     while (!feof(pipe)) {
         if (fgets(buffer.data(), 128, pipe) != nullptr)
             result += buffer.data();
     }
 
-    auto rc = pclose(pipe);
+    int rc = pclose(pipe);
 
     if (rc == EXIT_SUCCESS) {
         cout << "◸" << result << "◿" << endl;
     } else {
-        throw runtime_error("`" + cmd + "` returned with error code " + to_string(rc) + ".");
+        throw ExecutionException{"`" + cmd + "` returned with error code " + to_string(rc) + ".", rc};
     }
 
     return result;
