@@ -19,6 +19,7 @@
 
 #include "Mount.h"
 #include <filesystem>
+#include <iostream>
 #include <stdexcept>
 
 Mount::Mount(std::string target, unsigned long flags)
@@ -38,6 +39,22 @@ Mount::Mount(Mount&& other) noexcept
 }
 
 Mount::~Mount() {
+    int mountStatus = 0;
+    if (mnt_cxt && mnt_fs && mnt_context_is_fs_mounted(mnt_cxt, mnt_fs, &mountStatus) != 0)
+        std::cerr << "Error determining mount status of " << target << std::endl;
+    if (mountStatus == 1) {
+        std::cout << "Unmounting " << target << "..." << std::endl;
+        mnt_reset_context(mnt_cxt);
+        if (mnt_context_set_fs(mnt_cxt, mnt_fs) != 0) {
+            std::cerr << "Setting umount context for '" + target + "' failed." << std::endl;
+        }
+        int rc = mnt_context_umount(mnt_cxt);
+        char buf[BUFSIZ] = { 0 };
+        rc = mnt_context_get_excode(mnt_cxt, rc, buf, sizeof(buf));
+        if (*buf)
+                std::cerr << "Error unmounting '" + target + "': " + buf << std::endl;
+    }
+
     mnt_free_context(mnt_cxt);
     mnt_unref_fs(mnt_fs);
     mnt_free_table(mnt_table);
@@ -100,6 +117,8 @@ void Mount::setType(std::string type)
 
 void Mount::mount(std::string prefix)
 {
+    std::cout << "Mounting " << target << "..." << std::endl;
+
     std::string mounttarget = prefix + target.c_str();
     if (mnt_fs_set_target(mnt_fs, mounttarget.c_str()) != 0) {
         throw std::runtime_error{"Setting target '" + mounttarget + "' for mountpoint failed."};
