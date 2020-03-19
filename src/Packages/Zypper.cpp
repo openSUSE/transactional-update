@@ -30,3 +30,8 @@ void Zypper::doDistUpgrade(string chrootDir) {
         throw;
     }
 }
+
+void Zypper::doUpdate(string chrootDir)
+{
+    Util::exec("zypper -R " + chrootDir + " up -y --auto-agree-with-product-licenses");
+}

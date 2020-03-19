@@ -18,6 +18,8 @@
  */
 
 #include "Update.h"
+#include "PackageManager.h"
+#include <algorithm>
 
 Update::Update(shared_ptr<Transaction> transaction) : TransactionalCommand(transaction) {
 }
@@ -26,5 +28,7 @@ Update::~Update() {
 }
 
 void Update::execute() {
-    cout << "Hello update" << endl;
+    cout << "Performing distribution upgrade" << endl;
+    unique_ptr<PackageManager> pkgmgr = PackageManagerFactory::create();
+    pkgmgr->doUpdate(chrootDir);
 }

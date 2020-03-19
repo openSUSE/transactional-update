@@ -28,6 +28,7 @@ public:
     Zypper() = default;
     virtual ~Zypper() = default;
     virtual void doDistUpgrade(string chrootDir) override;
+    virtual void doUpdate(string chrootDir) override;
 };
 
 #endif // ZYPPER_H

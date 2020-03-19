@@ -31,6 +31,7 @@ public:
     PackageManager() = default;
     virtual ~PackageManager() = default;
     virtual void doDistUpgrade(string chrootDir) { Util::stub("DistUpgrade"); };
+    virtual void doUpdate(string chrootDir) { Util::stub("Update"); };
 };
 
 class PackageManagerFactory {
