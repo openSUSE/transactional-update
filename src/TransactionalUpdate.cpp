@@ -20,8 +20,10 @@
 #include "TransactionalUpdate.h"
 #include "Configuration.h"
 #include "Util.h"
+#include "Commands/Bootloader.h"
 #include "Commands/Cleanup.h"
 #include "Commands/DistUpgrade.h"
+#include "Commands/GrubConfiguration.h"
 #include "Commands/Update.h"
 #include <fcntl.h>
 #include <unistd.h>
@@ -95,9 +97,16 @@ int TransactionalUpdate::parseOptions(int argc, const char *argv[]) {
             commandList.push_back(make_unique<Update>(transaction));
             cout << "Use count: " << transaction.use_count() << endl;
         }
+        else if (arg == "bootloader") {
+            commandList.push_back(make_unique<Bootloader>(transaction));
+            commandList.push_back(make_unique<GrubConfiguration>(transaction));
+            cout << "Use count: " << transaction.use_count() << endl;
+        }
+        else if (arg == "grub.cfg") {
+            commandList.push_back(make_unique<GrubConfiguration>(transaction));
+            cout << "Use count: " << transaction.use_count() << endl;
+        }
         else if (arg == "migration"
-            || arg == "bootloader"
-            || arg == "grub.cfg"
             || arg == "shell"
             || arg == "initrd"
             || arg == "kdump"

@@ -22,9 +22,9 @@
  */
 
 #include "Transaction.h"
-#include "Mount.h"
+#include <cstdlib>
+#include <filesystem>
 #include <iostream>
-#include <vector>
 using namespace std;
 
 Transaction::Transaction() {
@@ -33,6 +33,8 @@ Transaction::Transaction() {
 
 Transaction::~Transaction() {
     cout << "Destruktor Transaktion" << endl;
+    dirsToMount.clear();
+    filesystem::remove_all(filesystem::path{bindDir});
     if (isInitialized())
         snapshot->abort();
 }
@@ -43,13 +45,14 @@ bool Transaction::isInitialized() {
 
 string Transaction::getChrootDir()
 {
-    return snapshot->getRoot();
+    return bindDir;
 }
 
 void Transaction::open() {
     snapshot = SnapshotFactory::create();
 
-    vector<unique_ptr<Mount>> dirsToMount;
+    dirsToMount.push_back(make_unique<BindMount>("/dev"));
+    dirsToMount.push_back(make_unique<BindMount>("/var/log"));
 
     Mount mntVar{"/var"};
     if (mntVar.isMounted()) {
@@ -71,14 +74,22 @@ void Transaction::open() {
     mntSys->setSource("sys");
     dirsToMount.push_back(std::move(mntSys));
 
-    // Create bind mounts, required by GRUB
-    //dirsToMount.push_back(make_unique<BindMount>(snapshot->getRoot(), MS_REC));
-    dirsToMount.push_back(make_unique<BindMount>("/.snapshots", MS_RDONLY));
+    dirsToMount.push_back(make_unique<BindMount>("/.snapshots"));
 
     for (auto it = dirsToMount.begin(); it != dirsToMount.end(); ++it) {
-        cout << "Mounting " << it->get()->getTarget() << endl;
         it->get()->mount(snapshot->getRoot());
     }
+
+    // When all mounts are set up, then bind mount everything into a temporary
+    // directory - GRUB needs to have an actual mount point for the root
+    // partition
+    char bindTemplate[] = "/tmp/transactional-update-XXXXXX";
+    bindDir = mkdtemp(bindTemplate);
+    unique_ptr<BindMount> mntBind{new BindMount{bindDir, MS_REC}};
+    mntBind->setSource(snapshot->getRoot());
+    mntBind->mount();
+    dirsToMount.push_back(std::move(mntBind));
+
 }
 
 void Transaction::close() {

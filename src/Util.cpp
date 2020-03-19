@@ -42,7 +42,7 @@ string Util::exec(const string cmd) {
     if (rc == EXIT_SUCCESS) {
         cout << "◸" << result << "◿" << endl;
     } else {
-        throw ExecutionException{"`" + cmd + "` returned with error code " + to_string(rc) + ".", rc};
+        throw ExecutionException{"`" + cmd + "` returned with error code " + to_string(rc%255) + ".", rc};
     }
 
     return result;

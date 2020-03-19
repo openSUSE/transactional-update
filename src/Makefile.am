@@ -4,6 +4,7 @@ transactional_update_SOURCES=main.cpp \
         TransactionalUpdate.cpp Transaction.cpp \
         TransactionalCommand.cpp \
         Commands/Cleanup.cpp Commands/DistUpgrade.cpp Commands/Update.cpp \
+        Commands/GrubConfiguration.cpp Commands/Bootloader.cpp \
         Snapshot.cpp Snapshot/Snapper.cpp \
         PackageManager.cpp Packages/Zypper.cpp \
         Mount.cpp \
@@ -11,6 +12,7 @@ transactional_update_SOURCES=main.cpp \
 noinst_HEADERS=TransactionalUpdate.h \
         Transaction.h TransactionalCommand.h Command.h \
         Commands/Cleanup.h Commands/DistUpgrade.h Commands/Update.h \
+        Commands/GrubConfiguration.h Commands/Bootloader.h \
         Snapshot.h Snapshot/Snapper.h \
         PackageManager.h Packages/Zypper.h \
         Mount.h \

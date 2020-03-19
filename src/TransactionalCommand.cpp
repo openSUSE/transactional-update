@@ -25,8 +25,8 @@ TransactionalCommand::TransactionalCommand(shared_ptr<Transaction> transaction) 
     this->transaction = transaction;
     if (transaction->isInitialized() == false) {
         this->transaction->open();
-        chrootDir = transaction->getChrootDir();
     }
+    chrootDir = transaction->getChrootDir();
     cout << "Transaction Use Count: " << transaction.use_count() << endl;
 }
 

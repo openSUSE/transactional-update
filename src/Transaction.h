@@ -24,8 +24,10 @@
 #ifndef TRANSACTION_H_
 #define TRANSACTION_H_
 
+#include "Mount.h"
 #include "Snapshot.h"
 #include <algorithm>
+#include <vector>
 
 class Transaction {
 public:
@@ -37,6 +39,8 @@ public:
     std::string getChrootDir();
 private:
     std::unique_ptr<Snapshot> snapshot;
+    std::string bindDir;
+    std::vector<std::unique_ptr<Mount>> dirsToMount;
 };
 
 #endif /* TRANSACTION_H_ */
