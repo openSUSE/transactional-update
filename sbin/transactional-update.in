@@ -1078,14 +1078,6 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	DIR_TO_MOUNT="${DIR_TO_MOUNT} /boot/writable"
     fi
 
-    # Check which directories in /boot/grub2 need to be mounted,
-    # otherwise grub2 will not boot after a version update.
-    DIR_TO_MOUNT="${DIR_TO_MOUNT} $(awk '$2 ~ /^\/boot\/grub2\// { print $2 }' /proc/mounts)"
-    # On EFI systems the EFI partition is also needed
-    if [ -e /boot/efi ]; then
-	DIR_TO_MOUNT="${DIR_TO_MOUNT} /boot/efi"
-    fi
-
     # Mount everything we need:
     mount -t proc none ${SNAPSHOT_DIR}/proc
     if [ $? -ne 0 ]; then
@@ -1097,6 +1089,22 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
         log_error "ERROR: mount of sys failed!"
         quit 1
     fi
+
+    # Check which directories in /boot/grub2 need to be mounted,
+    # otherwise grub2 will not boot after a version update.
+    DIR_TO_MOUNT="${DIR_TO_MOUNT} $(awk '$2 ~ /^\/boot\/grub2\// { print $2 }' /proc/mounts)"
+    # On EFI systems the EFI partition is also required
+    if [ -e /boot/efi ]; then
+	DIR_TO_MOUNT="${DIR_TO_MOUNT} /boot/efi"
+	# Additionally the EFI variables have to be visible, otherwise pbl will
+	# set an incorrect installation location [boo#1162320].
+	mount -t efivarfs efivarfs ${SNAPSHOT_DIR}/sys/firmware/efi/efivars
+	if [ $? -ne 0 ]; then
+	    log_error "ERROR: mount of efivarfs failed!"
+	    quit 1
+	fi
+    fi
+
     if [ ${ETC_IS_OVERLAY} -eq 1 ]; then
 	lowerdir="${fstab_upper///sysroot\/var//var}:"
 	lowerdir+="`parse_lowerdirs_for_mount "/.snapshots/${BASE_SNAPSHOT_ID}/snapshot"`"
