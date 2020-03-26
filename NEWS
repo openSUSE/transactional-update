@@ -2,6 +2,11 @@ transactional-update NEWS -- history of user-visible changes.
 
 Copyright (C) 2016-2019 Thorsten Kukuk et al.
 
+Version 2.20.4
+* Mount efivarfs on EFI systems to make sure the bootloader will be installed
+  correctly.
+* Fix removal of existing overlay directories
+
 Version 2.20.3
 * Reintroduce compatibility with RPM < 4.15 for inclusion in SLE / Leap 15.2
 * Prepare for removal of /var/lib/alternatives [jsc#SLE-9101]
