@@ -21,7 +21,7 @@
 export LANG=C
 export DISABLE_SNAPPER_ZYPP_PLUGIN=1
 
-DIR_TO_MOUNT="dev opt var/log"
+DIR_TO_MOUNT="opt var/log"
 EXITCODE=0
 VERBOSITY=2
 ZYPPER_ARG=""
@@ -307,7 +307,7 @@ teardown() {
     fi
 
     # Unmount everything we don't need anymore:
-    for directory in proc sys etc $DIR_TO_MOUNT .snapshots ; do
+    for directory in etc $DIR_TO_MOUNT .snapshots dev sys proc; do
 	# Only try unmount if directory is mounted
 	if ! findmnt ${SNAPSHOT_DIR}/$directory >/dev/null; then
 	    continue;
@@ -1078,17 +1078,14 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	DIR_TO_MOUNT="${DIR_TO_MOUNT} /boot/writable"
     fi
 
-    # Mount everything we need:
-    mount -t proc none ${SNAPSHOT_DIR}/proc
-    if [ $? -ne 0 ]; then
-        log_error "ERROR: mount of proc failed!"
-        quit 1
-    fi
-    mount -t sysfs sys ${SNAPSHOT_DIR}/sys
-    if [ $? -ne 0 ]; then
-        log_error "ERROR: mount of sys failed!"
-        quit 1
-    fi
+    # Bind system directories into chroot environment
+    for sysdir in /proc /sys /dev; do
+	if ! mount --rbind "${sysdir}" "${SNAPSHOT_DIR}${sysdir}" ||
+	   ! mount --make-rslave "${SNAPSHOT_DIR}${sysdir}"; then
+	    log_error "ERROR: mounting ${sysdir} failed!"
+	    quit 1
+	fi
+    done
 
     # Check which directories in /boot/grub2 need to be mounted,
     # otherwise grub2 will not boot after a version update.
@@ -1096,13 +1093,6 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
     # On EFI systems the EFI partition is also required
     if [ -e /boot/efi ]; then
 	DIR_TO_MOUNT="${DIR_TO_MOUNT} /boot/efi"
-	# Additionally the EFI variables have to be visible, otherwise pbl will
-	# set an incorrect installation location [boo#1162320].
-	mount -t efivarfs efivarfs ${SNAPSHOT_DIR}/sys/firmware/efi/efivars
-	if [ $? -ne 0 ]; then
-	    log_error "ERROR: mount of efivarfs failed!"
-	    quit 1
-	fi
     fi
 
     if [ ${ETC_IS_OVERLAY} -eq 1 ]; then
@@ -1123,16 +1113,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	    quit 1;
 	fi
     fi
-    if [ -x /usr/sbin/selinuxenabled ]; then
-        /usr/sbin/selinuxenabled
-        if [ $? -eq 0 ]; then
-            mount -t selinuxfs selinux ${SNAPSHOT_DIR}/sys/fs/selinux
-            if [ $? -ne 0 ]; then
-                log_error "ERROR: mount of sys failed!"
-                quit 1
-            fi
-        fi
-    fi
+
     for directory in $DIR_TO_MOUNT ; do
 	# Make sure mount point exists. With /var on an own subvolume, this directory
 	# is empty by default and mount points don't exist in chroot environment.
