@@ -314,16 +314,18 @@ teardown() {
 	fi
 	umount -R ${SNAPSHOT_DIR}/$directory
 	if [ $? -ne 0 ]; then
-	    log_error "ERROR: umount of $directory failed!"
-	    fuser -v ${SNAPSHOT_DIR}/$directory >> ${LOGFILE}
-	    lsof ${SNAPSHOT_DIR}/$directory >> ${LOGFILE}
-            # Try again after some time
-            sleep 30
-            umount -R ${SNAPSHOT_DIR}/$directory
-            if [ $? -ne 0 ]; then
-                log_error "ERROR 2nd try: umount of $directory failed!"
-	        EXITCODE=1;
-            fi
+	    log_error "Warning: First attempt to umount $directory failed!"
+	    # Try again after some time
+	    sleep 30
+	    umount -R ${SNAPSHOT_DIR}/$directory
+	    if [ $? -ne 0 ]; then
+		fuser -v ${SNAPSHOT_DIR}/$directory >> ${LOGFILE}
+		lsof ${SNAPSHOT_DIR}/$directory >> ${LOGFILE}
+		log_error "ERROR: second attempt to umount $directory also failed!"
+		EXITCODE=1;
+	    else
+		log_info "Second attempt to umount $directory succeeded."
+	    fi
 	fi
     done
 
