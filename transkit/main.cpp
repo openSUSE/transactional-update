@@ -1,5 +1,5 @@
 /*
-  Update the system to the newest patchlevel
+  transactional-update - apply updates to the system in an atomic way
 
   Copyright (c) 2016 - 2020 SUSE LLC
 
@@ -17,18 +17,17 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "Update.h"
-#include "PackageManager.h"
-#include <algorithm>
+#include "transkit.h"
+#include <exception>
+#include <iostream>
+using namespace std;
 
-Update::Update(shared_ptr<Transaction> transaction) : TransactionalCommand(transaction) {
-}
-
-Update::~Update() {
-}
-
-void Update::execute() {
-    cout << "Performing distribution upgrade" << endl;
-    unique_ptr<PackageManager> pkgmgr = PackageManagerFactory::create();
-    pkgmgr->doUpdate(chrootDir);
+int main(int argc, const char *argv[]) {
+    try {
+        Transkit ta{argc, argv};
+    } catch (const exception &e) {
+        cerr << "ERROR: " << e.what() << endl;
+        return 1;
+    }
+    return 0;
 }

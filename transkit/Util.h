@@ -1,5 +1,5 @@
 /*
-  Mark old snapshots for deletion
+  Helper class
 
   Copyright (c) 2016 - 2020 SUSE LLC
 
@@ -17,16 +17,26 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef CLEANUP_H_
-#define CLEANUP_H_
+#ifndef UTIL_H_
+#define UTIL_H_
 
-#include "Command.h"
+#include <string>
+#include <array>
+#include <iostream>
+using namespace std;
 
-class Cleanup: public Command {
-public:
-    Cleanup();
-    virtual ~Cleanup();
-    void execute();
+struct Util {
+    static string exec(const string cmd);
+    static void ltrim(string &s);
+    static void rtrim(string &s);
+    static void stub(std::string option);
+    static void trim(string &s);
 };
 
-#endif /* CLEANUP_H_ */
+struct CString {
+    ~CString() { free(ptr); }
+    operator char*() { return ptr; }
+    char *ptr = nullptr;
+};
+
+#endif /* UTIL_H_ */

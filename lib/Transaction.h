@@ -34,6 +34,7 @@ public:
     Transaction();
     virtual ~Transaction();
     void open();
+    void execute(std::string command);
     void close();
     bool isInitialized();
     std::string getChrootDir();

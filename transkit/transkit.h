@@ -17,17 +17,21 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "TransactionalUpdate.h"
-#include <exception>
-#include <iostream>
-using namespace std;
+#ifndef TRANSACTIONALUPDATE_H_
+#define TRANSACTIONALUPDATE_H_
 
-int main(int argc, const char *argv[]) {
-    try {
-        TransactionalUpdate ta{argc, argv};
-    } catch (const exception &e) {
-        cerr << "ERROR: " << e.what() << endl;
-        return 1;
-    }
-    return 0;
-}
+#include "../lib/Transaction.h"
+#include <string>
+
+class Transkit {
+public:
+    Transkit(int argc, const char *argv[]);
+    virtual ~Transkit();
+
+    void getHelp();
+    int parseOptions(int argc, const char *argv[]);
+private:
+    unsigned int baseSnapshot = 0;
+};
+
+#endif /* TRANSACTIONALUPDATE_H_ */

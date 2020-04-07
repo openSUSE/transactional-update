@@ -22,9 +22,11 @@
  */
 
 #include "Transaction.h"
+#include "Util.h"
 #include <cstdlib>
 #include <filesystem>
 #include <iostream>
+#include <unistd.h>
 using namespace std;
 
 Transaction::Transaction() {
@@ -89,7 +91,12 @@ void Transaction::open() {
     mntBind->setSource(snapshot->getRoot());
     mntBind->mount();
     dirsToMount.push_back(std::move(mntBind));
+}
 
+void Transaction::execute(string command) {
+    chroot(bindDir.c_str());
+    Util::exec(command);
+    chroot("/");
 }
 
 void Transaction::close() {

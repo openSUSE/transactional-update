@@ -45,6 +45,8 @@ AX_CXX_COMPILE_STDCXX_17(, mandatory)
 AC_PROG_CC
 AC_PROG_INSTALL
 AC_PROG_LN_S
+AC_PROG_LIBTOOL
+LT_INIT([disable-static])
 
 PKG_CHECK_MODULES(ECONF, libeconf)
 
@@ -95,6 +97,6 @@ else
      fi
 fi
 
-AC_OUTPUT([Makefile src/Makefile sbin/Makefile man/Makefile systemd/Makefile \
-	logrotate/Makefile dracut/Makefile doc/Makefile etc/Makefile \
-	sbin/transactional-update])
+AC_OUTPUT([Makefile lib/Makefile transkit/Makefile sbin/Makefile man/Makefile \
+	systemd/Makefile logrotate/Makefile dracut/Makefile doc/Makefile \
+	etc/Makefile sbin/transactional-update])
