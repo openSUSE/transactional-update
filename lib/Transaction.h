@@ -33,9 +33,9 @@ class Transaction {
 public:
     Transaction();
     virtual ~Transaction();
-    void open();
-    void execute(std::string command);
-    void close();
+    void init();
+    int execute(const char* argv[]);
+    void finalize();
     bool isInitialized();
     std::string getChrootDir();
 private:

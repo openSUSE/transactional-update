@@ -24,9 +24,11 @@
 #include "Transaction.h"
 #include "Log.h"
 #include "Util.h"
+#include <cerrno>
 #include <cstdlib>
+#include <cstring>
 #include <filesystem>
-#include <iostream>
+#include <sys/wait.h>
 #include <unistd.h>
 using namespace std;
 
@@ -37,7 +39,11 @@ Transaction::Transaction() {
 Transaction::~Transaction() {
     tulog.debug("Destructor Transaction");
     dirsToMount.clear();
-    filesystem::remove_all(filesystem::path{bindDir});
+    try {
+        filesystem::remove_all(filesystem::path{bindDir});
+    }  catch (exception e) {
+        tulog.error("ERROR: ", e.what());
+    }
     if (isInitialized())
         snapshot->abort();
 }
@@ -51,7 +57,7 @@ string Transaction::getChrootDir()
     return bindDir;
 }
 
-void Transaction::open() {
+void Transaction::init() {
     snapshot = SnapshotFactory::create();
 
     dirsToMount.push_back(make_unique<BindMount>("/dev"));
@@ -94,13 +100,44 @@ void Transaction::open() {
     dirsToMount.push_back(std::move(mntBind));
 }
 
-void Transaction::execute(string command) {
-    chroot(bindDir.c_str());
-    Util::exec(command);
-    chroot("/");
+int Transaction::execute(const char* argv[]) {
+    std::string opts = "Executing `";
+    int i = 0;
+    while (argv[i]) {
+        if (i > 0)
+            opts.append(" ");
+        opts.append(argv[i]);
+        i++;
+    }
+    opts.append("`:");
+    tulog.info(opts);
+
+    int status = 1;
+    pid_t pid = fork();
+    if (pid < 0) {
+        throw runtime_error{"fork() failed: " + string(strerror(errno))};
+    } else if (pid == 0) {
+        if (chroot(bindDir.c_str()) < 0) {
+            throw runtime_error{"Chrooting to " + bindDir + " failed: " + string(strerror(errno))};
+        }
+        cout << "◸" << flush;
+        if (execvp(argv[0], (char* const*)argv) < 0) {
+            throw runtime_error{"Calling " + string(argv[0]) + " failed: " + string(strerror(errno))};
+        }
+    } else {
+        int ret;
+        ret = waitpid(pid, &status, 0);
+        cout << "◿" << endl;
+        if (ret < 0) {
+            throw runtime_error{"waitpid() failed: " + string(strerror(errno))};
+        } else {
+            tulog.info("Application returned with exit status ", WEXITSTATUS(status), ".");
+        }
+    }
+    return WEXITSTATUS(status);
 }
 
-void Transaction::close() {
+void Transaction::finalize() {
     snapshot->close();
     snapshot.reset();
 }

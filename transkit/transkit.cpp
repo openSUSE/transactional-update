@@ -52,15 +52,18 @@ void Transkit::getHelp() {
     cout << "--version                  Display version and exit" << endl << endl;
 }
 
-/* Does two things: Sets the command list and the global options */
 int Transkit::parseOptions(int argc, const char *argv[]) {
     for (int i = 1; i < argc; i++) {
         string arg = argv[i];
         if (arg == "execute") {
             Transaction transaction{};
-            transaction.open();
-            transaction.execute(argv[i+1]); //TODO: alle Restparameter
-            transaction.close();
+            transaction.init();
+            int status = transaction.execute(&argv[i + 1]); // All remaining arguments
+            if (status == 0) {
+                transaction.finalize();
+            } else {
+                throw runtime_error{"Application returned with exit status " + to_string(status)};
+            }
             return 0;
         }
         else if (arg == "--continue" || arg == "-c") {
