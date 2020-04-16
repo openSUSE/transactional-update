@@ -17,19 +17,19 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "Log.h"
 #include "Snapper.h"
 #include "Util.h"
-#include <iostream>
 using namespace std;
 
 Snapper::Snapper() {
-    cout << "Konstruktor Snapper" << endl;
+    tulog.debug("Constructor Snapper");
     snapshotId = Util::exec("snapper create --read-write --print-number --userdata 'transactional-update-in-progress=yes'");
     Util::rtrim(snapshotId);
 }
 
 Snapper::~Snapper() {
-    cout << "Destruktor Snapper" << endl;
+    tulog.debug("Destructor Snapper");
 }
 
 void Snapper::close() {

@@ -22,6 +22,7 @@
  */
 
 #include "Transaction.h"
+#include "Log.h"
 #include "Util.h"
 #include <cstdlib>
 #include <filesystem>
@@ -30,11 +31,11 @@
 using namespace std;
 
 Transaction::Transaction() {
-    cout << "Konstruktor Transaktion" << endl;
+    tulog.debug("Constructor Transaction");
 }
 
 Transaction::~Transaction() {
-    cout << "Destruktor Transaktion" << endl;
+    tulog.debug("Destructor Transaction");
     dirsToMount.clear();
     filesystem::remove_all(filesystem::path{bindDir});
     if (isInitialized())

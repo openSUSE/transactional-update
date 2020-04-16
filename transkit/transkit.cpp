@@ -21,6 +21,7 @@
 #include "Configuration.h"
 //#include "Command.h"
 #include "../lib/Transaction.h"
+#include "../lib/Log.h"
 #include <fcntl.h>
 #include <unistd.h>
 #include <algorithm>
@@ -109,6 +110,7 @@ private:
 Transkit::Transkit(int argc, const char *argv[]) {
     Lock lock;
     cout << "transkit @VERSION@ started" << endl;
+    tulog.level = TULogLevel::DEBUG;
 
     parseOptions(argc, argv);
 }

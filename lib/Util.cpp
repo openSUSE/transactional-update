@@ -17,6 +17,7 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "Log.h"
 #include "Util.h"
 #include "Exceptions.h"
 #include <algorithm>
@@ -25,7 +26,7 @@ string Util::exec(const string cmd) {
     array<char, 128> buffer;
     string result;
 
-    cout << "Executing `" << cmd << "`:" << endl;
+    tulog.info("Executing `", cmd, "`:");
 
     auto pipe = popen(cmd.c_str(), "r");
 
@@ -40,7 +41,7 @@ string Util::exec(const string cmd) {
     int rc = pclose(pipe);
 
     if (rc == EXIT_SUCCESS) {
-        cout << "◸" << result << "◿" << endl;
+        tulog.info("◸", result, "◿");
     } else {
         throw ExecutionException{"`" + cmd + "` returned with error code " + to_string(rc%255) + ".", rc};
     }
