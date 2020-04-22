@@ -19,6 +19,7 @@
 
 #include "Log.h"
 #include "Mount.h"
+#include <cstring>
 #include <filesystem>
 #include <stdexcept>
 
@@ -39,14 +40,15 @@ Mount::Mount(Mount&& other) noexcept
 }
 
 Mount::~Mount() {
+    int rc;
     int mountStatus = 0;
-    if (mnt_cxt && mnt_fs && mnt_context_is_fs_mounted(mnt_cxt, mnt_fs, &mountStatus) != 0)
-        tulog.error("Error determining mount status of ", target);
+    if (mnt_cxt && mnt_fs && (rc = mnt_context_is_fs_mounted(mnt_cxt, mnt_fs, &mountStatus)) != 0)
+        tulog.error("Error determining mount status of ", target, ": ", rc);
     if (mountStatus == 1) {
         tulog.debug("Unmounting ", target, "...");
         mnt_reset_context(mnt_cxt);
-        if (mnt_context_set_fs(mnt_cxt, mnt_fs) != 0) {
-            tulog.error("Setting umount context for '", target, "' failed.");
+        if ((rc = mnt_context_set_fs(mnt_cxt, mnt_fs)) != 0) {
+            tulog.error("Setting umount context for '", target, "' failed: ", rc);
         }
         int rc = mnt_context_umount(mnt_cxt);
         char buf[BUFSIZ] = { 0 };
@@ -64,8 +66,9 @@ void Mount::getFstabEntry() {
     // Has been found already
     if (mnt_fs != nullptr) return;
 
-    if (mnt_table_parse_fstab(mnt_table, NULL) != 0)
-        throw std::runtime_error{"Error reading fstab."};
+    int rc;
+    if ((rc = mnt_table_parse_fstab(mnt_table, NULL)) != 0)
+        throw std::runtime_error{"Error reading fstab: " + std::to_string(rc)};
     mnt_fs = mnt_table_find_target(mnt_table, target.c_str(), MNT_ITER_BACKWARD);
 }
 
@@ -102,16 +105,20 @@ bool Mount::isMounted() {
 void Mount::setSource(std::string source)
 {
     getMntFs();
-    if (mnt_fs_set_source(mnt_fs, source.c_str()) != 0) {
-        throw std::runtime_error{"Setting source directory '" + source + "' for '" + target + "' failed."};
+
+    int rc;
+    if ((rc = mnt_fs_set_source(mnt_fs, source.c_str())) != 0) {
+        throw std::runtime_error{"Setting source directory '" + source + "' for '" + target + "' failed: " + std::to_string(rc)};
     }
 }
 
 void Mount::setType(std::string type)
 {
     getMntFs();
-    if (mnt_fs_set_fstype(mnt_fs, type.c_str()) != 0) {
-        throw std::runtime_error{"Setting file system type '" + type + "' for '" + target + "' failed."};
+
+    int rc;
+    if ((rc = mnt_fs_set_fstype(mnt_fs, type.c_str())) != 0) {
+        throw std::runtime_error{"Setting file system type '" + type + "' for '" + target + "' failed: " + std::to_string(rc)};
     }
 }
 
@@ -119,25 +126,26 @@ void Mount::mount(std::string prefix)
 {
     tulog.debug("Mounting ", target, "...");
 
+    int rc;
     std::string mounttarget = prefix + target.c_str();
-    if (mnt_fs_set_target(mnt_fs, mounttarget.c_str()) != 0) {
-        throw std::runtime_error{"Setting target '" + mounttarget + "' for mountpoint failed."};
+    if ((rc = mnt_fs_set_target(mnt_fs, mounttarget.c_str())) != 0) {
+        throw std::runtime_error{"Setting target '" + mounttarget + "' for mountpoint failed: " + std::to_string(rc)};
     }
 
     mnt_cxt = mnt_new_context();
-    if (mnt_context_set_fs(mnt_cxt, mnt_fs) != 0) {
-        throw std::runtime_error{"Setting mount context for '" + target + "' failed."};
+    if ((rc = mnt_context_set_fs(mnt_cxt, mnt_fs)) != 0) {
+        throw std::runtime_error{"Setting mount context for '" + target + "' failed: " + std::to_string(rc)};
     }
 
-    if (mnt_context_set_mflags(mnt_cxt, flags) != 0) {
-        throw std::runtime_error{"Setting mount flags for '" + target + "' failed."};
+    if ((rc = mnt_context_set_mflags(mnt_cxt, flags)) != 0) {
+        throw std::runtime_error{"Setting mount flags for '" + target + "' failed: " + std::to_string(rc)};
     }
 
     std::filesystem::create_directories(mounttarget);
 
-    int rc = mnt_context_mount(mnt_cxt);
+    rc = mnt_context_mount(mnt_cxt);
     char buf[BUFSIZ] = { 0 };
-    rc = mnt_context_get_excode(mnt_cxt, rc, buf, sizeof(buf));
+    mnt_context_get_excode(mnt_cxt, rc, buf, sizeof(buf));
     if (*buf)
             throw std::runtime_error{"Mounting '" + target + "': " + buf};
 }
@@ -149,10 +157,11 @@ BindMount::BindMount(std::string target, unsigned long flags)
 
 void BindMount::mount(std::string prefix)
 {
+    int rc;
     if (mnt_fs == nullptr) {
         mnt_fs = mnt_new_fs();
-        if (mnt_fs_set_source(mnt_fs, target.c_str()) != 0) {
-            throw std::runtime_error{"Setting source for " + target + " mount failed."};
+        if ((rc = mnt_fs_set_source(mnt_fs, target.c_str())) != 0) {
+            throw std::runtime_error{"Setting source for " + target + " mount failed: " + std::to_string(rc)};
         }
     }
     Mount::mount(prefix);
