@@ -23,14 +23,13 @@
 #include <string>
 #include <array>
 #include <iostream>
-using namespace std;
 
 struct Util {
-    static string exec(const string cmd);
-    static void ltrim(string &s);
-    static void rtrim(string &s);
+    static std::string exec(const std::string cmd);
+    static void ltrim(std::string &s);
+    static void rtrim(std::string &s);
     static void stub(std::string option);
-    static void trim(string &s);
+    static void trim(std::string &s);
 };
 
 struct CString {

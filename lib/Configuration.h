@@ -1,5 +1,6 @@
 /*
-  Helper class
+  Retrieves configuration values, set via configuration file or using
+  default values otherwise.
 
   Copyright (c) 2016 - 2020 SUSE LLC
 
@@ -17,26 +18,26 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef UTIL_H_
-#define UTIL_H_
+#ifndef CONFIGURATION_H_
+#define CONFIGURATION_H_
 
 #include <string>
-#include <array>
-#include <iostream>
+
+extern "C" {
+#include <libeconf.h>
+}
+
 using namespace std;
 
-struct Util {
-    static string exec(const string cmd);
-    static void ltrim(string &s);
-    static void rtrim(string &s);
-    static void stub(std::string option);
-    static void trim(string &s);
+class Configuration {
+public:
+    Configuration();
+    virtual ~Configuration();
+    string get(const string &key);
+private:
+    econf_file *key_file;
 };
 
-struct CString {
-    ~CString() { free(ptr); }
-    operator char*() { return ptr; }
-    char *ptr = nullptr;
-};
+inline Configuration config{};
 
-#endif /* UTIL_H_ */
+#endif /* CONFIGURATION_H_ */

@@ -18,8 +18,8 @@
  */
 
 #include "transkit.h"
-#include "Configuration.h"
 //#include "Command.h"
+#include "../lib/Configuration.h"
 #include "../lib/Transaction.h"
 #include "../lib/Log.h"
 #include <fcntl.h>
@@ -33,8 +33,6 @@
 #include <memory>
 #include <stdexcept>
 #include <typeinfo>
-
-Configuration config;
 
 void Transkit::getHelp() {
     cout << "Syntax: transkit [option...] command" << endl;

@@ -21,6 +21,7 @@
 #include "Util.h"
 #include "Exceptions.h"
 #include <algorithm>
+using namespace std;
 
 string Util::exec(const string cmd) {
     array<char, 128> buffer;
