@@ -1,42 +1,29 @@
 dnl Process this file with autoconf to produce a configure script.
 AC_INIT(transactional-update, 2.21.1)
 AM_INIT_AUTOMAKE
-AC_CONFIG_SRCDIR([sbin/transactional-update.in])
 AC_PREFIX_DEFAULT(/usr)
 
 AC_SUBST(PACKAGE)
 AC_SUBST(VERSION)
 
-if test ${libexecdir} = '${exec_prefix}/libexec'
-then
-  libexecdir='${exec_prefix}/lib'
-  if test "${exec_prefix}" = "NONE"
-  then
-    TMPFILESDIR=${prefix}/lib/tmpfiles.d
-    ISSUEDIR=${prefix}/lib/issue.d
-    UDEVRULESDIR=${prefix}/lib/udev/rules.d
-    SYSTEMDDIR=${prefix}/lib/systemd/system
-    DRACUTDIR=${prefix}/lib/dracut/modules.d
-  else
-    TMPFILESDIR=${exec_prefix}/lib/tmpfiles.d
-    ISSUEDIR=${exec_prefix}/lib/issue.d
-    UDEVRULESDIR=${exec_prefix}/lib/udev/rules.d
-    SYSTEMDDIR=${exec_prefix}/lib/systemd/system
-    DRACUTDIR=${exec_prefix}/lib/dracut/modules.d
-  fi
-else
-  TMPFILESDIR=${libexecdir}/tmpfiles.d
-  ISSUEDIR=${libexecdir}/issue.d
-  UDEVRULESDIR=${libexecdir}/udev/rules.d
-  SYSTEMDDIR=${libexecdir}/systemd/system
-  DRACUTDIR=${libexecdir}/dracut/modules.d
-fi
+PKG_CHECK_VAR([SYSTEMDDIR], [systemd], [systemdsystemunitdir], [],
+	[AC_MSG_ERROR([Could not determine value for 'systemdsystemunitdir' - is the 'systemd.pc' file installed?])])
+PKG_CHECK_VAR([TMPFILESDIR], [systemd], [tmpfilesdir], [],
+	[AC_MSG_ERROR([Could not determine value for 'tmpfilesdir' - is the 'systemd.pc' file installed?])])
+PKG_CHECK_VAR([DRACUTDIR], [dracut], [dracutmodulesdir], [],
+	[AC_MSG_ERROR([Could not determine value for 'dracutmodulesdir' - is the 'dracut.pc' file installed?])])
+PKG_CHECK_VAR([UDEVDIR], [udev], [udevdir], [],
+	[AC_MSG_ERROR([Could not determine value for 'udevdir' - is the 'udev.pc' file installed?])])
+
+ISSUEDIR=${exec_prefix}/issue.d
+UDEVRULESDIR=${UDEVDIR}/rules.d
+LOGROTATEDDIR=${sysconfdir}/logrotate.d
+
 AC_SUBST(TMPFILESDIR)
 AC_SUBST(ISSUEDIR)
 AC_SUBST(UDEVRULESDIR)
 AC_SUBST(SYSTEMDDIR)
 AC_SUBST(DRACUTDIR)
-LOGROTATEDDIR=${sysconfdir}/logrotate.d
 AC_SUBST(LOGROTATEDDIR)
 
 AC_PROG_CC
