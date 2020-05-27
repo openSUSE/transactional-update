@@ -28,7 +28,9 @@ Configuration::Configuration() {
     if (error)
         throw runtime_error{"Could not create default configuration."};
     map<const char*, const char*> defaults = {
-            {"LOCKFILE", "/var/run/transactional-update.pid"}
+        {"DRACUT_SYSROOT", "/sysroot"},
+        {"LOCKFILE", "/var/run/transactional-update.pid"},
+        {"OVERLAY_DIR", "/var/lib/overlay"}
     };
     for(auto &e : defaults) {
         error = econf_setStringValue(key_file, "", e.first, e.second);

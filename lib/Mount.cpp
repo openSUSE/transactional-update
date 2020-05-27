@@ -62,18 +62,22 @@ Mount::~Mount() {
     mnt_free_table(mnt_table);
 }
 
-void Mount::getFstabEntry() {
+void Mount::getTabEntry() {
     // Has been found already
     if (mnt_fs != nullptr) return;
 
     int rc;
-    if ((rc = mnt_table_parse_fstab(mnt_table, NULL)) != 0)
+    if (tabsource.empty())
+        rc = mnt_table_parse_fstab(mnt_table, NULL);
+    else
+        rc = mnt_table_parse_file(mnt_table, tabsource.c_str());
+    if (rc != 0)
         throw std::runtime_error{"Error reading fstab: " + std::to_string(rc)};
     mnt_fs = mnt_table_find_target(mnt_table, target.c_str(), MNT_ITER_BACKWARD);
 }
 
 void Mount::find() {
-    getFstabEntry();
+    getTabEntry();
 
     if (mnt_fs == nullptr)
         throw std::runtime_error{"File system " + target + " not found in fstab."};
@@ -81,7 +85,7 @@ void Mount::find() {
 
 void Mount::getMntFs()
 {
-    getFstabEntry();
+    getTabEntry();
 
     if (mnt_fs == nullptr)
         mnt_fs = mnt_new_fs();
@@ -92,13 +96,70 @@ std::string Mount::getFS() {
     return mnt_fs_get_fstype(mnt_fs);
 }
 
+void Mount::removeOption(std::string option) {
+    find();
+
+    int rc;
+    const char* current_opts;
+    if ((current_opts = mnt_fs_get_options(mnt_fs)) == NULL)
+        throw std::runtime_error{"Options for file system " + target + "not found."};
+
+    char* new_opts = strdup(current_opts);
+    if ((rc = mnt_optstr_remove_option(&new_opts, option.c_str())) != 0) {
+        free(new_opts);
+        throw std::runtime_error{"File system option " + option + "could not be removed: " + std::to_string(rc)};
+    }
+    if ((rc = mnt_fs_set_options(mnt_fs, new_opts)) != 0) {
+        free(new_opts);
+        throw std::runtime_error{"Could not set new options " + std::string(new_opts) + " for file system " + target + ": " + std::to_string(rc)};
+    }
+    free(new_opts);
+}
+
+std::string Mount::getOption(std::string option) {
+    find();
+
+    char* opt;
+    size_t len = 0;
+    int rc = mnt_fs_get_option(mnt_fs, option.c_str(), &opt, &len);
+    if (rc < 0)
+        throw std::runtime_error{"Error retrieving options for file system " + target + ": " + std::to_string(rc)};
+    else if (rc > 0)
+        throw std::range_error{"Option " + option + " not found for file system " + target + "."};
+    return std::string(opt).substr(0, len);
+}
+
+void Mount::setOption(std::string option, std::string value) {
+    find();
+
+    int rc;
+    const char* current_opts;
+    if ((current_opts = mnt_fs_get_options(mnt_fs)) == NULL)
+        throw std::runtime_error{"Options for file system " + target + "not found."};
+
+    char* new_opts = strdup(current_opts);
+    if ((rc = mnt_optstr_set_option(&new_opts, option.c_str(), value.c_str())) != 0) {
+        free(new_opts);
+        throw std::runtime_error{"File system option " + option + "could not be set to " + value + ": " + std::to_string(rc)};
+    }
+    if ((rc = mnt_fs_set_options(mnt_fs, new_opts)) != 0) {
+        free(new_opts);
+        throw std::runtime_error{"Could not set new options " + std::string(new_opts) + " for file system " + target + ": " + std::to_string(rc)};
+    }
+    free(new_opts);
+}
+
+void Mount::setTabSource(std::string source) {
+    tabsource = source;
+}
+
 std::string Mount::getTarget()
 {
     return target;
 }
 
-bool Mount::isMounted() {
-    getFstabEntry();
+bool Mount::isMount() {
+    getTabEntry();
     return mnt_fs ? true : false;
 }
 
@@ -148,6 +209,37 @@ void Mount::mount(std::string prefix)
     mnt_context_get_excode(mnt_cxt, rc, buf, sizeof(buf));
     if (*buf)
             throw std::runtime_error{"Mounting '" + target + "': " + buf};
+}
+
+void Mount::persist(std::filesystem::path file) {
+    int rc = 0;
+    std::string err;
+
+    struct libmnt_table* snap_table = mnt_new_table();
+
+    if ((rc = mnt_table_parse_file(snap_table, file.c_str())) != 0)
+        err = "No mount table found in '" + std::string(file) + "': " + std::to_string(rc);
+    struct libmnt_fs* old_fs_entry = mnt_table_find_target(snap_table, target.c_str(), MNT_ITER_BACKWARD);
+
+    struct libmnt_fs* new_fs = mnt_copy_fs(NULL, mnt_fs);
+    if (!rc && (rc = mnt_table_remove_fs(snap_table, old_fs_entry)) != 0)
+        err = "Removing old '" + target + "' from target table failed: " + std::to_string(rc);
+    if (!rc && (rc = mnt_table_add_fs(snap_table, new_fs)) != 0)
+        err = "Adding new '" + target + "' to target table failed: " + std::to_string(rc);
+
+    FILE *f = fopen(file.c_str(), "w");
+    if (!rc && (rc = mnt_table_write_file(snap_table, f)) != 0) {
+        fclose(f);
+        err = "Writing new mount table '" + std::string(file) + "' failed: " + std::to_string(rc);
+    }
+    fclose(f);
+
+    mnt_unref_fs(new_fs);
+    mnt_free_table(snap_table);
+
+    if (!err.empty()) {
+        throw std::runtime_error{err};
+    }
 }
 
 BindMount::BindMount(std::string target, unsigned long flags)

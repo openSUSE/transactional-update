@@ -20,16 +20,16 @@
 #include "Log.h"
 #include "Snapper.h"
 #include "Util.h"
-using namespace std;
 
 Snapper::Snapper() {
-    tulog.debug("Constructor Snapper");
     snapshotId = Util::exec("snapper create --read-write --print-number --userdata 'transactional-update-in-progress=yes'");
     Util::rtrim(snapshotId);
 }
+Snapper::Snapper(std::string id)
+    : snapshotId(id) {
+}
 
 Snapper::~Snapper() {
-    tulog.debug("Destructor Snapper");
 }
 
 void Snapper::close() {
@@ -40,6 +40,16 @@ void Snapper::abort() {
     Util::exec("snapper delete " + snapshotId);
 }
 
-string Snapper::getRoot() {
-    return string("/.snapshots/" + snapshotId + "/snapshot");
+std::filesystem::path Snapper::getRoot() {
+    return std::filesystem::path("/.snapshots/" + snapshotId + "/snapshot");
+}
+
+std::string Snapper::getUid() {
+    return snapshotId;
+}
+
+std::string Snapper::getCurrent() {
+    std::string id = Util::exec("snapper --csvout list --columns active,number | grep yes | cut -f 2 -d ,");
+    Util::rtrim(id);
+    return id;
 }

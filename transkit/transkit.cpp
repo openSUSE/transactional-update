@@ -18,7 +18,6 @@
  */
 
 #include "transkit.h"
-//#include "Command.h"
 #include "../lib/Configuration.h"
 #include "../lib/Transaction.h"
 #include "../lib/Log.h"
@@ -55,7 +54,7 @@ int Transkit::parseOptions(int argc, const char *argv[]) {
         string arg = argv[i];
         if (arg == "execute") {
             Transaction transaction{};
-            transaction.init();
+            transaction.init(baseSnapshot);
             int status = transaction.execute(&argv[i + 1]); // All remaining arguments
             if (status == 0) {
                 transaction.finalize();
@@ -100,7 +99,7 @@ public:
             remove(config.get("LOCKFILE").c_str());
         }
     }
-    ~Lock(){
+    ~Lock() {
         close(lockfile);
         remove(config.get("LOCKFILE").c_str());
     }
@@ -115,8 +114,3 @@ Transkit::Transkit(int argc, const char *argv[]) {
 
     parseOptions(argc, argv);
 }
-
-Transkit::~Transkit() {
-    // TODO Auto-generated destructor stub
-}
-

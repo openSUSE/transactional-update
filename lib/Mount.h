@@ -20,6 +20,7 @@
 #ifndef LIBMOUNTWRAPPER_H
 #define LIBMOUNTWRAPPER_H
 
+#include <filesystem>
 #include <libmount/libmount.h>
 #include <string>
 
@@ -30,19 +31,25 @@ public:
     Mount(Mount&& other) noexcept;
     virtual ~Mount();
     std::string getFS();
+    std::string getOption(std::string option);
     std::string getTarget();
-    bool isMounted();
+    bool isMount();
     virtual void mount(std::string prefix = "/");
+    void persist(std::filesystem::path);
+    void removeOption(std::string option);
+    void setOption(std::string option, std::string value);
     void setSource(std::string source);
+    void setTabSource(std::string source);
     void setType(std::string type);
 protected:
     struct libmnt_context* mnt_cxt;
     struct libmnt_table* mnt_table;
     struct libmnt_fs* mnt_fs;
+    std::string tabsource;
     std::string target;
     unsigned long flags;
     void find();
-    void getFstabEntry();
+    void getTabEntry();
     void getMntFs();
 };
 

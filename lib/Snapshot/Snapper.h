@@ -21,15 +21,19 @@
 #define FILESYSTEMS_SNAPPER_H_
 
 #include "Snapshot.h"
+#include <filesystem>
 #include <string>
 
 class Snapper: public Snapshot {
 public:
     Snapper();
+    Snapper(std::string id);
     virtual ~Snapper();
     void close();
     void abort();
-    std::string getRoot();
+    std::filesystem::path getRoot();
+    std::string getUid();
+    std::string getCurrent();
 
 private:
     std::string snapshotId;

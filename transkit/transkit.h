@@ -20,18 +20,17 @@
 #ifndef TRANSACTIONALUPDATE_H_
 #define TRANSACTIONALUPDATE_H_
 
-#include "../lib/Transaction.h"
 #include <string>
 
 class Transkit {
 public:
     Transkit(int argc, const char *argv[]);
-    virtual ~Transkit();
+    virtual ~Transkit() = default;
 
     void getHelp();
     int parseOptions(int argc, const char *argv[]);
 private:
-    unsigned int baseSnapshot = 0;
+    std::string baseSnapshot = "0";
 };
 
 #endif /* TRANSACTIONALUPDATE_H_ */

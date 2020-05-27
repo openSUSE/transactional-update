@@ -33,7 +33,7 @@ class Transaction {
 public:
     Transaction();
     virtual ~Transaction();
-    void init();
+    void init(std::string base);
     int execute(const char* argv[]);
     void finalize();
     bool isInitialized();

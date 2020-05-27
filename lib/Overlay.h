@@ -1,6 +1,5 @@
 /*
-  Factory / interface class for snapshot generation implementations;
-  implementations can be found in the "Snapshot" directory
+  Handling of /etc overlayfs layers
 
   Copyright (c) 2016 - 2020 SUSE LLC
 
@@ -18,29 +17,28 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef SNAPSHOT_H_
-#define SNAPSHOT_H_
+#ifndef OVERLAY_H
+#define OVERLAY_H
 
-#include <filesystem>
+#include "Mount.h"
 #include <memory>
 #include <string>
+#include <vector>
 
-class Snapshot {
+class Overlay {
 public:
-    Snapshot() = default;
-    Snapshot(std::string id);
-    virtual ~Snapshot() = default;
-    virtual void close() = 0;
-    virtual void abort() = 0;
-    virtual std::filesystem::path getRoot() = 0;
-    virtual std::string getUid() = 0;
-    virtual std::string getCurrent() = 0;
+    Overlay(std::string snapshot);
+    virtual ~Overlay() = default;
+    void create(std::string base);
+    std::string getOldestSnapshot();
+    void sync(std::string snapshot);
+    void updateMountDirs(std::unique_ptr<Mount>& mount, std::filesystem::path prefix = "/");
+
+    std::vector<std::filesystem::path> lowerdirs;
+    std::filesystem::path upperdir;
+    std::filesystem::path workdir;
+private:
+    static std::string getIdOfOverlayDir(const std::string dir);
 };
 
-class SnapshotFactory {
-public:
-    static std::unique_ptr<Snapshot> create();
-    static std::unique_ptr<Snapshot> get(std::string id);
-};
-
-#endif /* SNAPSHOT_H_ */
+#endif // OVERLAY_H

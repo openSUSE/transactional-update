@@ -30,3 +30,10 @@ unique_ptr<Snapshot> SnapshotFactory::create() {
         throw runtime_error{"No supported environment found."};
     }
 }
+unique_ptr<Snapshot> SnapshotFactory::get(std::string id) {
+    if (filesystem::exists("/usr/bin/snapper")) {
+        return make_unique<Snapper>(id);
+    } else {
+        throw runtime_error{"No supported environment found."};
+    }
+}

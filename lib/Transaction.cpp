@@ -22,8 +22,9 @@
  */
 
 #include "Transaction.h"
+#include "Configuration.h"
 #include "Log.h"
-#include "Util.h"
+#include "Overlay.h"
 #include <cerrno>
 #include <cstdlib>
 #include <cstring>
@@ -57,20 +58,37 @@ string Transaction::getChrootDir()
     return bindDir;
 }
 
-void Transaction::init() {
+void Transaction::init(string base) {
     snapshot = SnapshotFactory::create();
+
+    if (base == "0")
+        base = snapshot->getCurrent();
 
     dirsToMount.push_back(make_unique<BindMount>("/dev"));
     dirsToMount.push_back(make_unique<BindMount>("/var/log"));
 
     Mount mntVar{"/var"};
-    if (mntVar.isMounted()) {
+    if (mntVar.isMount()) {
         dirsToMount.push_back(make_unique<BindMount>("/var/cache"));
         dirsToMount.push_back(make_unique<BindMount>("/var/lib/alternatives"));
     }
-    Mount mntEtc{"/etc"};
-    if (mntEtc.isMounted() && mntEtc.getFS() == "overlay") {
-        // Lots of things TODO
+    unique_ptr<Mount> mntEtc{new Mount{"/etc"}};
+    if (mntEtc->isMount() && mntEtc->getFS() == "overlay") {
+        Overlay overlay = Overlay{snapshot->getUid()};
+        overlay.create(base);
+
+        overlay.updateMountDirs(mntEtc, config.get("DRACUT_SYSROOT"));
+        mntEtc->persist(snapshot->getRoot() / "etc" / "fstab");
+        overlay.updateMountDirs(mntEtc);
+
+        overlay.sync(snapshot->getRoot());
+
+        dirsToMount.push_back(std::move(mntEtc));
+
+        // Make sure both the snapshot and the overlay contain all relevant fstab data, i.e.
+        // user modifications from the overlay are present in the root fs and the /etc
+        // overlay is visible in the overlay
+        filesystem::copy(filesystem::path{snapshot->getRoot() / "etc" / "fstab"}, overlay.upperdir, filesystem::copy_options::overwrite_existing);
     }
 
     unique_ptr<Mount> mntProc{new Mount{"/proc"}};
