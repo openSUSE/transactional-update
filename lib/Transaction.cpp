@@ -42,11 +42,11 @@ Transaction::~Transaction() {
     dirsToMount.clear();
     try {
         filesystem::remove_all(filesystem::path{bindDir});
-    }  catch (exception e) {
+        if (isInitialized())
+            snapshot->abort();
+    }  catch (const exception &e) {
         tulog.error("ERROR: ", e.what());
     }
-    if (isInitialized())
-        snapshot->abort();
 }
 
 bool Transaction::isInitialized() {
