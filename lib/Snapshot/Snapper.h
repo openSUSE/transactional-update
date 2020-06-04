@@ -37,6 +37,7 @@ public:
 
 private:
     std::string snapshotId;
+    std::string callSnapper(std::string);
 };
 
 #endif /* FILESYSTEMS_SNAPPER_H_ */

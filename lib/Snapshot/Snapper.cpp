@@ -17,12 +17,13 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "Log.h"
 #include "Snapper.h"
+#include "Exceptions.h"
+#include "Log.h"
 #include "Util.h"
 
 Snapper::Snapper() {
-    snapshotId = Util::exec("snapper create --read-write --print-number --userdata 'transactional-update-in-progress=yes'");
+    snapshotId = callSnapper("create --read-write --print-number --userdata 'transactional-update-in-progress=yes'");
     Util::rtrim(snapshotId);
 }
 Snapper::Snapper(std::string id)
@@ -33,11 +34,11 @@ Snapper::~Snapper() {
 }
 
 void Snapper::close() {
-    Util::exec("snapper modify -u 'transactional-update-in-progress=' " + snapshotId);
+    callSnapper("modify -u 'transactional-update-in-progress=' " + snapshotId);
 }
 
 void Snapper::abort() {
-    Util::exec("snapper delete " + snapshotId);
+    callSnapper("delete " + snapshotId);
 }
 
 std::filesystem::path Snapper::getRoot() {
@@ -49,7 +50,15 @@ std::string Snapper::getUid() {
 }
 
 std::string Snapper::getCurrent() {
-    std::string id = Util::exec("snapper --csvout list --columns active,number | grep yes | cut -f 2 -d ,");
+    std::string id = callSnapper("--csvout list --columns active,number | grep yes | cut -f 2 -d ,");
     Util::rtrim(id);
     return id;
+}
+
+std::string Snapper::callSnapper(std::string opts) {
+    try {
+        return Util::exec("snapper " + opts);
+    } catch (const ExecutionException &e) {
+        return Util::exec("snapper --no-dbus " + opts);
+    }
 }
