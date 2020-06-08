@@ -30,7 +30,7 @@ public:
     void getHelp();
     int parseOptions(int argc, const char *argv[]);
 private:
-    std::string baseSnapshot = "0";
+    std::string baseSnapshot = "active";
 };
 
 #endif /* TRANSACTIONALUPDATE_H_ */

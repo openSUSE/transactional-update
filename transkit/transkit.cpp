@@ -50,6 +50,8 @@ void Transkit::getHelp() {
 }
 
 int Transkit::parseOptions(int argc, const char *argv[]) {
+    int waitForSnapNum = false;
+
     for (int i = 1; i < argc; i++) {
         string arg = argv[i];
         if (arg == "execute") {
@@ -64,22 +66,21 @@ int Transkit::parseOptions(int argc, const char *argv[]) {
             return 0;
         }
         else if (arg == "--continue" || arg == "-c") {
-            // Check if followed by a (snapshot) number
-            if (i + 1 < argc) {
-                string num = argv[i + 1];
-                if (all_of(num.begin(), num.end(), ::isdigit)) {
-                    baseSnapshot = stoi(num); // snapper numbers are uint, kernel is would be u64
-                    i++;
-                }
-            }
+            waitForSnapNum = true;
+            baseSnapshot = "default";
         }
         else if (arg == "--help" || arg == "-h" ) {
             getHelp();
             return 0;
         }
         else {
-            getHelp();
-            throw invalid_argument{"Unknown command or option '" + arg + "'."};
+            if (waitForSnapNum) {
+                baseSnapshot = arg;
+                waitForSnapNum = false;
+            } else {
+                getHelp();
+                throw invalid_argument{"Unknown command or option '" + arg + "'."};
+            }
         }
     }
     cout << "Programmende" << endl;

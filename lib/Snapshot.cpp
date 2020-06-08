@@ -23,16 +23,9 @@
 using namespace std;
 
 // TODO: Make configurable to be able to force a certain implementation
-unique_ptr<Snapshot> SnapshotFactory::create() {
+unique_ptr<Snapshot> SnapshotFactory::get() {
     if (filesystem::exists("/usr/bin/snapper")) {
         return make_unique<Snapper>();
-    } else {
-        throw runtime_error{"No supported environment found."};
-    }
-}
-unique_ptr<Snapshot> SnapshotFactory::get(std::string id) {
-    if (filesystem::exists("/usr/bin/snapper")) {
-        return make_unique<Snapper>(id);
     } else {
         throw runtime_error{"No supported environment found."};
     }

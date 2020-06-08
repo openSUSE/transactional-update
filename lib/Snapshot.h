@@ -28,19 +28,20 @@
 class Snapshot {
 public:
     Snapshot() = default;
-    Snapshot(std::string id);
     virtual ~Snapshot() = default;
+    virtual void create(std::string base) = 0;
+    virtual void open(std::string id) = 0;
     virtual void close() = 0;
     virtual void abort() = 0;
     virtual std::filesystem::path getRoot() = 0;
     virtual std::string getUid() = 0;
     virtual std::string getCurrent() = 0;
+    virtual std::string getDefault() = 0;
 };
 
 class SnapshotFactory {
 public:
-    static std::unique_ptr<Snapshot> create();
-    static std::unique_ptr<Snapshot> get(std::string id);
+    static std::unique_ptr<Snapshot> get();
 };
 
 #endif /* SNAPSHOT_H_ */

@@ -59,10 +59,12 @@ string Transaction::getChrootDir()
 }
 
 void Transaction::init(string base) {
-    snapshot = SnapshotFactory::create();
-
-    if (base == "0")
+    snapshot = SnapshotFactory::get();
+    if (base == "active")
         base = snapshot->getCurrent();
+    else if (base == "default")
+        base =snapshot->getDefault();
+    snapshot->create(base);
 
     dirsToMount.push_back(make_unique<BindMount>("/dev"));
     dirsToMount.push_back(make_unique<BindMount>("/var/log"));

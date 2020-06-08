@@ -40,9 +40,10 @@ Overlay::Overlay(std::string snapshot):
 {
     std::filesystem::create_directories(std::filesystem::path{workdir});
 
+    // Read lowerdirs if this is an existing snapshot
     Mount mntEtc{"/etc"};
     mntEtc.setTabSource(upperdir / "fstab");
-    if (mntEtc.isMount()) {
+    try {
         const std::string fstabLowerdirs = mntEtc.getOption("lowerdir");
         string lowerdir;
         stringstream ss(fstabLowerdirs);
@@ -50,7 +51,7 @@ Overlay::Overlay(std::string snapshot):
             lowerdir = regex_replace(lowerdir, regex("^" + config.get("DRACUT_SYSROOT")), "");
             lowerdirs.push_back(lowerdir);
         }
-    }
+    } catch (exception e) {}
 }
 
 string Overlay::getIdOfOverlayDir(const string dir) {
@@ -66,7 +67,8 @@ void Overlay::sync(std::string snapshot) {
     Mount currentEtc{"/etc"};
 
     auto oldestSnapId = getOldestSnapshot();
-    std::unique_ptr<Snapshot> oldestSnap = SnapshotFactory::get(oldestSnapId);
+    std::unique_ptr<Snapshot> oldestSnap = SnapshotFactory::get();
+    oldestSnap->open(oldestSnapId);
     unique_ptr<Mount> oldestEtc{new Mount("/etc")};
     oldestEtc->setTabSource(oldestSnap->getRoot() / "etc" / "fstab");
 
@@ -129,7 +131,8 @@ void Overlay::create(std::string base) {
             if (snapId.empty())
                 lowerdirs.push_back(lowerdir);
             else {
-                std::unique_ptr<Snapshot> oldSnap = SnapshotFactory::get(snapId);
+                std::unique_ptr<Snapshot> oldSnap = SnapshotFactory::get();
+                oldSnap->open(snapId);
                 // Check whether the snapshot of the overlay still exists
                 if (std::filesystem::is_directory(std::filesystem::path{oldSnap->getRoot()})) {
                     tulog.debug("Re-adding overlay stack up to ", oldSnap->getRoot(), " to /etc lowerdirs - snapshot is still active.");

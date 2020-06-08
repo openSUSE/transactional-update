@@ -26,14 +26,16 @@
 
 class Snapper: public Snapshot {
 public:
-    Snapper();
-    Snapper(std::string id);
-    virtual ~Snapper();
+    Snapper() = default;
+    ~Snapper() = default;
+    void create(std::string base);
+    void open(std::string id);
     void close();
     void abort();
     std::filesystem::path getRoot();
     std::string getUid();
     std::string getCurrent();
+    std::string getDefault();
 
 private:
     std::string snapshotId;

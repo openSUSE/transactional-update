@@ -22,15 +22,13 @@
 #include "Log.h"
 #include "Util.h"
 
-Snapper::Snapper() {
-    snapshotId = callSnapper("create --read-write --print-number --userdata 'transactional-update-in-progress=yes'");
+void Snapper::create(std::string base) {
+    snapshotId = callSnapper("create --from " + base + " --read-write --print-number --description 'Snapshot Update of #" + base + "' --userdata 'transactional-update-in-progress=yes'");
     Util::rtrim(snapshotId);
 }
-Snapper::Snapper(std::string id)
-    : snapshotId(id) {
-}
 
-Snapper::~Snapper() {
+void Snapper::open(std::string id) {
+    snapshotId = id;
 }
 
 void Snapper::close() {
@@ -51,6 +49,12 @@ std::string Snapper::getUid() {
 
 std::string Snapper::getCurrent() {
     std::string id = callSnapper("--csvout list --columns active,number | grep yes | cut -f 2 -d ,");
+    Util::rtrim(id);
+    return id;
+}
+
+std::string Snapper::getDefault() {
+    std::string id = callSnapper("--csvout list --columns default,number | grep yes | cut -f 2 -d ,");
     Util::rtrim(id);
     return id;
 }

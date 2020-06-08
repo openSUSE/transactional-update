@@ -67,12 +67,13 @@ void Mount::getTabEntry() {
     if (mnt_fs != nullptr) return;
 
     int rc;
-    if (tabsource.empty())
-        rc = mnt_table_parse_fstab(mnt_table, NULL);
-    else
-        rc = mnt_table_parse_file(mnt_table, tabsource.c_str());
-    if (rc != 0)
-        throw std::runtime_error{"Error reading fstab: " + std::to_string(rc)};
+    if (tabsource.empty()) {
+        if ((rc = mnt_table_parse_fstab(mnt_table, NULL)) != 0)
+            throw std::runtime_error{"Error reading " + target + " entry from fstab : " + std::to_string(rc)};
+    } else {
+        if ((rc = mnt_table_parse_file(mnt_table, tabsource.c_str())) != 0)
+            throw std::runtime_error{"Error reading " + target + " entry from " + tabsource + ": " + std::to_string(rc)};
+    }
     mnt_fs = mnt_table_find_target(mnt_table, target.c_str(), MNT_ITER_BACKWARD);
 }
 
