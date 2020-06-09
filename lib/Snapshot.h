@@ -34,9 +34,11 @@ public:
     virtual void close() = 0;
     virtual void abort() = 0;
     virtual std::filesystem::path getRoot() = 0;
-    virtual std::string getUid() = 0;
     virtual std::string getCurrent() = 0;
     virtual std::string getDefault() = 0;
+    std::string getUid() { return snapshotId; };
+protected:
+    std::string snapshotId;
 };
 
 class SnapshotFactory {

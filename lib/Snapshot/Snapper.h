@@ -38,7 +38,6 @@ public:
     std::string getDefault();
 
 private:
-    std::string snapshotId;
     std::string callSnapper(std::string);
 };
 
