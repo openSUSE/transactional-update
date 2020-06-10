@@ -59,6 +59,22 @@ std::string Snapper::getDefault() {
     return id;
 }
 
+bool Snapper::isReadOnly() {
+    std::string ro = Util::exec("btrfs property get " + std::string(getRoot()) + " ro");
+    Util::rtrim(ro);
+    if (ro == "ro=true")
+        return true;
+    else
+        return false;
+}
+
+void Snapper::setReadOnly(bool readonly) {
+    std::string boolstr = "true";
+    if (readonly == false)
+        boolstr = "false";
+    Util::exec("btrfs property set " + std::string(getRoot()) + " ro " + boolstr);
+}
+
 std::string Snapper::callSnapper(std::string opts) {
     try {
         return Util::exec("snapper " + opts);

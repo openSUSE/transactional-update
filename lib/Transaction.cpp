@@ -159,5 +159,11 @@ int Transaction::execute(const char* argv[]) {
 
 void Transaction::finalize() {
     snapshot->close();
+
+    std::unique_ptr<Snapshot> defaultSnap = SnapshotFactory::get();
+    defaultSnap->open(snapshot->getDefault());
+    if (defaultSnap->isReadOnly())
+        snapshot->setReadOnly(true);
+
     snapshot.reset();
 }

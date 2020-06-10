@@ -36,6 +36,8 @@ public:
     std::string getUid();
     std::string getCurrent();
     std::string getDefault();
+    bool isReadOnly();
+    void setReadOnly(bool readonly);
 
 private:
     std::string callSnapper(std::string);
