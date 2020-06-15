@@ -37,6 +37,12 @@ Transaction::Transaction() {
     tulog.debug("Constructor Transaction");
 }
 
+Transaction::Transaction(string uuid) {
+    snapshot = SnapshotFactory::get();
+    snapshot->open(uuid);
+    mount();
+}
+
 Transaction::~Transaction() {
     tulog.debug("Destructor Transaction");
     dirsToMount.clear();
@@ -53,19 +59,12 @@ bool Transaction::isInitialized() {
     return snapshot ? true : false;
 }
 
-string Transaction::getChrootDir()
+string Transaction::getSnapshot()
 {
-    return bindDir;
+    return snapshot->getUid();
 }
 
-void Transaction::init(string base) {
-    snapshot = SnapshotFactory::get();
-    if (base == "active")
-        base = snapshot->getCurrent();
-    else if (base == "default")
-        base =snapshot->getDefault();
-    snapshot->create(base);
-
+void Transaction::mount(string base) {
     dirsToMount.push_back(make_unique<BindMount>("/dev"));
     dirsToMount.push_back(make_unique<BindMount>("/var/log"));
 
@@ -120,6 +119,17 @@ void Transaction::init(string base) {
     dirsToMount.push_back(std::move(mntBind));
 }
 
+void Transaction::init(string base) {
+    snapshot = SnapshotFactory::get();
+    if (base == "active")
+        base = snapshot->getCurrent();
+    else if (base == "default")
+        base =snapshot->getDefault();
+    snapshot->create(base);
+
+    mount(base);
+}
+
 int Transaction::execute(const char* argv[]) {
     std::string opts = "Executing `";
     int i = 0;
@@ -165,5 +175,9 @@ void Transaction::finalize() {
     if (defaultSnap->isReadOnly())
         snapshot->setReadOnly(true);
 
+    snapshot.reset();
+}
+
+void Transaction::keep() {
     snapshot.reset();
 }

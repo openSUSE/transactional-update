@@ -32,13 +32,16 @@
 class Transaction {
 public:
     Transaction();
+    Transaction(std::string uuid);
     virtual ~Transaction();
     void init(std::string base);
     int execute(const char* argv[]);
     void finalize();
+    void keep();
     bool isInitialized();
-    std::string getChrootDir();
+    std::string getSnapshot();
 private:
+    void mount(std::string base = "");
     std::unique_ptr<Snapshot> snapshot;
     std::string bindDir;
     std::vector<std::unique_ptr<Mount>> dirsToMount;

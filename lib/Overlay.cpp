@@ -110,7 +110,10 @@ string Overlay::getOldestSnapshot() {
     return getIdOfOverlayDir(upperdir);
 }
 
-void Overlay::create(std::string base) {
+void Overlay::create(std::string base = "") {
+    if (base.empty())
+        return;
+
     tulog.debug("Using snapshot " + base + " as base for overlay.");
     Overlay parent = Overlay{base};
     // Remove overlay directory if it already exists (e.g. after the snapshot was deleted)

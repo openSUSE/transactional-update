@@ -29,6 +29,7 @@
 #include <deque>
 #include <filesystem>
 #include <iostream>
+#include <iterator>
 #include <memory>
 #include <stdexcept>
 #include <typeinfo>
@@ -40,9 +41,17 @@ void Transkit::getHelp() {
     cout << "" << endl;
     cout << "Commands:" << endl;
     cout << "execute <command>" << endl;
-    cout << "\tOpens a new snapshot and executes the command; will not delete the" << endl;
-    cout << "\tsnapshot if the operation was not successful" << endl;
+    cout << "\tOpens a new snapshot and executes the given command; on success the snapshot" << endl;
+    cout << "\twill be set as the new default snapshot, any non-zero return value will" << endl;
+    cout << "\tdelete the snapshot again." << endl;
     cout << "\tIf no command is given an interactive shell will be opened." << endl;
+    cout << "open" << endl;
+    cout << "\tCreates a new transaction and prints its UUID" << endl;
+    cout << "call <UUID> <command>" << endl;
+    cout << "\tExecutes the given command, resuming the transaction with the given UUID; if the" << endl;
+    cout << "\tcommand fails the snapshot will be deleted again" << endl;
+    cout << "close <UUID>" << endl;
+    cout << "\tCloses the given transaction and sets the snapshot as the new default snapshot" << endl;
     cout << "Options:" << endl;
     cout << "--continue [<number>], -c  Use latest or given snapshot as base" << endl;
     cout << "--help, -h                 Display this help and exit" << endl;
@@ -63,6 +72,31 @@ int Transkit::parseOptions(int argc, const char *argv[]) {
             } else {
                 throw runtime_error{"Application returned with exit status " + to_string(status)};
             }
+            return 0;
+        }
+        else if (arg == "open") {
+            Transaction transaction{};
+            transaction.init(baseSnapshot);
+            cout << transaction.getSnapshot() << endl;
+            transaction.keep();
+            return 0;
+        }
+        else if (arg == "call") {
+            if (argc < i + 1) {
+                getHelp();
+                throw invalid_argument{"Missing argument for 'call'"};
+            }
+            Transaction transaction{argv[i + 1]};
+            int status = transaction.execute(&argv[i + 2]); // All remaining arguments
+            if (status != 0) {
+                throw runtime_error{"Application returned with exit status " + to_string(status)};
+            }
+            transaction.keep();
+            return 0;
+        }
+        else if (arg == "close") {
+            Transaction transaction{argv[i + 1]};
+            transaction.finalize();
             return 0;
         }
         else if (arg == "--continue" || arg == "-c") {
