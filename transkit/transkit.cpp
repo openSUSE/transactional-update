@@ -34,6 +34,8 @@
 #include <stdexcept>
 #include <typeinfo>
 
+using namespace std;
+
 void Transkit::getHelp() {
     cout << "Syntax: transkit [option...] command" << endl;
     cout << "" << endl;
@@ -77,7 +79,7 @@ int Transkit::parseOptions(int argc, const char *argv[]) {
         else if (arg == "open") {
             Transaction transaction{};
             transaction.init(baseSnapshot);
-            cout << transaction.getSnapshot() << endl;
+            cout << "UUID: " << transaction.getSnapshot() << endl;
             transaction.keep();
             return 0;
         }

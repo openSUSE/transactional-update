@@ -28,46 +28,53 @@
 #include <regex>
 #include <sstream>
 
+using std::exception;
+using std::string;
+using std::stringstream;
+using std::unique_ptr;
+using std::vector;
+namespace fs = std::filesystem;
+
 /*
  * Create a new overlay instance for the given snapshot number.
  * For existing overlays the lowerdirs are read automatically from the given snapshot overlay;
  * for this to work the snapshot still has to exist.
  * For new overlays `create` has to be called afterwards with a base.
  */
-Overlay::Overlay(std::string snapshot):
-        upperdir(std::filesystem::path{config.get("OVERLAY_DIR")} / snapshot / "etc"),
-        workdir(std::filesystem::path{config.get("OVERLAY_DIR")} / snapshot / "work-etc")
+Overlay::Overlay(string snapshot):
+        upperdir(fs::path{config.get("OVERLAY_DIR")} / snapshot / "etc"),
+        workdir(fs::path{config.get("OVERLAY_DIR")} / snapshot / "work-etc")
 {
-    std::filesystem::create_directories(std::filesystem::path{workdir});
+    fs::create_directories(fs::path{workdir});
 
     // Read lowerdirs if this is an existing snapshot
     Mount mntEtc{"/etc"};
     mntEtc.setTabSource(upperdir / "fstab");
     try {
-        const std::string fstabLowerdirs = mntEtc.getOption("lowerdir");
+        const string fstabLowerdirs = mntEtc.getOption("lowerdir");
         string lowerdir;
         stringstream ss(fstabLowerdirs);
         while (getline(ss, lowerdir, ':')) {
-            lowerdir = regex_replace(lowerdir, regex("^" + config.get("DRACUT_SYSROOT")), "");
+            lowerdir = regex_replace(lowerdir, std::regex("^" + config.get("DRACUT_SYSROOT")), "");
             lowerdirs.push_back(lowerdir);
         }
     } catch (exception e) {}
 }
 
 string Overlay::getIdOfOverlayDir(const string dir) {
-    smatch match;
-    regex exp("^" + config.get("OVERLAY_DIR") + "/(.+)/etc$");
+    std::smatch match;
+    std::regex exp("^" + config.get("OVERLAY_DIR") + "/(.+)/etc$");
     if (regex_search(dir.begin(), dir.end(), match, exp)) {
         return match[1];
     }
     return "";
 }
 
-void Overlay::sync(std::string snapshot) {
+void Overlay::sync(string snapshot) {
     Mount currentEtc{"/etc"};
 
     auto oldestSnapId = getOldestSnapshot();
-    std::unique_ptr<Snapshot> oldestSnap = SnapshotFactory::get();
+    unique_ptr<Snapshot> oldestSnap = SnapshotFactory::get();
     oldestSnap->open(oldestSnapId);
     unique_ptr<Mount> oldestEtc{new Mount("/etc")};
     oldestEtc->setTabSource(oldestSnap->getRoot() / "etc" / "fstab");
@@ -89,8 +96,8 @@ void Overlay::sync(std::string snapshot) {
     Util::exec("rsync --quiet --archive --inplace --xattrs --exclude='/fstab' --filter='-x security.selinux' --acls --delete " + string(oldestOvl.upperdir.parent_path() / "sync" / "etc") + "/ " + snapshot + "/etc");
 }
 
-void Overlay::updateMountDirs(std::unique_ptr<Mount>& mount, std::filesystem::path prefix) {
-    std::string lower;
+void Overlay::updateMountDirs(unique_ptr<Mount>& mount, fs::path prefix) {
+    string lower;
     for (auto lowerdir: lowerdirs) {
         if (! lower.empty())
             lower.append(":");
@@ -110,18 +117,18 @@ string Overlay::getOldestSnapshot() {
     return getIdOfOverlayDir(upperdir);
 }
 
-void Overlay::create(std::string base = "") {
+void Overlay::create(string base = "") {
     if (base.empty())
         return;
 
     tulog.debug("Using snapshot " + base + " as base for overlay.");
     Overlay parent = Overlay{base};
     // Remove overlay directory if it already exists (e.g. after the snapshot was deleted)
-    std::filesystem::remove_all(upperdir);
-    std::filesystem::create_directories(upperdir);
+    fs::remove_all(upperdir);
+    fs::create_directories(upperdir);
 
     for (auto it = parent.lowerdirs.begin(); it != parent.lowerdirs.end(); it++) {
-        std::string lowerdir = *it;
+        string lowerdir = *it;
         // Compatibilty handling for old overlay location without separate directories for each
         // snapshot - keep it until all snapshots that could reference it have gone, which is the
         // case as soon as any (numbered) overlay in the list references a removed snapshot.
@@ -134,15 +141,15 @@ void Overlay::create(std::string base = "") {
             if (snapId.empty())
                 lowerdirs.push_back(lowerdir);
             else {
-                std::unique_ptr<Snapshot> oldSnap = SnapshotFactory::get();
+                unique_ptr<Snapshot> oldSnap = SnapshotFactory::get();
                 oldSnap->open(snapId);
                 // Check whether the snapshot of the overlay still exists
-                if (std::filesystem::is_directory(std::filesystem::path{oldSnap->getRoot()})) {
+                if (fs::is_directory(fs::path{oldSnap->getRoot()})) {
                     tulog.debug("Re-adding overlay stack up to ", oldSnap->getRoot(), " to /etc lowerdirs - snapshot is still active.");
                     // In case some snapshots in the middle of the overlay stack have been
                     // deleted the overlays still have to be added again up to the oldest still
                     // available snapshot, otherwise the overlay contents would be inconsistent
-                    lowerdirs = vector<std::filesystem::path>(parent.lowerdirs.begin(), it+1);
+                    lowerdirs = vector<fs::path>(parent.lowerdirs.begin(), it+1);
                 } else {
                     tulog.debug("Snapshot for " + lowerdir + " has been deleted - may be discarded from /etc lowerdirs.");
                 }

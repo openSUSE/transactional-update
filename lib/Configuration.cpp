@@ -26,8 +26,8 @@
 Configuration::Configuration() {
     econf_err error = econf_newIniFile(&key_file);
     if (error)
-        throw runtime_error{"Could not create default configuration."};
-    map<const char*, const char*> defaults = {
+        throw std::runtime_error{"Could not create default configuration."};
+    std::map<const char*, const char*> defaults = {
         {"DRACUT_SYSROOT", "/sysroot"},
         {"LOCKFILE", "/var/run/transactional-update.pid"},
         {"OVERLAY_DIR", "/var/lib/overlay"}
@@ -35,7 +35,7 @@ Configuration::Configuration() {
     for(auto &e : defaults) {
         error = econf_setStringValue(key_file, "", e.first, e.second);
         if (error)
-            throw runtime_error{"Could not set default value for '" + string(e.first) + "'."};
+            throw std::runtime_error{"Could not set default value for '" + std::string(e.first) + "'."};
     }
 }
 
@@ -43,10 +43,10 @@ Configuration::~Configuration() {
     econf_freeFile(key_file);
 }
 
-string Configuration::get(const string &key) {
+std::string Configuration::get(const std::string &key) {
     CString val;
     econf_err error = econf_getStringValue(key_file, "", key.c_str(), &val.ptr);
     if (error)
-        throw runtime_error{"Could not read configuration setting '" + key + "'."};
-    return string(val);
+        throw std::runtime_error{"Could not read configuration setting '" + key + "'."};
+    return std::string(val);
 }

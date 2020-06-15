@@ -27,13 +27,11 @@ extern "C" {
 #include <libeconf.h>
 }
 
-using namespace std;
-
 class Configuration {
 public:
     Configuration();
     virtual ~Configuration();
-    string get(const string &key);
+    std::string get(const std::string &key);
 private:
     econf_file *key_file;
 };
