@@ -273,14 +273,6 @@ quit() {
 # mount points and variables
 teardown() {
     # Roll back snapshot if no changes were performed
-    if [ -n "${INOTIFY_PID}" ] && ps -q ${INOTIFY_PID} 2>&1 >/dev/null; then
-	kill ${INOTIFY_PID}
-	log_info "The snapshot does not contain any changed files."
-	INOTIFY_PID=""
-	quit 0
-    fi
-
-    # Roll back snapshot if no changes were performed
     if [ -n "${INOTIFY_PID}" ] && sync "${SNAPSHOT_DIR}" && ps -q ${INOTIFY_PID} 2>&1 >/dev/null; then
 	kill ${INOTIFY_PID}
 	log_info "The snapshot does not contain any changed files."
