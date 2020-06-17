@@ -1,9 +1,7 @@
 /*
-  A Transaction is unique instance, shared between all classes derived from
-  the "TransactionalCommand" base class; that way it is made sure that all
-  commands operate on the same snapshot. In case the destructor should be
-  called before the transaction instance is closed, an eventual snapshot will
-  be deleted again.
+  The Transaction class is the central API class for the lifecycle of a
+  transaction: It will open and close transactions and execute commands in the
+  correct context.
 
   Copyright (c) 2016 - 2020 SUSE LLC
 
@@ -101,6 +99,12 @@ void Transaction::mount(string base) {
     mntSys->setType("sysfs");
     mntSys->setSource("sys");
     dirsToMount.push_back(std::move(mntSys));
+
+    if (BindMount{"/root"}.isMount())
+        dirsToMount.push_back(make_unique<BindMount>("/root"));
+
+    if (BindMount{"/boot/writable"}.isMount())
+        dirsToMount.push_back(make_unique<BindMount>("/boot/writable"));
 
     dirsToMount.push_back(make_unique<BindMount>("/.snapshots"));
 
