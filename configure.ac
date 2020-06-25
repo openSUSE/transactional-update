@@ -15,12 +15,10 @@ PKG_CHECK_VAR([DRACUTDIR], [dracut], [dracutmodulesdir], [],
 PKG_CHECK_VAR([UDEVDIR], [udev], [udevdir], [],
 	[AC_MSG_ERROR([Could not determine value for 'udevdir' - is the 'udev.pc' file installed?])])
 
-ISSUEDIR=${exec_prefix}/issue.d
 UDEVRULESDIR=${UDEVDIR}/rules.d
 LOGROTATEDDIR=${sysconfdir}/logrotate.d
 
 AC_SUBST(TMPFILESDIR)
-AC_SUBST(ISSUEDIR)
 AC_SUBST(UDEVRULESDIR)
 AC_SUBST(SYSTEMDDIR)
 AC_SUBST(DRACUTDIR)
