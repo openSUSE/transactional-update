@@ -63,7 +63,7 @@ string Transaction::getSnapshot()
 }
 
 void Transaction::mount(string base) {
-    dirsToMount.push_back(make_unique<BindMount>("/dev"));
+    dirsToMount.push_back(make_unique<PropagatedBindMount>("/dev"));
     dirsToMount.push_back(make_unique<BindMount>("/var/log"));
 
     Mount mntVar{"/var"};
@@ -90,15 +90,8 @@ void Transaction::mount(string base) {
         filesystem::copy(filesystem::path{snapshot->getRoot() / "etc" / "fstab"}, overlay.upperdir, filesystem::copy_options::overwrite_existing);
     }
 
-    unique_ptr<Mount> mntProc{new Mount{"/proc"}};
-    mntProc->setType("proc");
-    mntProc->setSource("none");
-    dirsToMount.push_back(std::move(mntProc));
-
-    unique_ptr<Mount> mntSys{new Mount{"/sys"}};
-    mntSys->setType("sysfs");
-    mntSys->setSource("sys");
-    dirsToMount.push_back(std::move(mntSys));
+    dirsToMount.push_back(make_unique<PropagatedBindMount>("/proc"));
+    dirsToMount.push_back(make_unique<PropagatedBindMount>("/sys"));
 
     if (BindMount{"/root"}.isMount())
         dirsToMount.push_back(make_unique<BindMount>("/root"));

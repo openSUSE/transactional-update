@@ -51,6 +51,7 @@ protected:
     void find();
     void getTabEntry();
     void getMntFs();
+    void umountRecursive(libmnt_table* umount_table, libmnt_fs* umount_fs);
 };
 
 class BindMount : public Mount
@@ -58,6 +59,12 @@ class BindMount : public Mount
 public:
     BindMount(std::string target, unsigned long flags = 0);
     void mount(std::string prefix = "/") override;
+};
+
+class PropagatedBindMount : public BindMount
+{
+public:
+    PropagatedBindMount(std::string target, unsigned long flags = 0);
 };
 
 #endif // LIBMOUNTWRAPPER_H

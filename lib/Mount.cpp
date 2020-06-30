@@ -41,22 +41,16 @@ Mount::Mount(Mount&& other) noexcept
 
 Mount::~Mount() {
     int rc;
-    int mountStatus = 0;
-    if (mnt_cxt && mnt_fs && (rc = mnt_context_is_fs_mounted(mnt_cxt, mnt_fs, &mountStatus)) != 0)
-        tulog.error("Error determining mount status of ", target, ": ", rc);
-    if (mountStatus == 1) {
-        tulog.debug("Unmounting ", target, "...");
-        mnt_reset_context(mnt_cxt);
-        if ((rc = mnt_context_set_fs(mnt_cxt, mnt_fs)) != 0) {
-            tulog.error("Setting umount context for '", target, "' failed: ", rc);
-        }
-        int rc = mnt_context_umount(mnt_cxt);
-        char buf[BUFSIZ] = { 0 };
-        rc = mnt_context_get_excode(mnt_cxt, rc, buf, sizeof(buf));
-        if (*buf)
-                tulog.error("Error unmounting '", target, "': ", buf);
-    }
+    struct libmnt_table* umount_table = mnt_new_table();
+    struct libmnt_fs *umount_fs;
 
+    if ((rc = mnt_table_parse_mtab(umount_table, NULL)) != 0)
+        tulog.error("Error reading mtab for umount");
+    umount_fs = mnt_table_find_target(umount_table,  mnt_fs_get_target(mnt_fs), MNT_ITER_BACKWARD);
+    umountRecursive(umount_table, umount_fs);
+
+    mnt_free_fs(umount_fs);
+    mnt_free_table(umount_table);
     mnt_free_context(mnt_cxt);
     mnt_unref_fs(mnt_fs);
     mnt_free_table(mnt_table);
@@ -84,8 +78,7 @@ void Mount::find() {
         throw std::runtime_error{"File system " + target + " not found in fstab."};
 }
 
-void Mount::getMntFs()
-{
+void Mount::getMntFs() {
     getTabEntry();
 
     if (mnt_fs == nullptr)
@@ -154,8 +147,7 @@ void Mount::setTabSource(std::string source) {
     tabsource = source;
 }
 
-std::string Mount::getTarget()
-{
+std::string Mount::getTarget() {
     return target;
 }
 
@@ -164,8 +156,7 @@ bool Mount::isMount() {
     return mnt_fs ? true : false;
 }
 
-void Mount::setSource(std::string source)
-{
+void Mount::setSource(std::string source) {
     getMntFs();
 
     int rc;
@@ -174,8 +165,7 @@ void Mount::setSource(std::string source)
     }
 }
 
-void Mount::setType(std::string type)
-{
+void Mount::setType(std::string type) {
     getMntFs();
 
     int rc;
@@ -184,8 +174,7 @@ void Mount::setType(std::string type)
     }
 }
 
-void Mount::mount(std::string prefix)
-{
+void Mount::mount(std::string prefix) {
     tulog.debug("Mounting ", target, "...");
 
     int rc;
@@ -243,13 +232,49 @@ void Mount::persist(std::filesystem::path file) {
     }
 }
 
+void Mount::umountRecursive(libmnt_table* umount_table, libmnt_fs* umount_fs) {
+    int rc;
+    int mountStatus = 0;
+    struct libmnt_context* umount_cxt = mnt_new_context();
+    if (mnt_cxt && umount_fs && (rc = mnt_context_is_fs_mounted(umount_cxt, umount_fs, &mountStatus)) != 0)
+        tulog.error("Error determining mount status of ", mnt_fs_get_target(umount_fs), ": ", rc);
+
+    if (mountStatus == 1) {
+        // Check for child mounts
+        struct libmnt_fs* child_fs;
+        struct libmnt_iter *iter = mnt_new_iter(MNT_ITER_BACKWARD);
+        if (!iter)
+            tulog.error("Error allocating umount iter");
+        while ((rc = mnt_table_next_child_fs(umount_table, iter, umount_fs, &child_fs)) != 1) {
+            if (rc < 0) {
+                tulog.error("Error determining child mounts of ", mnt_fs_get_target(umount_fs), ": ", rc);
+                break;
+            } else if (rc == 0) {
+                umountRecursive(umount_table, child_fs);
+            }
+        }
+        mnt_free_iter(iter);
+
+        // Unmount
+        tulog.debug("Unmounting ", mnt_fs_get_target(umount_fs), "...");
+        if ((rc = mnt_context_set_fs(umount_cxt, umount_fs)) != 0) {
+            tulog.error("Setting umount context for '", mnt_fs_get_target(umount_fs), "' failed: ", rc);
+        }
+        int rc = mnt_context_umount(umount_cxt);
+        char buf[BUFSIZ] = { 0 };
+        rc = mnt_context_get_excode(umount_cxt, rc, buf, sizeof(buf));
+        if (*buf)
+            tulog.error("Error unmounting '", mnt_fs_get_target(umount_fs), "': ", buf);
+    }
+    mnt_free_context(umount_cxt);
+}
+
 BindMount::BindMount(std::string target, unsigned long flags)
     : Mount(target, flags | MS_BIND)
 {
 }
 
-void BindMount::mount(std::string prefix)
-{
+void BindMount::mount(std::string prefix) {
     int rc;
     if (mnt_fs == nullptr) {
         mnt_fs = mnt_new_fs();
@@ -258,4 +283,10 @@ void BindMount::mount(std::string prefix)
         }
     }
     Mount::mount(prefix);
+}
+
+
+PropagatedBindMount::PropagatedBindMount(std::string target, unsigned long flags)
+    : BindMount(target, flags | MS_REC | MS_SLAVE)
+{
 }
