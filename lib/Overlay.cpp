@@ -63,9 +63,9 @@ Overlay::Overlay(string snapshot):
 
 string Overlay::getIdOfOverlayDir(const string dir) {
     std::smatch match;
-    std::regex exp("^" + config.get("OVERLAY_DIR") + "/(.+)/etc$");
+    std::regex exp("^(" + config.get("DRACUT_SYSROOT") + ")?" + config.get("OVERLAY_DIR") + "/(.+)/etc$");
     if (regex_search(dir.begin(), dir.end(), match, exp)) {
-        return match[1];
+        return match[2];
     }
     return "";
 }
@@ -82,30 +82,57 @@ void Overlay::sync(string snapshot) {
     if (oldestEtc->getOption("upperdir") == currentEtc.getOption("upperdir"))
         return;
 
-    // Replace generic /etc lowerdir with snapshot version
-    Overlay oldestOvl{oldestSnapId};
-    auto last = oldestOvl.lowerdirs.rbegin();
-    *last = oldestSnap->getRoot() / last->relative_path();
-
     // Mount read-only, so mount everything as lowerdir
+    Overlay oldestOvl{oldestSnapId};
     oldestOvl.lowerdirs.insert(oldestOvl.lowerdirs.begin(), oldestOvl.upperdir);
-    oldestOvl.updateMountDirs(oldestEtc);
+    oldestOvl.setMountOptionsForMount(oldestEtc);
     oldestEtc->removeOption("upperdir");
 
     oldestEtc->mount(oldestOvl.upperdir.parent_path() / "sync");
     Util::exec("rsync --quiet --archive --inplace --xattrs --exclude='/fstab' --filter='-x security.selinux' --acls --delete " + string(oldestOvl.upperdir.parent_path() / "sync" / "etc") + "/ " + snapshot + "/etc");
 }
 
-void Overlay::updateMountDirs(unique_ptr<Mount>& mount, fs::path prefix) {
+void Overlay::setMountOptions(unique_ptr<Mount>& mount) {
     string lower;
     for (auto lowerdir: lowerdirs) {
         if (! lower.empty())
             lower.append(":");
-        lower.append(prefix / lowerdir.relative_path());
+        lower.append(config.get("DRACUT_SYSROOT") / lowerdir.relative_path());
     }
     mount->setOption("lowerdir", lower);
-    mount->setOption("upperdir", prefix / upperdir.relative_path());
-    mount->setOption("workdir", prefix / workdir.relative_path());
+    mount->setOption("upperdir", config.get("DRACUT_SYSROOT") / upperdir.relative_path());
+    mount->setOption("workdir", config.get("DRACUT_SYSROOT") / workdir.relative_path());
+}
+
+void Overlay::setMountOptionsForMount(unique_ptr<Mount>& mount) {
+    string lower;
+    Mount mntCurrentEtc{"/etc"};
+
+    string currentUpper = mntCurrentEtc.getOption("upperdir");
+
+    for (auto lowerdir: lowerdirs) {
+        if (! lower.empty()) {
+            lower.append(":");
+        }
+        // Check whether the current upper directory is part of the snapshot's lower
+        // directory stack; if so use reuse /etc directly instead, as mounting
+        // the same upper directory multiple times is not supported by overlayfs
+        if (getIdOfOverlayDir(lowerdir) == getIdOfOverlayDir(currentUpper)) {
+            lower.append("/etc");
+            break;
+        } else
+        // Replace /etc in lowerdir with /etc of overlay base
+        if (lowerdir == "/etc") {
+            std::unique_ptr<Snapshot> snap = SnapshotFactory::get();
+            snap->open(getIdOfOverlayDir(upperdir));
+            lower.append(snap->getRoot() / "etc");
+        } else {
+            lower.append(lowerdir);
+        }
+    }
+    mount->setOption("lowerdir", lower);
+    mount->setOption("upperdir", upperdir);
+    mount->setOption("workdir", workdir);
 }
 
 string Overlay::getOldestSnapshot() {

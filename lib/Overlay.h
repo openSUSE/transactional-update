@@ -32,7 +32,8 @@ public:
     void create(std::string base);
     std::string getOldestSnapshot();
     void sync(std::string snapshot);
-    void updateMountDirs(std::unique_ptr<Mount>& mount, std::filesystem::path prefix = "/");
+    void setMountOptions(std::unique_ptr<Mount>& mount);
+    void setMountOptionsForMount(std::unique_ptr<Mount>& mount);
 
     std::vector<std::filesystem::path> lowerdirs;
     std::filesystem::path upperdir;

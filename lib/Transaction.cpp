@@ -76,9 +76,9 @@ void Transaction::mount(string base) {
         Overlay overlay = Overlay{snapshot->getUid()};
         overlay.create(base);
 
-        overlay.updateMountDirs(mntEtc, config.get("DRACUT_SYSROOT"));
+        overlay.setMountOptions(mntEtc);
         mntEtc->persist(snapshot->getRoot() / "etc" / "fstab");
-        overlay.updateMountDirs(mntEtc);
+        overlay.setMountOptionsForMount(mntEtc);
 
         overlay.sync(snapshot->getRoot());
 
@@ -89,6 +89,16 @@ void Transaction::mount(string base) {
         // overlay is visible in the overlay
         filesystem::copy(filesystem::path{snapshot->getRoot() / "etc" / "fstab"}, overlay.upperdir, filesystem::copy_options::overwrite_existing);
     }
+
+    // Mount platform specific GRUB directories for GRUB updates
+    for (auto& path: filesystem::directory_iterator("/boot/grub2")) {
+        if (filesystem::is_directory(path)) {
+            if (BindMount{path.path()}.isMount())
+                dirsToMount.push_back(make_unique<BindMount>(path.path()));
+        }
+    }
+    if (BindMount{"/boot/efi"}.isMount())
+        dirsToMount.push_back(make_unique<BindMount>("/boot/efi"));
 
     dirsToMount.push_back(make_unique<PropagatedBindMount>("/proc"));
     dirsToMount.push_back(make_unique<PropagatedBindMount>("/sys"));
