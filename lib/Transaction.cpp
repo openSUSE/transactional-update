@@ -73,6 +73,7 @@ void Transaction::mount(string base) {
     if (mntVar.isMount()) {
         dirsToMount.push_back(make_unique<BindMount>("/var/cache"));
         dirsToMount.push_back(make_unique<BindMount>("/var/lib/alternatives"));
+        dirsToMount.push_back(make_unique<BindMount>("/var/lib/ca-certificates", MS_RDONLY));
     }
     unique_ptr<Mount> mntEtc{new Mount{"/etc"}};
     if (mntEtc->isMount() && mntEtc->getFS() == "overlay") {
