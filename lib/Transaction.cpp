@@ -176,6 +176,9 @@ int Transaction::execute(const char* argv[]) {
         if (chroot(bindDir.c_str()) < 0) {
             throw runtime_error{"Chrooting to " + bindDir + " failed: " + string(strerror(errno))};
         }
+        // Set indicator for RPM pre/post sections to detect whether we run in a
+        // transactional update
+        setenv("TRANSACTIONAL_UPDATE", "true", 1);
         cout << "◸" << flush;
         if (execvp(argv[0], (char* const*)argv) < 0) {
             throw runtime_error{"Calling " + string(argv[0]) + " failed: " + string(strerror(errno))};
