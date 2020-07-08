@@ -43,6 +43,9 @@ Transaction::Transaction(string uuid) {
 
 Transaction::~Transaction() {
     tulog.debug("Destructor Transaction");
+
+    supplements.cleanup();
+
     dirsToMount.clear();
     try {
         filesystem::remove_all(filesystem::path{bindDir});
@@ -126,6 +129,20 @@ void Transaction::mount(string base) {
     dirsToMount.push_back(std::move(mntBind));
 }
 
+void Transaction::addSupplements() {
+    supplements = Supplements(snapshot->getRoot());
+
+    Mount mntVar{"/var"};
+    if (mntVar.isMount()) {
+        supplements.addDir(filesystem::path{"/var/tmp"});
+        supplements.addFile(filesystem::path{"/var/lib/zypp/RequestedLocales"}); // locale specific packages with zypper
+        supplements.addLink(filesystem::path{"/run"}, filesystem::path{"/var/run"});
+    }
+    supplements.addLink(filesystem::path{"/usr/lib/sysimage/rpm"}, filesystem::path{"/var/lib/rpm"});
+    supplements.addFile(filesystem::path{"/run/netconfig"});
+    supplements.addDir(filesystem::path{"/var/cache/zypp"});
+}
+
 void Transaction::init(string base) {
     snapshot = SnapshotFactory::get();
     if (base == "active")
@@ -135,6 +152,7 @@ void Transaction::init(string base) {
     snapshot->create(base);
 
     mount(base);
+    addSupplements();
 }
 
 int Transaction::execute(const char* argv[]) {

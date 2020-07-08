@@ -3,10 +3,10 @@ lib_LTLIBRARIES = libt-u.la
 libt_u_la_SOURCES=Transaction.cpp \
         Snapshot.cpp Snapshot/Snapper.cpp \
         Mount.cpp Overlay.cpp Configuration.cpp \
-        Util.cpp
+        Util.cpp Supplement.cpp
 noinst_HEADERS=Transaction.h \
         Snapshot.h Snapshot/Snapper.h \
         Mount.h Overlay.h Log.h Configuration.h \
-        Util.h Exceptions.h
+        Util.h Supplement.h Exceptions.h
 libt_u_la_CPPFLAGS=$(ECONF_CFLAGS)
 libt_u_la_LDFLAGS=$(ECONF_LIBS) -lmount
