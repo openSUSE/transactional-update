@@ -142,6 +142,7 @@ void Transaction::addSupplements() {
     supplements.addLink(filesystem::path{"/usr/lib/sysimage/rpm"}, filesystem::path{"/var/lib/rpm"});
     supplements.addFile(filesystem::path{"/run/netconfig"});
     supplements.addDir(filesystem::path{"/var/cache/zypp"});
+    supplements.addDir(filesystem::path{"/var/spool"});
 }
 
 void Transaction::init(string base) {
