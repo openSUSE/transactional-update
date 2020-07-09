@@ -50,10 +50,13 @@ void Transkit::getHelp() {
     cout << "open" << endl;
     cout << "\tCreates a new transaction and prints its UUID" << endl;
     cout << "call <UUID> <command>" << endl;
-    cout << "\tExecutes the given command, resuming the transaction with the given UUID; if the" << endl;
-    cout << "\tcommand fails the snapshot will be deleted again" << endl;
+    cout << "\tExecutes the given command, resuming the transaction with the given UUID; returns" << endl;
+    cout << "\tthe exit status of the given command, but will not delete the snapshot in case" << endl;
+    cout << "\tof errors" << endl;
     cout << "close <UUID>" << endl;
     cout << "\tCloses the given transaction and sets the snapshot as the new default snapshot" << endl;
+    cout << "abort <UUID>" << endl;
+    cout << "\tDeletes the given snapshot again" << endl;
     cout << "Options:" << endl;
     cout << "--continue [<number>], -c  Use latest or given snapshot as base" << endl;
     cout << "--help, -h                 Display this help and exit" << endl;
@@ -90,15 +93,16 @@ int Transkit::parseOptions(int argc, const char *argv[]) {
             }
             Transaction transaction{argv[i + 1]};
             int status = transaction.execute(&argv[i + 2]); // All remaining arguments
-            if (status != 0) {
-                throw runtime_error{"Application returned with exit status " + to_string(status)};
-            }
             transaction.keep();
-            return 0;
+            return status;
         }
         else if (arg == "close") {
             Transaction transaction{argv[i + 1]};
             transaction.finalize();
+            return 0;
+        }
+        else if (arg == "abort") {
+            Transaction transaction{argv[i + 1]};
             return 0;
         }
         else if (arg == "--continue" || arg == "-c") {
