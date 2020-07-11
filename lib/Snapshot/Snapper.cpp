@@ -29,6 +29,11 @@ void Snapper::create(std::string base) {
 
 void Snapper::open(std::string id) {
     snapshotId = id;
+    if (! std::filesystem::exists(getRoot()))
+        throw std::invalid_argument{"Snapshot " + id + " does not exist."};
+    std::string desc = callSnapper("--csvout list --columns number,userdata | grep '^" + id + ",'");
+    if (desc.find("transactional-update-in-progress=yes") == std::string::npos)
+        throw std::invalid_argument{"Snapshot " + id + " is not an open transaction."};
 }
 
 void Snapper::close() {
