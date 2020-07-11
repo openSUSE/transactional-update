@@ -23,8 +23,13 @@ config.h
 *.orig
 *.pyc
 core
+config.guess
 config.log
 config.status
+config.sub
+libtool
+ltmain.sh
+m4
 test-driver
 test-suite.log
 check-output.*
@@ -45,3 +50,4 @@ transactional-update-*.tar.*
 doc/html/*
 doc/transactional-update.txt
 sbin/create_dirs_from_rpmdb
+transkit/transkit
