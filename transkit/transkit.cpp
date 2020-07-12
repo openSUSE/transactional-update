@@ -153,5 +153,10 @@ Transkit::Transkit(int argc, const char *argv[]) {
     cout << "transkit @VERSION@ started" << endl;
     tulog.level = TULogLevel::DEBUG;
 
+    cout << "Options: ";
+    for(int i = 1; i < argc; ++i)
+        cout << argv[i] << " ";
+    cout << endl;
+
     parseOptions(argc, argv);
 }
