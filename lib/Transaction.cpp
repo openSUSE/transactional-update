@@ -158,6 +158,9 @@ void Transaction::init(string base) {
 }
 
 int Transaction::execute(const char* argv[]) {
+    if (! snapshot->isInProgress())
+        throw std::invalid_argument{"Snapshot " + snapshot->getUid() + " is not an open transaction."};
+
     std::string opts = "Executing `";
     int i = 0;
     while (argv[i]) {

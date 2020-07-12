@@ -36,6 +36,7 @@ public:
     virtual std::filesystem::path getRoot() = 0;
     virtual std::string getCurrent() = 0;
     virtual std::string getDefault() = 0;
+    virtual bool isInProgress() = 0;
     virtual bool isReadOnly() = 0;
     virtual void setReadOnly(bool readonly) = 0;
     std::string getUid() { return snapshotId; };

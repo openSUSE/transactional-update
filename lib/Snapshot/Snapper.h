@@ -36,6 +36,7 @@ public:
     std::string getUid();
     std::string getCurrent();
     std::string getDefault();
+    bool isInProgress();
     bool isReadOnly();
     void setReadOnly(bool readonly);
 
