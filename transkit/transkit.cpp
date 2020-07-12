@@ -158,5 +158,8 @@ Transkit::Transkit(int argc, const char *argv[]) {
         cout << argv[i] << " ";
     cout << endl;
 
-    parseOptions(argc, argv);
+    int ret = parseOptions(argc, argv);
+    if (ret != 0) {
+        throw ret;
+    }
 }
