@@ -21,7 +21,6 @@
 export LANG=C
 export DISABLE_SNAPPER_ZYPP_PLUGIN=1
 
-DIR_TO_MOUNT="dev opt var/log"
 EXITCODE=0
 VERBOSITY=2
 ZYPPER_ARG=""
@@ -70,16 +69,11 @@ fi
 # Initialize internal variables
 ETC_IS_OVERLAY=0
 HAS_SEPARATE_VAR=0
-VAR_CACHE_CLEANUP=0
 FORCE_NONINTERACTIVE=""
 SNAPSHOT_ID=""
 SNAPSHOT_DIR=""
 BASE_SNAPSHOT_ID=""
-MOUNT_DIR=""
-SNAPPER_NO_DBUS=""
 TMPFILE=""
-ETC_OVERLAY_DIR=""
-ETC_OVERLAY_WORK_DIR=""
 INOTIFY_PID=""
 
 # Create stderr alias for things that shouldn't be logged into logfile
@@ -213,12 +207,10 @@ save_state_file() {
 }
 
 rebuild_kdump_initrd() {
-    local MOUNT_DIR=$1
-
     test -f /usr/lib/systemd/system/kdump.service || return
     systemctl is-enabled --quiet kdump.service
-    if [ $? = 0 -a -x ${MOUNT_DIR}/usr/sbin/tu-rebuild-kdump-initrd ]; then
-	chroot ${MOUNT_DIR} /usr/sbin/tu-rebuild-kdump-initrd |& tee -a ${LOGFILE}
+    if [ $? = 0 -a -x "/.snapshots/$1/snapshot/usr/sbin/tu-rebuild-kdump-initrd" ]; then
+        transkit call "$1" /usr/sbin/tu-rebuild-kdump-initrd |& tee -a ${LOGFILE}
     fi
 }
 
@@ -260,14 +252,7 @@ quit() {
 
     if [ -n "${SNAPSHOT_ID}" ] ; then
 	log_error "Removing snapshot #${SNAPSHOT_ID}..."
-	snapper ${SNAPPER_NO_DBUS} delete ${SNAPSHOT_ID} |& tee -a ${LOGFILE}
-    fi
-    if [ -n "${ETC_OVERLAY_DIR}" ] ; then
-	log_error "Removing overlay directory ${ETC_OVERLAY_DIR%/*}..."
-	if findmnt "${ETC_OVERLAY_DIR}" >/dev/null; then
-	    umount "${ETC_OVERLAY_DIR}"
-	fi
-	rm -rf "${ETC_OVERLAY_DIR%/*}" |& tee -a ${LOGFILE}
+        transkit abort ${SNAPSHOT_ID} |& tee -a ${LOGFILE}
     fi
     if [ $USE_SALT_GRAINS -eq 1 ]; then
 	if [ -f /etc/salt/grains ]; then
@@ -291,9 +276,6 @@ quit() {
 # Called on exit (both on success and failure); cleans up temporary files,
 # mount points and variables
 teardown() {
-    # Unset variable
-    unset TRANSACTIONAL_UPDATE
-
     # Roll back snapshot if no changes were performed
     if [ -n "${INOTIFY_PID}" ] && ps -q ${INOTIFY_PID} 2>&1 >/dev/null; then
 	kill ${INOTIFY_PID}
@@ -310,56 +292,9 @@ teardown() {
 	return
     fi
 
-    # Delete temporary data before unmounting everything:
-    if [ ${HAS_SEPARATE_VAR} -eq 1 ]; then
-	rm -rf ${SNAPSHOT_DIR}/var/tmp
-	rm -rf ${SNAPSHOT_DIR}/var/lib/zypp
-	rm -rf ${SNAPSHOT_DIR}/var/run
-    fi
-
-    # Unmount everything we don't need anymore:
-    for directory in proc sys etc $DIR_TO_MOUNT .snapshots ; do
-	# Only try unmount if directory is mounted
-	if ! findmnt ${SNAPSHOT_DIR}/$directory >/dev/null; then
-	    continue;
-	fi
-	umount -R ${SNAPSHOT_DIR}/$directory
-	if [ $? -ne 0 ]; then
-	    log_error "ERROR: umount of $directory failed!"
-	    fuser -v ${SNAPSHOT_DIR}/$directory >> ${LOGFILE}
-	    lsof ${SNAPSHOT_DIR}/$directory >> ${LOGFILE}
-            # Try again after some time
-            sleep 30
-            umount -R ${SNAPSHOT_DIR}/$directory
-            if [ $? -ne 0 ]; then
-                log_error "ERROR 2nd try: umount of $directory failed!"
-	        EXITCODE=1;
-            fi
-	fi
-    done
-
-    # Cleanup of temporary mount point
-    if [ -e "${MOUNT_DIR}" ]; then
-	if findmnt ${MOUNT_DIR} >/dev/null; then
-	    umount -R ${MOUNT_DIR}
-	fi
-	rmdir ${MOUNT_DIR}
-    fi
-    if [ -n "${ETC_OVERLAY_WORK_DIR}" ]; then
-	rm -rf "${ETC_OVERLAY_WORK_DIR}"
-    fi
-
     # Cleanup other stuff
-    # Cleanup cache directory
-    if [ $VAR_CACHE_CLEANUP -eq 1 ]; then
-	rm -rf ${SNAPSHOT_DIR}/var/cache/*
-    fi
-    # Remove temporary mount point
-    rmdir --ignore-fail-on-non-empty ${SNAPSHOT_DIR}/var/lib/ca-certificates
     # systemd-tmpfiles creates directories/files even if /run is no tmpfs:
     rm -rf ${SNAPSHOT_DIR}/run/*
-    # WARNING: /var/spool/ can contain changes through RPM!
-    rm -rf ${SNAPSHOT_DIR}/var/spool/*
 }
 
 reboot_via_salt() {
@@ -446,111 +381,10 @@ check_registration_on_next_reboot() {
     # If VARDIR is part of the root file system (usually on rw systems), then
     # create the file in the new snapshot
     if [ "$(findmnt --noheadings --output TARGET --target "${VARDIR}")" = "/" ]; then
-	VARDIR="${MOUNT_DIR}/${VARDIR}"
+        VARDIR="${SNAPSHOT_DIR}/${VARDIR}"
     fi
     test -d "${VARDIR}" || mkdir -p "${VARDIR}"
     touch "${VARDIR}/check-registration"
-}
-
-get_etc_overlay_from() {
-    local overlay_options
-    local option lowerdir overlay_id
-
-    fstab=""
-    fstab_active_lowerdirs=()
-    fstab_lowerdirs=()
-    fstab_upper=""
-    fstab_oldest_active_snapshot=""
-    fstab_otheroptions=""
-
-    # Check for /etc overlay
-    for fstab in "$1"/etc/fstab{,.sys}; do
-	if [ -e "$fstab" ] ; then
-	    overlay_options="`findmnt --noheadings --types "overlay" --options "workdir=/sysroot/var/lib/overlay/work-etc" --output OPTIONS --tab-file "$fstab" /etc`"
-	    [ -n "${overlay_options}" ] && break
-	fi
-    done
-    [ -n "${overlay_options}" ] || return
-
-    for option in `echo ${overlay_options} | tr ',' ' '`; do
-	case "${option%=*}" in
-	    upperdir)
-		fstab_upper="${option#*=}"
-		;;
-	    lowerdir)
-		for lowerdir in `echo ${option#*=} | tr ':' ' '`; do
-		    overlay_id=`echo "${lowerdir#/sysroot}" | sed -n 's#^/var/lib/overlay/\([[:digit:]]\+\)/etc$#\1#p'`
-
-		    # Special handling for old overlay location
-		    if [ "${lowerdir}" = "/sysroot/var/lib/overlay/etc" ]; then
-			if [ "${fstab_lowerdirs[*]}" = "${fstab_active_lowerdirs[*]}" ]; then
-			    fstab_active_lowerdirs+=("${lowerdir}")
-			fi
-		    # Add common directories and directories of existing snapshots
-		    elif [ -z "${overlay_id}" -o -e "/.snapshots/${overlay_id}/snapshot" ]; then
-			if [ -n "${overlay_id}" ]; then
-			    fstab_oldest_active_snapshot="/.snapshots/${overlay_id}/snapshot"
-			    fstab_active_lowerdirs=("${fstab_lowerdirs[@]}")
-			fi
-			fstab_active_lowerdirs+=("${lowerdir}")
-		    fi
-		    fstab_lowerdirs+=("${lowerdir}")
-		done
-		;;
-	    workdir)
-		;;
-	    x-systemd.requires-mounts-for|x-initrd.mount)
-		;;
-	    *)
-		fstab_otheroptions="${fstab_otheroptions}${option},"
-		;;
-	esac
-    done
-    fstab_oldest_active_snapshot="${fstab_oldest_active_snapshot:-/.snapshots/${CURRENT_SNAPSHOT_ID}/snapshot}"
-}
-
-# Replace all /sysroot prefixes from /etc fstab entry; for the overlays in /var
-# the prefix can simply be removed, while the lowest layer - the /etc directory
-# on the root file system - has to be replaced with the actual snapshot path,
-# as /etc overmounted with the current overlay already.
-parse_lowerdirs_for_mount() {
-    fstab_lowerdirs=("${fstab_lowerdirs[@]///sysroot\/var//var}")
-    echo ${fstab_lowerdirs[@]///sysroot/$1} | tr ' ' ':'
-}
-
-# Sync /etc mount contents to target directory
-sync_etc() {
-    local mount_opts overlay_id
-
-    get_etc_overlay_from "$1"
-
-    # After fresh installations there's no overlay to sync yet
-    if [ ${#fstab_lowerdirs[@]} -le 1 ]; then
-	return
-    fi
-    log_info "Syncing /etc of oldest snapshot $1 as base into new snapshot $2"
-
-    mount_opts="defaults,"
-    mount_opts+="lowerdir="
-    # Special case: If the current in-use snapshot is the oldest snapshot
-    # already it will be added as a lowerdir, so don't mount it for
-    # syncing (it may change at any time anyway).
-    if [ "${fstab_upper}" != "${current_upper}" ]; then
-	mount_opts+="${fstab_upper#/sysroot}:"
-    fi
-    mount_opts+="`parse_lowerdirs_for_mount $1`"
-    mount -t overlay overlay "${ETC_OVERLAY_DIR}" -o ${mount_opts}
-    if [ $? -ne 0 ]; then
-	log_error "ERROR: mount of old overlay stack from $1 failed!"
-	quit 1
-    fi
-
-    rsync --archive --inplace --xattrs --filter='-x security.selinux' --acls --delete --quiet "${ETC_OVERLAY_DIR}" "$2"
-    if [ $? -ne 0 ]; then
-	log_error "ERROR: syncing $1 into snapshot $2 failed!"
-	quit 1
-    fi
-    umount "${ETC_OVERLAY_DIR}"
 }
 
 ORIG_ARGS=("$@")
@@ -804,7 +638,6 @@ fi
 grep -q "[[:space:]]/var[[:space:]]" /proc/mounts
 if [ $? -eq 0 ]; then
     log_info "Separate /var detected."
-    DIR_TO_MOUNT="${DIR_TO_MOUNT} var/cache var/lib/alternatives"
     HAS_SEPARATE_VAR=1
 else
     grep -q var.cache /proc/mounts
@@ -825,12 +658,6 @@ if [ -z "${BASE_SNAPSHOT_ID}" ]; then
     BASE_SNAPSHOT_ID="${CURRENT_SNAPSHOT_ID}"
 elif [ "${BASE_SNAPSHOT_ID}" = "default" ]; then
     BASE_SNAPSHOT_ID="${DEFAULT_SNAPSHOT_ID}"
-fi
-
-get_etc_overlay_from "/.snapshots/${BASE_SNAPSHOT_ID}/snapshot"
-if [ -n "$fstab_upper" ]; then
-    log_info "/etc on overlayfs detected."
-    ETC_IS_OVERLAY=1
 fi
 
 if [ ${DO_ROLLBACK} -eq 1 ]; then
@@ -865,7 +692,7 @@ if [ ${DO_ROLLBACK} -eq 1 ]; then
 	    check_registration_on_next_reboot
 	fi
 	# Remove possible cleanup algo
-	snapper ${SNAPPER_NO_DBUS} modify -c '' ${ROLLBACK_SNAPSHOT}
+        snapper modify -c '' ${ROLLBACK_SNAPSHOT}
 
 	if [ ${NEED_REBOOT_WARNING} -eq 0 ]; then
 	    rm -f "${NEEDS_RESTARTING_FILE}"
@@ -978,226 +805,14 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	fi
     fi
 
-    # Create the working snapshot
-    snapper_args=(create --print-number --userdata "transactional-update-in-progress=yes")
-    if [ "${BASE_SNAPSHOT_ID}" -ne "${CURRENT_SNAPSHOT_ID}" ]; then
-	snapper_args+=(--from ${BASE_SNAPSHOT_ID})
-    fi
-    snapper_args+=(--description "Snapshot Update of #${BASE_SNAPSHOT_ID}")
-    SNAPSHOT_ID=`snapper "${snapper_args[@]}"`
-    if [ $? -ne 0 ]; then
-	SNAPPER_NO_DBUS="--no-dbus"
-	SNAPSHOT_ID=`snapper ${SNAPPER_NO_DBUS} "${snapper_args[@]}"`
-	if [ $? -ne 0 ]; then
-	    log_error "ERROR: snapper create failed!"
-	    quit 1
-	fi
-    fi
-
-    SNAPSHOT_DIR=/.snapshots/${SNAPSHOT_ID}/snapshot
-
-    # Make the snapshot read-write:
-    btrfs property set  ${SNAPSHOT_DIR} ro false
-    if [ $? -ne 0 ]; then
-	log_error "ERROR: changing ${SNAPSHOT_DIR} to read-write failed!"
-	quit 1
-    fi
-
-    if [ ${ETC_IS_OVERLAY} -eq 1 ]; then
-	# Create new /etc overlay for snapshot
-	ETC_OVERLAY_DIR="/var/lib/overlay/${SNAPSHOT_ID}/etc"
-	ETC_OVERLAY_DIR_PREV="/var/lib/overlay/${BASE_SNAPSHOT_ID}/etc"
-	ETC_OVERLAY_WORK_DIR="${ETC_OVERLAY_DIR}-work"
-
-	# If the user is calling `snapper delete` on the latest snapshot, then
-	# the snapshot number will be reused; make sure to delete any artifacts
-	rm -f "${ETC_OVERLAY_DIR}"
-
-	mkdir -p "${ETC_OVERLAY_DIR}" "${ETC_OVERLAY_WORK_DIR}"
-
-	get_etc_overlay_from /
-	current_upper="${fstab_upper}"
-
-	# Copy the contents of oldest /etc layer into snapshot
-	sync_etc "${fstab_oldest_active_snapshot}" "${SNAPSHOT_DIR}"
-	get_etc_overlay_from "/.snapshots/${BASE_SNAPSHOT_ID}/snapshot"
-
-	# Special handling /etc/fstab{.sys}: dracut needs the *current* version
-	# of the files in the snapshot, as the overlay is not yet mounted
-	# during early boot - in fact the files are required to be able to
-	# mount the overlays
-	if [ -e "${ETC_OVERLAY_DIR_PREV}/fstab" ]; then
-	    cp "${ETC_OVERLAY_DIR_PREV}/fstab" "${SNAPSHOT_DIR}/etc"
-	fi
-	if [ -e "${ETC_OVERLAY_DIR_PREV}/fstab.sys" ]; then
-	    cp -a "${ETC_OVERLAY_DIR_PREV}/fstab.sys" "${SNAPSHOT_DIR}/etc"
-	fi
-
-	# Migrate fstab.sys' /var and overlay entries to regular fstab
-	if [ -e "${SNAPSHOT_DIR}/etc/fstab.sys" ] && grep -qE "^overlay /etc" "${SNAPSHOT_DIR}/etc/fstab.sys"; then
-	    awk '$3 == "overlay" && $4 ~ /=\/sysroot\/var\/lib\/overlay/' "${SNAPSHOT_DIR}/etc/fstab.sys" >> "${SNAPSHOT_DIR}/etc/fstab"
-	    # Remove /etc, /var and /var/lib/overlay (legacy) from fstab.sys
-	    gawk -i inplace '$2 != "/etc" && $2 != "/var" && $2 != "/var/lib/overlay" &&
-		($3 != "overlay" || $4 !~ /=\/sysroot\/var\/lib\/overlay\//)' "${SNAPSHOT_DIR}/etc/fstab.sys"
-	    # Append x-initrd.mount to /var mount options (bsc#1121279)
-	    gawk -i inplace '$2 == "/var" || $2 == "/var/lib/overlay" { $4 = $4",x-initrd.mount"; } 1' "${SNAPSHOT_DIR}/etc/fstab"
-	    gawk -i inplace '$3 == "overlay" && $4 ~ "=/sysroot/var/lib/overlay/" { $4 = $4",x-systemd.requires-mounts-for=/var,x-systemd.requires-mounts-for=/var/lib/overlay,x-systemd.requires-mounts-for=/sysroot/var,x-systemd.requires-mounts-for=/sysroot/var/lib/overlay,x-initrd.mount"; } 1' "${SNAPSHOT_DIR}/etc/fstab"
-	fi
-
-	# Update fstab{,.sys} entries for /etc overlays
-	fstab_line="overlay /etc overlay ${fstab_otheroptions}"
-	fstab_line+="upperdir=/sysroot${ETC_OVERLAY_DIR},"
-	fstab_line+="lowerdir=${fstab_upper}:`echo ${fstab_active_lowerdirs[@]} | tr ' ' ':'`,"
-	fstab_line+="workdir=/sysroot/var/lib/overlay/work-etc,"
-	fstab_line+="x-systemd.requires-mounts-for=/var,"
-	fstab_line+="x-systemd.requires-mounts-for=/var/lib/overlay,"
-	fstab_line+="x-systemd.requires-mounts-for=/sysroot/var,"
-	fstab_line+="x-systemd.requires-mounts-for=/sysroot/var/lib/overlay,"
-	fstab_line+="x-initrd.mount 0 0"
-	sed -i "/${ETC_OVERLAY_PATTERN}/c ${fstab_line}" "${SNAPSHOT_DIR}/etc/fstab"
-
-	# Prettify fstab
-	gawk -i inplace 'NR==FNR { for(i=1;i<=NF;i++) { len=length($i); collen[i]=collen[i]>len?collen[i]:(len>42?42:len); } print }
-	    NR!=FNR { for(i=1;i<=NF;i++) { printf("%-"collen[i]"s  ", $i); } print ""}' "${SNAPSHOT_DIR}/etc/fstab" "${SNAPSHOT_DIR}/etc/fstab"
-
-	# Make the diff visible to the admin by copying /etc/fstab into the
-	# overlay (dracut itself wouldn't need it)
-	cp "${SNAPSHOT_DIR}/etc/fstab" "${ETC_OVERLAY_DIR}"
-    fi
+    SNAPSHOT_ID=`transkit -c "${BASE_SNAPSHOT_ID}" open | grep -e "^UUID:" | cut -d " " -f 2-`
+    SNAPSHOT_DIR="/.snapshots/${SNAPSHOT_ID}/snapshot/"
 
     # Remember all snapshots we create for update. If transactional-update is
     # run several times before a reboot, we need to clean up the unused
     # snapshots, otherwise we would have a big disk space leak. But don't store
     # it on disk yet, in error case we would delete the snapshot again.
     UNUSED_SNAPSHOTS="${SNAPSHOT_ID} ${UNUSED_SNAPSHOTS}"
-
-    # Check if installed with SLES12
-    if [ ${HAS_SEPARATE_VAR} -eq 0 ]; then
-	touch ${SNAPSHOT_DIR}/var/tmp/update_snapshot.test
-	if [ $? -ne 0 ]; then
-	    log_error "ERROR: System installation is too old!"
-	    quit 1
-	fi
-	rm -f ${SNAPSHOT_DIR}/var/tmp/update_snapshot.test
-    else
-        # Check if the btrfs subvolumes were created correct
-        # or with broken storage-ng [bsc#1077240]
-        touch ${SNAPSHOT_DIR}/var/update_snapshot.test
-        if [ $? -ne 0 ]; then
-            log_error "ERROR: System installation is broken!"
-            quit 1
-        fi
-        rm -f ${SNAPSHOT_DIR}/var/update_snapshot.test
-    fi
-
-    if [ ${RUN_SHELL} -eq 1 -a -z "${SHELL_CMD}" ]; then
-	DIR_TO_MOUNT="${DIR_TO_MOUNT} root"
-    fi
-    if [ -d /boot/writable ]; then
-	DIR_TO_MOUNT="${DIR_TO_MOUNT} /boot/writable"
-    fi
-
-    # Check which directories in /boot/grub2 need to be mounted,
-    # otherwise grub2 will not boot after a version update.
-    DIR_TO_MOUNT="${DIR_TO_MOUNT} $(awk '$2 ~ /^\/boot\/grub2\// { print $2 }' /proc/mounts)"
-    # On EFI systems the EFI partition is also needed
-    if [ -e /boot/efi ]; then
-	DIR_TO_MOUNT="${DIR_TO_MOUNT} /boot/efi"
-    fi
-
-    # Mount everything we need:
-    mount -t proc none ${SNAPSHOT_DIR}/proc
-    if [ $? -ne 0 ]; then
-        log_error "ERROR: mount of proc failed!"
-        quit 1
-    fi
-    mount -t sysfs sys ${SNAPSHOT_DIR}/sys
-    if [ $? -ne 0 ]; then
-        log_error "ERROR: mount of sys failed!"
-        quit 1
-    fi
-    if [ ${ETC_IS_OVERLAY} -eq 1 ]; then
-	lowerdir="${fstab_upper///sysroot\/var//var}:"
-	lowerdir+="`parse_lowerdirs_for_mount "/.snapshots/${BASE_SNAPSHOT_ID}/snapshot"`"
-	# Check whether the current upper directory is part of the snapshot's lower
-	# directory stack; if so use reuse /etc directly instead, as mounting
-	# the same upper directory multiple times is not supported by overlayfs
-	lowerdir="${lowerdir/${current_upper#/sysroot}*/\/etc}"
-
-	etc_opts="defaults,"
-	etc_opts+="lowerdir=${lowerdir},"
-	etc_opts+="upperdir=${ETC_OVERLAY_DIR},"
-	etc_opts+="workdir=${ETC_OVERLAY_WORK_DIR}"
-	mount -t overlay overlay ${SNAPSHOT_DIR}/etc -o ${etc_opts}
-	if [ $? -ne 0 ]; then
-	    log_error "ERROR: mount of etc failed!"
-	    quit 1;
-	fi
-    fi
-    if [ -x /usr/sbin/selinuxenabled ]; then
-        /usr/sbin/selinuxenabled
-        if [ $? -eq 0 ]; then
-            mount -t selinuxfs selinux ${SNAPSHOT_DIR}/sys/fs/selinux
-            if [ $? -ne 0 ]; then
-                log_error "ERROR: mount of sys failed!"
-                quit 1
-            fi
-        fi
-    fi
-    for directory in $DIR_TO_MOUNT ; do
-	# Make sure mount point exists. With /var on an own subvolume, this directory
-	# is empty by default and mount points don't exist in chroot environment.
-	test -d ${SNAPSHOT_DIR}/$directory || mkdir -p ${SNAPSHOT_DIR}/$directory
-	mount -o bind /$directory ${SNAPSHOT_DIR}/$directory
-	if [ $? -ne 0 ]; then
-	    log_error "ERROR: mount of $directory failed!"
-	    quit 1
-	fi
-    done
-
-    # If we have a seperate /var, create some files / directories which we
-    # will delete again later.
-    if [ ${HAS_SEPARATE_VAR} -eq 1 ]; then
-	mkdir ${SNAPSHOT_DIR}/var/tmp
-	if [ -f /var/lib/zypp/RequestedLocales ]; then
-	    mkdir -p ${SNAPSHOT_DIR}/var/lib/zypp
-	    cp /var/lib/zypp/RequestedLocales ${SNAPSHOT_DIR}/var/lib/zypp/
-	fi
-    fi
-
-    # Check if we have /var/lib/rpm, otherwise zypper will
-    # create a new rpm database [bsc#1074598]
-    if [ ! -e ${SNAPSHOT_DIR}/var/lib/rpm -a \
-	-e ${SNAPSHOT_DIR}/usr/lib/sysimage/rpm ]; then
-	mkdir -p ${SNAPSHOT_DIR}/var/lib
-	ln -sf ../../usr/lib/sysimage/rpm ${SNAPSHOT_DIR}/var/lib/rpm
-    fi
-
-    # Copy network configuration into chroot
-    # The links in /etc may either point to /var/run or /run, and the root file
-    # system snapshot may already contain the /var/run -> /run link or not.
-    if [ -e /run/netconfig ]; then
-	if [ ${HAS_SEPARATE_VAR} -eq 1 ]; then
-	    ln -sf /run ${SNAPSHOT_DIR}/var/run
-	fi
-	cp -r /run/netconfig ${SNAPSHOT_DIR}/run/
-    fi
-
-    # Create bind mount for CA certificates to support HTTPS connections
-    if [ ${HAS_SEPARATE_VAR} -eq 1 ]; then
-	mkdir -p ${SNAPSHOT_DIR}/var/lib/ca-certificates
-	mount -o bind,ro /var/lib/ca-certificates ${SNAPSHOT_DIR}/var/lib/ca-certificates
-    fi
-
-    # Do we need to cleanup the /var/cache directory?
-    if [ ! -d ${SNAPSHOT_DIR}/var/cache/zypp ]; then
-	VAR_CACHE_CLEANUP=1
-    fi
-
-    # Create bind mounts or else grub2 will fail
-    MOUNT_DIR=`mktemp -d`
-    mount -o rbind ${SNAPSHOT_DIR} ${MOUNT_DIR}
-    mount -o bind,ro /.snapshots ${MOUNT_DIR}/.snapshots
 
     if [ $USE_SALT_GRAINS -eq 1 ]; then
 	#TODO: Handle directories with special characters (space, newline, apostrophe etc)
@@ -1207,12 +822,8 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	INOTIFY_PID=$( ( inotifywait -r -e modify -e move -e create -e delete -e attrib "${SNAPSHOT_DIR}" ${INOTIFY_EXCLUDES} 2>&1 & echo "PID: $!" ) | ( grep -m1 '^PID: ' | cut -d ' ' -f 2 && grep -q "Watches established" ) )
     fi
 
-    # Set indicator for RPM pre/post sections to detect whether we run in a
-    # transactional update
-    export TRANSACTIONAL_UPDATE=true
-
     if [ ${DO_REGISTRATION} -eq 1 ]; then
-	SUSEConnect --root ${MOUNT_DIR}  ${REGISTRATION_ARGS}
+        SUSEConnect --root ${SNAPSHOT_DIR} ${REGISTRATION_ARGS}
     fi
 
     if [ -n "${ZYPPER_ARG}" ]; then
@@ -1220,12 +831,13 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	log_info "Calling zypper ${ZYPPER_ARG}"
 	if [ ${DO_MIGRATION} -eq 1 ]; then
 	    # transactional-update migration
-	    env DISABLE_RESTART_ON_UPDATE=yes zypper ${ZYPPER_ARG} --root ${MOUNT_DIR} ${ZYPPER_NONINTERACTIVE} "${ZYPPER_ARG_PKGS[@]}" |& tee -a ${LOGFILE}
+            export DISABLE_RESTART_ON_UPDATE=yes
+            transkit call "${SNAPSHOT_ID}" zypper ${ZYPPER_ARG} ${ZYPPER_NONINTERACTIVE} "${ZYPPER_ARG_PKGS[@]}" |& tee -a ${LOGFILE}
 	    RETVAL=${PIPESTATUS[0]}
 	else
 	    # Check if there are updates at all.
 	    TMPFILE=`mktemp /tmp/transactional-update.XXXXXXXXXX`
-	    zypper -R ${MOUNT_DIR} --xml ${ZYPPER_ARG} -y --auto-agree-with-product-licenses --dry-run "${ZYPPER_ARG_PKGS[@]}" > ${TMPFILE}
+            zypper -R "${SNAPSHOT_DIR}" --xml ${ZYPPER_ARG} -y --auto-agree-with-product-licenses --dry-run "${ZYPPER_ARG_PKGS[@]}" > ${TMPFILE}
 	    PACKAGE_UPDATES=`grep "install-summary download-size" ${TMPFILE} | sed -e 's|.*install-summary download-size=\"\(.*\)\" space-usage-diff.*|\1|g'`
 	    SIZE_OF_UPDATES=`grep "install-summary.*space-usage-diff" ${TMPFILE} | sed -e 's|.*install-summary.*space-usage-diff=\"\([^"]*\)\".*|\1|g'`
 	    NUM_OF_UPDATES=`grep "install-summary.*packages-to-change" ${TMPFILE} | sed -e 's|.*install-summary.*packages-to-change=\"\([^"]*\)\".*|\1|g'`
@@ -1244,7 +856,8 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 		quit 0
 	    fi
 
-	    env DISABLE_RESTART_ON_UPDATE=yes zypper -R ${MOUNT_DIR} ${ZYPPER_ARG} ${ZYPPER_NONINTERACTIVE} "${ZYPPER_ARG_PKGS[@]}" |& tee -a ${LOGFILE}
+            export DISABLE_RESTART_ON_UPDATE=yes
+            transkit call "${SNAPSHOT_ID}" zypper ${ZYPPER_ARG} ${ZYPPER_NONINTERACTIVE} "${ZYPPER_ARG_PKGS[@]}" |& tee -a ${LOGFILE}
 	    RETVAL=${PIPESTATUS[0]}
 	fi
 	# in case of migration, we need to do a little bit more:
@@ -1263,20 +876,20 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	    REBUILD_KDUMP_INITRD=1
 	    # check if products are updated and we need to re-register
 	    # at next boot.
-	    diff -qr /etc/products.d ${MOUNT_DIR}/etc/products.d > /dev/null
+            diff -qr /etc/products.d ${SNAPSHOT_DIR}/etc/products.d > /dev/null
 	    if [ $? -ne 0 ]; then
 		check_registration_on_next_reboot
 	    fi
 	    # Rebuild grub.cfg if /etc/os-release changes, could change grub
 	    # menu output, too.
-	    cmp -s /etc/os-release ${MOUNT_DIR}/etc/os-release
+            cmp -s /etc/os-release ${SNAPSHOT_DIR}/etc/os-release
 	    if [ $? -ne 0 ]; then
 	        REWRITE_GRUB_CFG=1
 	    fi
-	    source <(grep VERSION_ID ${MOUNT_DIR}/etc/os-release)
+            source <(grep VERSION_ID ${SNAPSHOT_DIR}/etc/os-release)
 	    TELEM_PAYLOAD="${TELEM_PAYLOAD}\nnext_version=${VERSION_ID}"
 	else
-	    log_error "ERROR: zypper ${ZYPPER_ARG} on ${MOUNT_DIR} failed with exit code ${RETVAL}!"
+            log_error "ERROR: zypper ${ZYPPER_ARG} on ${SNAPSHOT_DIR} failed with exit code ${RETVAL}!"
 	    if [ -n "${ZYPPER_NONINTERACTIVE}" ]; then
 		echo "Use '--interactive' for manual problem resolution."
 	    fi
@@ -1286,7 +899,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 
     if [ ${REWRITE_INITRD} -eq 1 ]; then
 	log_info "Creating new initrd"
-	chroot ${MOUNT_DIR} /sbin/mkinitrd
+        transkit call "${SNAPSHOT_ID}" /sbin/mkinitrd
 	if [ $? -ne 0 ]; then
 	    log_error "ERROR: mkinitrd failed!"
 	    EXITCODE=1
@@ -1297,12 +910,12 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 
     if [ ${REBUILD_KDUMP_INITRD} -eq 1 ]; then
 	log_info "Trying to rebuild kdump initrd"
-	rebuild_kdump_initrd ${MOUNT_DIR}
+        rebuild_kdump_initrd ${SNAPSHOT_ID}
     fi
 
     if [ ${REWRITE_GRUB_CFG} -eq 1 ]; then
 	log_info "Creating a new grub2 config"
-	chroot ${MOUNT_DIR} /usr/sbin/grub2-mkconfig > ${MOUNT_DIR}/boot/grub2/grub.cfg
+        transkit call "${SNAPSHOT_ID}" bash -c "/usr/sbin/grub2-mkconfig > /boot/grub2/grub.cfg"
 	if [ $? -ne 0 ]; then
 	    log_error "ERROR: grub2-mkconfig failed!"
 	    EXITCODE=1;
@@ -1311,7 +924,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 
     if [ ${REWRITE_BOOTLOADER} -eq 1 ]; then
 	log_info "Writing new bootloader"
-	chroot ${MOUNT_DIR} /sbin/pbl --install
+        transkit call "${SNAPSHOT_ID}" /sbin/pbl --install
 	if [ $? -ne 0 ]; then
 	    log_error "ERROR: /sbin/pbl --install failed!"
 	    EXITCODE=1;
@@ -1321,13 +934,14 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
     if [ ${RUN_SHELL} -eq 1 ]; then
 	if [ "${SHELL_CMD}" = "-" ]; then
 	    while read line; do
-		chroot ${MOUNT_DIR} $line
+                transkit call "${SNAPSHOT_ID}" $line
 	    done < /dev/stdin
 	elif [ -n "${SHELL_CMD}" ]; then
-	    chroot ${MOUNT_DIR} ${SHELL_CMD}
+            transkit call "${SNAPSHOT_ID}" ${SHELL_CMD}
 	else
 	    echo "Opening chroot in snapshot ${SNAPSHOT_ID}, continue with 'exit'"
-	    env PS1="transactional update # " chroot ${MOUNT_DIR} bash 2>&4
+            export PS1="transactional update # "
+            transkit call "${SNAPSHOT_ID}" bash 2>&4
 	fi
     fi
 
@@ -1335,37 +949,20 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 
     # Somersault:
     if [ $EXITCODE -eq 0 ]; then
-	BTRFS_ID=`btrfs subvolume list -o /.snapshots | grep ${SNAPSHOT_DIR} | awk '{print $2}'`
-	if [ -z "$BTRFS_ID" ]; then
-	    log_error "ERROR: couldn't determine btrfs subvolume ID"
-	    EXITCODE=1
-	else
-	    btrfs subvolume set-default $BTRFS_ID ${SNAPSHOT_DIR}
-	    if [ $? -ne 0 ]; then
-		log_error "ERROR: btrfs set-default $BTRFS_ID failed!"
-		EXITCODE=1;
-	    else
-		# Save the old snapshot or else it will get lost.
-		add_unique_id ${CURRENT_SNAPSHOT_ID}
-		save_state_file ${SNAPSHOT_ID}
-		# Create flag file for dracut scripts
-		if [ ${RO_ROOT} = "true" ]; then
-		    echo "EXPECTED_SNAPSHOT_ID=${SNAPSHOT_ID}" > "${NEW_SNAPSHOT_FLAG}"
-		    echo "PREV_SNAPSHOT_ID=${CURRENT_SNAPSHOT_ID}" >> "${NEW_SNAPSHOT_FLAG}"
-		fi
-		# Reset in-progress flag
-		snapper ${SNAPPER_NO_DBUS} modify -u "transactional-update-in-progress=" ${SNAPSHOT_ID}
-	    fi
+	# Save the old snapshot or else it will get lost.
+	add_unique_id ${CURRENT_SNAPSHOT_ID}
+	save_state_file ${SNAPSHOT_ID}
+	# Create flag file for dracut scripts
+	if [ ${RO_ROOT} = "true" ]; then
+	    echo "EXPECTED_SNAPSHOT_ID=${SNAPSHOT_ID}" > "${NEW_SNAPSHOT_FLAG}"
+	    echo "PREV_SNAPSHOT_ID=${CURRENT_SNAPSHOT_ID}" >> "${NEW_SNAPSHOT_FLAG}"
 	fi
+	transkit close "${SNAPSHOT_ID}"
     fi
 
-    # Make the snapshot ro flag identical to current root:
-    btrfs property set  ${SNAPSHOT_DIR} ro ${RO_ROOT}
-    if [ $? -ne 0 ]; then
-	log_error "ERROR: changing ${SNAPSHOT_DIR} to ro=${RO_ROOT} failed!"
-	EXITCODE=1
-    fi
-
+# TODO: Non-functional, needs to be converted to transkit
+if false; then
+    DIR_TO_MOUNT=awk '$2 ~ "'^${SNAPSHOT_DIR}'" { print $2 }' /proc/mounts
     # Check for installation artefacts: Packages may have created files in
     # directories outside of the root file system; these files will not be
     # visible in the actual system as they are shadowed by the real mount
@@ -1374,8 +971,8 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
     # Filter out commented lines and swap partition
     for mountdir in $(awk '$1 !~ "^#.*" && $2 ~ "^/.*" { print $2 }' ${SNAPSHOT_DIR}/etc/fstab); do
 	# Filter out root fs and fstab entries which we bind mounted anyway
-	if [[ ! $mountdir =~ ^(/|/etc|${DIR_TO_MOUNT// /|})$ ]]; then
-	    searchdirs+="${SNAPSHOT_DIR}${mountdir} "
+        if [[ ! $mountdir =~ ^(${DIR_TO_MOUNT// /|})$ ]]; then
+            searchdirs+="${mountdir} "
 	fi
     done
     if [ -n "${searchdirs}" ]; then
@@ -1394,6 +991,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	    log_info "${filelist}"
 	fi
     fi
+fi
 
     if [ ${EXITCODE} -ne 0 ]; then
 	quit ${EXITCODE}
