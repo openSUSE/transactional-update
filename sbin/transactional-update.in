@@ -42,7 +42,6 @@ ROLLBACK_SNAPSHOT=0
 REBOOT_AFTERWARDS=0
 REBOOT_METHOD="auto"
 RUN_SHELL=0
-USE_SALT_GRAINS=0
 USE_TELEMETRICS=0
 TELEM_PAYLOAD="PACKAGE_NAME=transactional-update\nPACKAGE_VERSION=@VERSION@"
 TELEM_CLASS=""
@@ -266,20 +265,6 @@ quit() {
 	fi
 	rm -rf "${ETC_OVERLAY_DIR%/*}" |& tee -a ${LOGFILE}
     fi
-    if [ $USE_SALT_GRAINS -eq 1 ]; then
-	if [ -f /etc/salt/grains ]; then
-	    grep -q tx_update_failed /etc/salt/grains
-	    if [ $? -ne 0 ]; then
-		# Add variable to existing salt grains
-		echo "tx_update_failed: true" >> /etc/salt/grains
-	    else
-		# modify variable in existing salt grains
-		sed -i -e 's|tx_update_failed:.*|tx_update_failed: true|g' /etc/salt/grains
-	    fi
-	else
-	    echo "tx_update_failed: true" > /etc/salt/grains
-	fi
-    fi
     telem_finish $1
     log_info "transactional-update finished"
     exit $1
@@ -353,27 +338,6 @@ teardown() {
     rm -rf ${SNAPSHOT_DIR}/run/*
     # WARNING: /var/spool/ can contain changes through RPM!
     rm -rf ${SNAPSHOT_DIR}/var/spool/*
-}
-
-reboot_via_salt() {
-    log_info "transactional-update finished - created salt grains"
-    if [ -f /etc/salt/grains ]; then
-	grep -q tx_update_reboot_needed /etc/salt/grains
-	if [ $? -ne 0 ]; then
-	    # Add variable to existing salt grains
-	    echo "tx_update_reboot_needed: true" >> /etc/salt/grains
-	else
-	    # modify variable in existing salt grains
-	    sed -i -e 's|tx_update_reboot_needed:.*|tx_update_reboot_needed: true|g' /etc/salt/grains
-	fi
-    else
-	echo "tx_update_reboot_needed: true" > /etc/salt/grains
-    fi
-    # Reset tx_update_failed if exist
-    sed -i -e 's|tx_update_failed:.*|tx_update_failed: false|g' /etc/salt/grains
-    TELEM_PAYLOAD="${TELEM_PAYLOAD}\nreboot=salt"
-    telem_finish 0
-    exit 0
 }
 
 reboot_via_rebootmgr() {
@@ -665,12 +629,6 @@ while [ 1 ]; do
 		ROLLBACK_SNAPSHOT=$1
 		shift
 	    fi
-	    ;;
-	salt)
-	    REBOOT_AFTERWARDS=1
-	    USE_SALT_GRAINS=1
-	    REBOOT_METHOD="salt"
-	    shift
 	    ;;
 	-i|--interactive)
 	    ZYPPER_NONINTERACTIVE=""
@@ -1201,14 +1159,6 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	    TELEM_PAYLOAD="${TELEM_PAYLOAD}\npackages=${NUM_OF_UPDATES}\ndownload_size=${PACKAGE_UPDATES}\nspace-usage=${SIZE_OF_UPDATES}"
 	    if [ "${NUM_OF_UPDATES}" = "0" ] || [ -z "${NUM_OF_UPDATES}" -a "${PACKAGE_UPDATES}" = "0" -a "${SIZE_OF_UPDATES}" = "0" ]; then
 		log_info "zypper: nothing to update"
-		if [ $USE_SALT_GRAINS -eq 1 ]; then
-		    log_info "Updating salt grains"
-		    if [ -f /etc/salt/grains ]; then
-			# Reset tx_update_failed if it exists. Could have been set due to wrong
-			# repository configuration or another temporary error before.
-			sed -i -e 's|tx_update_failed:.*|tx_update_failed: false|g' /etc/salt/grains
-		    fi
-		fi
 		quit 0
 	    fi
 
@@ -1375,9 +1325,6 @@ if [ ${EXITCODE} -eq 0 ]; then
 		;;
 	    kured)
 		reboot_via_kured
-		;;
-	    salt)
-		reboot_via_salt
 		;;
 	    rebootmgr)
 		reboot_via_rebootmgr

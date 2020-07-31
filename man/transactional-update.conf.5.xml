@@ -99,15 +99,6 @@
               </listitem>
             </varlistentry>
             <varlistentry>
-              <term><literal>salt</literal></term>
-              <listitem>
-                <para>
-                  Will create a Salt grain for signaling Velum to reboot the
-                  system.
-                </para>
-              </listitem>
-            </varlistentry>
-            <varlistentry>
               <term><literal>rebootmgr</literal></term>
               <listitem>
                 <para>
