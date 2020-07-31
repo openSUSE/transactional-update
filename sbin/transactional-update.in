@@ -37,13 +37,13 @@ DO_DUP=0
 DO_ROLLBACK=0
 DO_SELF_UPDATE=1
 DO_REGISTRATION=0
+DO_RUN=0
 REGISTRATION_ARGS=""
 ROLLBACK_SNAPSHOT=0
 REBOOT_AFTERWARDS=0
 REBOOT_METHOD="auto"
+RUN_CMD=""
 RUN_SHELL=0
-SHELL_CMD=""
-USE_SALT_GRAINS=0
 USE_TELEMETRICS=0
 TELEM_PAYLOAD="PACKAGE_NAME=transactional-update\nPACKAGE_VERSION=@VERSION@"
 TELEM_CLASS=""
@@ -57,6 +57,7 @@ LOCKFILE="/var/run/transactional-update.pid"
 ZYPPER_AUTO_IMPORT_KEYS=0
 ETC_OVERLAY_PATTERN='^[^[:space:]]\+[[:space:]]\+\/etc[[:space:]]\+overlay[[:space:]]\+\([^[:space:]]*,\|\)workdir=\/sysroot\/var\/lib\/overlay\/work-etc[,[:space:]]'
 NON_ROOTFS_WHITELIST=("/var/lib/rpm" "/var/lib/systemd/migrated" "/var/run/zypp.pid")
+DROP_IF_NO_CHANGE=0
 INOTIFY_EXCLUDES=""
 
 # Load config
@@ -131,6 +132,7 @@ usage() {
     echo "kdump                      Regenerate kdump initrd"
     echo "shell                      Open rw shell in new snapshot before exiting"
     echo "reboot                     Reboot after update"
+    echo "run <cmd>                  Run a command in a new snapshot"
     echo ""
     echo "Package Commands:"
     echo "Defaults: (i) interactive command; (n) non-interactive command"
@@ -151,6 +153,7 @@ usage() {
     echo "--non-interactive, -n      Use non-interactive mode for package command"
     echo "--continue [<number>], -c  Use latest or given snapshot as base"
     echo "--no-selfupdate            Skip checking for newer version"
+    echo "--drop-if-no-change, -d    Drop the snapshot if there is no change"
     echo "--quiet                    Don't print warnings and infos to stdout"
     echo "--help, -h                 Display this help and exit"
     echo "--version                  Display version and exit"
@@ -616,15 +619,6 @@ while [ 1 ]; do
 	    test -z "$TELEM_CLASS" && TELEM_CLASS="shell"
 	    RUN_SHELL=1
 	    shift
-	    if [ "$1" = "-c" ]; then
-		if [ -z "$2" ]; then
-		    SHELL_CMD="-"
-		else
-		    SHELL_CMD="$2"
-		    shift
-		fi
-		shift
-	    fi
 	    ;;
 	initrd)
 	    test -z "$TELEM_CLASS" && TELEM_CLASS="initrd"
@@ -651,6 +645,19 @@ while [ 1 ]; do
 		shift
 	    fi
 	    ;;
+	run)
+	    test -z "$TELEM_CLASS" && TELEM_CLASS="shell"
+	    DO_RUN=1
+	    shift
+
+	    # Collect arguments for run
+	    if [ $# -eq 0 ]; then
+		usage 1
+	    fi
+
+	    RUN_CMD="$@"
+	    break
+	    ;;
 	-i|--interactive)
 	    ZYPPER_NONINTERACTIVE=""
 	    shift
@@ -671,6 +678,10 @@ while [ 1 ]; do
 	    ;;
 	--no-selfupdate)
 	    DO_SELF_UPDATE=0
+	    shift
+	    ;;
+	-d|--drop-if-no-change)
+	    DROP_IF_NO_CHANGE=1
 	    shift
 	    ;;
 	--quiet)
@@ -932,8 +943,8 @@ fi
 
 if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
     -o ${REWRITE_INITRD} -eq 1 -o ${REBUILD_KDUMP_INITRD} -eq 1 \
-    -o ${RUN_SHELL} -eq 1 -o ${REWRITE_BOOTLOADER} -eq 1 \
-    -o ${DO_REGISTRATION} -eq 1 ]; then
+    -o ${RUN_SHELL} -eq 1 -o ${DO_RUN} -eq 1 \
+    -o ${REWRITE_BOOTLOADER} -eq 1 -o ${DO_REGISTRATION} -eq 1 ]; then
 
     if [ "${DEFAULT_SNAPSHOT_ID}" -ne "${BASE_SNAPSHOT_ID}" ]; then
 	log_info "WARNING: You are creating a snapshot from a different base (${BASE_SNAPSHOT_ID}) than the"
@@ -1056,7 +1067,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
         rm -f ${SNAPSHOT_DIR}/var/update_snapshot.test
     fi
 
-    if [ ${RUN_SHELL} -eq 1 -a -z "${SHELL_CMD}" ]; then
+    if [ ${RUN_SHELL} -eq 1 ]; then
 	DIR_TO_MOUNT="${DIR_TO_MOUNT} root"
     fi
     if [ -d /boot/writable ]; then
@@ -1154,7 +1165,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
     mount -o rbind ${SNAPSHOT_DIR} ${MOUNT_DIR}
     mount -o bind,ro /.snapshots ${MOUNT_DIR}/.snapshots
 
-    if [ $USE_SALT_GRAINS -eq 1 ]; then
+    if [ $DROP_IF_NO_CHANGE -eq 1 ]; then
 	#TODO: Handle directories with special characters (space, newline, apostrophe etc)
 	for snapmount in `findmnt --noheadings --submounts --target "${SNAPSHOT_DIR}" --output TARGET --raw | grep "${SNAPSHOT_DIR}"`; do
 	    INOTIFY_EXCLUDES="${INOTIFY_EXCLUDES} @${snapmount}"
@@ -1265,17 +1276,13 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	fi
     fi
 
+    if [ ${DO_RUN} -eq 1 ]; then
+	chroot ${MOUNT_DIR} ${RUN_CMD}
+    fi
+
     if [ ${RUN_SHELL} -eq 1 ]; then
-	if [ "${SHELL_CMD}" = "-" ]; then
-	    while read line; do
-		chroot ${MOUNT_DIR} $line
-	    done < /dev/stdin
-	elif [ -n "${SHELL_CMD}" ]; then
-	    chroot ${MOUNT_DIR} ${SHELL_CMD}
-	else
-	    echo "Opening chroot in snapshot ${SNAPSHOT_ID}, continue with 'exit'"
-	    env PS1="transactional update # " chroot ${MOUNT_DIR} bash 2>&4
-	fi
+	echo "Opening chroot in snapshot ${SNAPSHOT_ID}, continue with 'exit'"
+	env PS1="transactional update # " chroot ${MOUNT_DIR} bash 2>&4
     fi
 
     teardown
