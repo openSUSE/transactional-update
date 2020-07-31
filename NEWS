@@ -2,6 +2,13 @@ transactional-update NEWS -- history of user-visible changes.
 
 Copyright (C) 2016-2019 Thorsten Kukuk et al.
 
+Version 2.23
+* Add "run" command to be able to execute a single command in a new snapshot
+* Add "--drop-if-no-change" option to discard snapshots if no changes were
+  perfomed (BETA, required for Salt integration)
+* Removed previous CaaSP Salt support
+* Avoid "file not found" message on systems without /var subvol
+
 Version 2.22
 * Use pkgconf to determine installation paths
 * Enable SSL connections in update shell [boo#1149131]
