@@ -346,7 +346,9 @@ teardown() {
 	rm -rf ${SNAPSHOT_DIR}/var/cache/*
     fi
     # Remove temporary mount point
-    rmdir --ignore-fail-on-non-empty ${SNAPSHOT_DIR}/var/lib/ca-certificates
+    if [ -e ${SNAPSHOT_DIR}/var/lib/ca-certificates ]; then
+	rmdir --ignore-fail-on-non-empty ${SNAPSHOT_DIR}/var/lib/ca-certificates
+    fi
     # systemd-tmpfiles creates directories/files even if /run is no tmpfs:
     rm -rf ${SNAPSHOT_DIR}/run/*
     # WARNING: /var/spool/ can contain changes through RPM!
