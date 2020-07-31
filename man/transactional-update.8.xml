@@ -226,6 +226,21 @@ for more information.
     </listitem>
   </varlistentry>
   <varlistentry>
+    <term><option>run</option> <replaceable>cmd</replaceable></term>
+    <listitem>
+      <para>
+	Execute the the command <replaceable>cmd</replaceable> inside
+	a new snapshot. By default this snaphot will remain, but if
+	<option>--drop-if-no-chage</option> is set, the new snapshot
+	will be dropped if there is no change in the file system.
+      </para>
+      <para>
+	This command consumes all the remaining parameters, so should
+	be placed the in the last position.
+      </para>
+    </listitem>
+  </varlistentry>
+  <varlistentry>
     <term><option>shell</option></term>
     <listitem>
       <para>
@@ -417,6 +432,14 @@ for more information.
     <term><option>--no-selfupdate</option></term>
     <listitem>
       <para>Skip checking for newer transactional-update versions.</para>
+    </listitem>
+  </varlistentry>
+  <varlistentry>
+    <term><option>--drop-if-no-change</option></term>
+    <term><option>-d</option></term>
+    <listitem>
+      <para>If the action does not produce a change in the underlying
+      file system, the snapshot will be dropped.</para>
     </listitem>
   </varlistentry>
   <varlistentry>
