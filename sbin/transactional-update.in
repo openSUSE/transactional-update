@@ -3,7 +3,7 @@
 # transactional-update - apply updates to the system in an atomic way
 #
 # Author: Thorsten Kukuk <kukuk@suse.com>
-# Copyright (C) 2016, 2017, 2018, 2019 SUSE Linux GmbH
+# Copyright (C) 2016, 2017, 2018, 2019, 2020 SUSE Linux GmbH
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -60,6 +60,8 @@ NON_ROOTFS_WHITELIST=("/var/lib/rpm" "/var/lib/systemd/migrated" "/var/run/zypp.
 DROP_IF_NO_CHANGE=0
 INOTIFY_EXCLUDES=""
 
+TMPDIR=${TMPDIR:-/tmp}
+
 # Load config
 if [ -r ${SYSTEMCONFFILE} ]; then
     . ${SYSTEMCONFFILE}
@@ -98,7 +100,7 @@ self_update() {
     log_info "Checking for newer version."
     if zypper --non-interactive info transactional-update | grep -q '^Status *: out-of-date'; then
 	log_info "New version found - updating..."
-	TA_UPDATE_TMPFILE="`mktemp -d /tmp/transactional-update.XXXXXXXXXX`"
+	TA_UPDATE_TMPFILE="`mktemp -d ${TMPDIR}/transactional-update.XXXXXXXXXX`"
 	if [ $? -ne 0 ]; then
 	    log_error "ERROR: Couldn't create temporary directory for self-update."
 	    quit 1
@@ -1190,7 +1192,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	    RETVAL=${PIPESTATUS[0]}
 	else
 	    # Check if there are updates at all.
-	    TMPFILE=`mktemp /tmp/transactional-update.XXXXXXXXXX`
+	    TMPFILE=`mktemp ${TMPDIR}/transactional-update.XXXXXXXXXX`
 	    zypper -R ${MOUNT_DIR} --xmlout ${ZYPPER_ARG} -y --auto-agree-with-product-licenses --dry-run "${ZYPPER_ARG_PKGS[@]}" > ${TMPFILE}
 	    PACKAGE_UPDATES=`grep "install-summary download-size" ${TMPFILE} | sed -e 's|.*install-summary download-size=\"\(.*\)\" space-usage-diff.*|\1|g'`
 	    SIZE_OF_UPDATES=`grep "install-summary.*space-usage-diff" ${TMPFILE} | sed -e 's|.*install-summary.*space-usage-diff=\"\([^"]*\)\".*|\1|g'`
