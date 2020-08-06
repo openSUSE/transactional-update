@@ -781,9 +781,11 @@ grep -q "[[:space:]]/var[[:space:]]" /proc/mounts
 if [ $? -eq 0 ]; then
     log_info "Separate /var detected."
     DIR_TO_MOUNT="${DIR_TO_MOUNT} var/cache"
-    if [ -d /var/lib/alternatives ]; then
-	DIR_TO_MOUNT="${DIR_TO_MOUNT} var/lib/alternatives"
-    fi
+    for vardir in /var/lib/alternatives /var/lib/selinux ; do
+        if [ -d "${vardir}" ]; then
+	    DIR_TO_MOUNT="${DIR_TO_MOUNT} ${vardir}"
+         fi
+    done
     HAS_SEPARATE_VAR=1
 else
     grep -q var.cache /proc/mounts
