@@ -22,6 +22,9 @@
 #include "Util.h"
 #include <map>
 #include <stdexcept>
+extern "C" {
+#include <libeconf.h>
+}
 
 Configuration::Configuration() {
     econf_err error = econf_newIniFile(&key_file);

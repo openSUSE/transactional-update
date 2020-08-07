@@ -23,9 +23,7 @@
 
 #include <string>
 
-extern "C" {
-#include <libeconf.h>
-}
+typedef struct econf_file econf_file;
 
 class Configuration {
 public:
