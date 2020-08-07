@@ -23,10 +23,10 @@ Configuration::Configuration() {
         {"LOCKFILE", "/var/run/transactional-update.pid"},
         {"OVERLAY_DIR", "/var/lib/overlay"}
     };
-    for(auto &e : defaults) {
-        error = econf_setStringValue(key_file, "", e.first, e.second);
+    for(auto &[key, value] : defaults) {
+        error = econf_setStringValue(key_file, "", key, value);
         if (error)
-            throw std::runtime_error{"Could not set default value for '" + std::string(e.first) + "'."};
+            throw std::runtime_error{"Could not set default value for '" + std::string(key) + "'."};
     }
 }
 
