@@ -1268,6 +1268,10 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	if [ $? -ne 0 ]; then
 	    log_error "ERROR: grub2-mkconfig failed!"
 	    EXITCODE=1;
+        else
+            if [ -x /usr/sbin/selinuxenabled ] && /usr/sbin/selinuxenabled ; then
+                chcon --reference /boot/grub2/grub.cfg "${MOUNT_DIR}/boot/grub2/grub.cfg"
+            fi
 	fi
     fi
 
@@ -1287,6 +1291,11 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
     if [ ${RUN_SHELL} -eq 1 ]; then
 	echo "Opening chroot in snapshot ${SNAPSHOT_ID}, continue with 'exit'"
 	env PS1="transactional update # " chroot ${MOUNT_DIR} bash 2>&4
+    fi
+
+    if [ -x /usr/sbin/selinuxenabled ] && /usr/sbin/selinuxenabled ; then
+        chcon --reference /etc "${ETC_OVERLAY_DIR}" 
+        chcon --reference /etc/fstab "${MOUNT_DIR}/etc/fstab" 
     fi
 
     teardown
