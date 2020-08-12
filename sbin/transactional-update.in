@@ -1294,8 +1294,8 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
     fi
 
     if [ -x /usr/sbin/selinuxenabled ] && /usr/sbin/selinuxenabled ; then
-        chcon --reference /etc "${ETC_OVERLAY_DIR}" 
-        chcon --reference /etc/fstab "${MOUNT_DIR}/etc/fstab" 
+        chcon --reference /etc "${ETC_OVERLAY_DIR}"
+        chcon --reference /etc/fstab "${MOUNT_DIR}/etc/fstab"
     fi
 
     teardown
