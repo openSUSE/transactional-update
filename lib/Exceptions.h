@@ -17,7 +17,7 @@ public:
     ExecutionException(std::string why, int status) : reason{why}, returncode{status} {
 
     }
-    const char* what() const _GLIBCXX_TXN_SAFE_DYN _GLIBCXX_NOTHROW override {
+    const char* what() const noexcept override {
         return reason.c_str();
     }
     int getReturnCode() {
