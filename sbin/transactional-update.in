@@ -44,6 +44,7 @@ REBOOT_AFTERWARDS=0
 REBOOT_METHOD="auto"
 RUN_CMD=""
 RUN_SHELL=0
+SETUP_SELINUX=0
 USE_TELEMETRICS=0
 TELEM_PAYLOAD="PACKAGE_NAME=transactional-update\nPACKAGE_VERSION=@VERSION@"
 TELEM_CLASS=""
@@ -135,6 +136,7 @@ usage() {
     echo "shell                      Open rw shell in new snapshot before exiting"
     echo "reboot                     Reboot after update"
     echo "run <cmd>                  Run a command in a new snapshot"
+    echo "setup-selinux              Install targeted SELinux policy and enable it"
     echo ""
     echo "Package Commands:"
     echo "Defaults: (i) interactive command; (n) non-interactive command"
@@ -660,6 +662,11 @@ while [ 1 ]; do
 	    RUN_CMD="$@"
 	    break
 	    ;;
+	setup-selinux)
+	    test -z "$TELEM_CLASS" && TELEM_CLASS="selinux"
+	    SETUP_SELINUX=1
+	    break
+	    ;;
 	-i|--interactive)
 	    ZYPPER_NONINTERACTIVE=""
 	    shift
@@ -721,6 +728,32 @@ while [ 1 ]; do
 	    ;;
     esac
 done
+
+# Setup SELinux
+if [ "${SETUP_SELINUX}" -eq 1 ]; then
+    # Setting up SELinux requires several steps:
+    # 1. Make sure the policies are installed
+    # 2. Adjust /etc/default/grub
+    # 3. Adjust /etc/selinux/config
+    # 4. Rebuild grub.cfg and initrd
+
+    if [ -n "${ZYPPER_ARG}" ]; then
+	usage 1
+    fi
+    # Check if we need to install packages
+    for pkg in selinux-policy-targeted container-selinux; do
+	rpm -q --quiet ${pkg} || ZYPPER_ARG_PKGS+=("${pkg}")
+    done
+    if [ ${#ZYPPER_ARG_PKGS[@]} -ne 0 ]; then
+	ZYPPER_ARG="install"
+    fi
+    REWRITE_INITRD=1
+    REBUILD_KDUMP_INITRD=1
+
+    # Make sure /var/lib/selinux exists, else installing the
+    # Policy will fail
+    test -d /var/lib/selinux || mkdir -p /var/lib/selinux
+fi
 
 # If no commands were given, assume "up"
 if [ -z "${ZYPPER_ARG}" -a -z "${TELEM_CLASS}" -a "${REBOOT_AFTERWARDS}" -eq 0 \
@@ -1244,6 +1277,24 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	    fi
 	    EXITCODE=1
 	fi
+    fi
+
+    if [ ${SETUP_SELINUX} -eq 1 ]; then
+	# Adjust grub configuration
+
+	# Check if we don't have selinux already enabled.
+	grep ^GRUB_CMDLINE_LINUX_DEFAULT /etc/default/grub | grep -q security=selinux || \
+	    sed -i -e 's|\(^GRUB_CMDLINE_LINUX_DEFAULT=.*\)"|\1 security=selinux selinux=1"|g' /etc/default/grub
+	REWRITE_GRUB_CFG=1
+
+	if [ ! -e "${MOUNT_DIR}/etc/selinux/config" ]; then
+	    log_error "ERROR: /etc/selinux/config does not exist!"
+	    EXITCODE=1
+	fi
+	# Adjust selinux config
+	sed -i -e 's|^SELINUX=.*|SELINUX=enforcing|g' \
+	    -e 's|^SELINUXTYPE=.*|SELINUXTYPE=targeted|g' \
+	    "${MOUNT_DIR}/etc/selinux/config"
     fi
 
     if [ ${REWRITE_INITRD} -eq 1 ]; then
