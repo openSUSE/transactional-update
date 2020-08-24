@@ -21,15 +21,15 @@ public:
     TULogLevel level = TULogLevel::ERROR;
 
     template<typename... T> void error(const T&... args) {
-        if (int(level) >= int(TULogLevel::ERROR))
+        if (level >=TULogLevel::ERROR)
             log(args...);
     }
     template<typename... T> void info(const T&... args) {
-        if (int(level) >= int(TULogLevel::INFO))
+        if (level >= TULogLevel::INFO)
             log(args...);
     }
     template<typename... T> void debug(const T&... args) {
-        if (int(level) >= int(TULogLevel::DEBUG))
+        if (level >= TULogLevel::DEBUG)
             log(args...);
     }
 
