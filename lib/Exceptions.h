@@ -14,8 +14,7 @@
 class ExecutionException : public std::exception
 {
 public:
-    ExecutionException(std::string why, int status) : reason{why}, returncode{status} {
-
+    ExecutionException(const std::string& reason, const int returncode) : reason{reason}, returncode{returncode} {
     }
     const char* what() const noexcept override {
         return reason.c_str();
@@ -24,8 +23,8 @@ public:
         return returncode;
     }
 private:
-    std::string reason;
-    int returncode;
+    const std::string reason;
+    const int returncode;
 };
 
 #endif // EXCEPTIONS_H
