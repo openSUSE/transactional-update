@@ -34,7 +34,7 @@ public:
     }
 
     template<typename... T> void log(const T&... args) {
-        time_t now = time(0);
+        std::time_t now = std::time(0);
         std::cout << std::put_time(std::localtime(&now), "%F %T ");
         ((std::cout << args),...) << std::endl;
     }
