@@ -23,7 +23,7 @@ public:
     std::string getTarget();
     bool isMount();
     virtual void mount(std::string prefix = "/");
-    void persist(std::filesystem::path);
+    void persist(std::filesystem::path file);
     void removeOption(std::string option);
     void setOption(std::string option, std::string value);
     void setSource(std::string source);
