@@ -5,8 +5,8 @@
   Helper class
  */
 
-#ifndef UTIL_H_
-#define UTIL_H_
+#ifndef UTIL_H
+#define UTIL_H
 
 #include <string>
 #include <array>
@@ -26,4 +26,4 @@ struct CString {
     char *ptr = nullptr;
 };
 
-#endif /* UTIL_H_ */
+#endif /* UTIL_H */

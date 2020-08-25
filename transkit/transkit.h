@@ -5,8 +5,8 @@
   transactional-update - apply updates to the system in an atomic way
  */
 
-#ifndef TRANSACTIONALUPDATE_H_
-#define TRANSACTIONALUPDATE_H_
+#ifndef TRANSACTIONALUPDATE_H
+#define TRANSACTIONALUPDATE_H
 
 #include <string>
 
@@ -21,4 +21,4 @@ private:
     std::string baseSnapshot = "active";
 };
 
-#endif /* TRANSACTIONALUPDATE_H_ */
+#endif /* TRANSACTIONALUPDATE_H */

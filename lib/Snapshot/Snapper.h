@@ -5,8 +5,8 @@
   Snapper backend for snapshot handling
  */
 
-#ifndef FILESYSTEMS_SNAPPER_H_
-#define FILESYSTEMS_SNAPPER_H_
+#ifndef FILESYSTEMS_SNAPPER_H
+#define FILESYSTEMS_SNAPPER_H
 
 #include "Snapshot.h"
 #include <filesystem>
@@ -32,4 +32,4 @@ private:
     std::string callSnapper(std::string);
 };
 
-#endif /* FILESYSTEMS_SNAPPER_H_ */
+#endif /* FILESYSTEMS_SNAPPER_H */

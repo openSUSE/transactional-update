@@ -5,8 +5,8 @@
   Wrapper for libmount
  */
 
-#ifndef LIBMOUNTWRAPPER_H
-#define LIBMOUNTWRAPPER_H
+#ifndef MOUNT_H
+#define MOUNT_H
 
 #include <filesystem>
 #include <libmount/libmount.h>
@@ -55,4 +55,4 @@ public:
     PropagatedBindMount(std::string target, unsigned long flags = 0);
 };
 
-#endif // LIBMOUNTWRAPPER_H
+#endif // MOUNT_H
