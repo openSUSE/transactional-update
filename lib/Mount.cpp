@@ -13,7 +13,7 @@
 
 Mount::Mount(std::string target, unsigned long flags)
     : mnt_cxt{NULL}, mnt_table{mnt_new_table()}, mnt_fs{NULL},
-      target{target}, flags{flags}
+      target{std::move(target)}, flags{std::move(flags)}
 {
 }
 
