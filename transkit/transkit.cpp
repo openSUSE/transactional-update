@@ -79,18 +79,21 @@ int Transkit::parseOptions(int argc, const char *argv[]) {
                 getHelp();
                 throw invalid_argument{"Missing argument for 'call'"};
             }
-            Transaction transaction{argv[i + 1]};
+            Transaction transaction{};
+            transaction.resume(argv[i + 1]);
             int status = transaction.execute(&argv[i + 2]); // All remaining arguments
             transaction.keep();
             return status;
         }
         else if (arg == "close") {
-            Transaction transaction{argv[i + 1]};
+            Transaction transaction{};
+            transaction.resume(argv[i + 1]);
             transaction.finalize();
             return 0;
         }
         else if (arg == "abort") {
-            Transaction transaction{argv[i + 1]};
+            Transaction transaction{};
+            transaction.resume(argv[i + 1]);
             return 0;
         }
         else if (arg == "--continue" || arg == "-c") {

@@ -22,9 +22,9 @@
 class Transaction {
 public:
     Transaction();
-    Transaction(std::string uuid);
     virtual ~Transaction();
     void init(std::string base);
+    void resume(std::string uuid);
     int execute(const char* argv[]);
     void finalize();
     void keep();

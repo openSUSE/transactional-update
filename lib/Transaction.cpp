@@ -21,12 +21,7 @@ using namespace std;
 
 Transaction::Transaction() {
     tulog.debug("Constructor Transaction");
-}
-
-Transaction::Transaction(string uuid) {
     snapshot = SnapshotFactory::get();
-    snapshot->open(uuid);
-    mount();
 }
 
 Transaction::~Transaction() {
@@ -134,7 +129,6 @@ void Transaction::addSupplements() {
 }
 
 void Transaction::init(string base) {
-    snapshot = SnapshotFactory::get();
     if (base == "active")
         base = snapshot->getCurrent();
     else if (base == "default")
@@ -143,6 +137,11 @@ void Transaction::init(string base) {
 
     mount(base);
     addSupplements();
+}
+
+void Transaction::resume(string uuid) {
+    snapshot->open(uuid);
+    mount();
 }
 
 int Transaction::execute(const char* argv[]) {
