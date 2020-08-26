@@ -10,8 +10,8 @@
   be deleted again.
  */
 
-#ifndef TRANSACTION_H
-#define TRANSACTION_H
+#ifndef T_U_TRANSACTION_H
+#define T_U_TRANSACTION_H
 
 #include "Mount.h"
 #include "Snapshot.h"
@@ -39,4 +39,4 @@ private:
     Supplements supplements;
 };
 
-#endif /* TRANSACTION_H */
+#endif // T_U_TRANSACTION_H

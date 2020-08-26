@@ -6,8 +6,8 @@
   environment.
  */
 
-#ifndef SUPPLEMENT_H
-#define SUPPLEMENT_H
+#ifndef T_U_SUPPLEMENT_H
+#define T_U_SUPPLEMENT_H
 
 #include <filesystem>
 #include <string>
@@ -30,4 +30,4 @@ protected:
     void createDirs(fs::path dir);
 };
 
-#endif // SUPPLEMENT_H
+#endif // T_U_SUPPLEMENT_H

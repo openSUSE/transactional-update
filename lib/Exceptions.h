@@ -5,8 +5,8 @@
   Custom exception classes
  */
 
-#ifndef EXCEPTIONS_H
-#define EXCEPTIONS_H
+#ifndef T_U_EXCEPTIONS_H
+#define T_U_EXCEPTIONS_H
 
 #include <exception>
 #include <string>
@@ -27,4 +27,4 @@ private:
     const int returncode;
 };
 
-#endif // EXCEPTIONS_H
+#endif // T_U_EXCEPTIONS_H

@@ -5,8 +5,8 @@
   Handling of /etc overlayfs layers
  */
 
-#ifndef OVERLAY_H
-#define OVERLAY_H
+#ifndef T_U_OVERLAY_H
+#define T_U_OVERLAY_H
 
 #include "Mount.h"
 #include <memory>
@@ -30,4 +30,4 @@ private:
     static std::string getIdOfOverlayDir(const std::string dir);
 };
 
-#endif // OVERLAY_H
+#endif // T_U_OVERLAY_H

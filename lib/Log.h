@@ -5,8 +5,8 @@
   Provide logging facitlies by including this header file
  */
 
-#ifndef LOG_H
-#define LOG_H
+#ifndef T_U_LOG_H
+#define T_U_LOG_H
 
 #include <iomanip>
 #include <iostream>
@@ -42,4 +42,4 @@ public:
 
 inline TULog tulog{};
 
-#endif /* LOG_H */
+#endif // T_U_LOG_H

@@ -6,8 +6,8 @@
   default values otherwise.
  */
 
-#ifndef CONFIGURATION_H
-#define CONFIGURATION_H
+#ifndef T_U_CONFIGURATION_H
+#define T_U_CONFIGURATION_H
 
 #include <string>
 
@@ -26,4 +26,4 @@ private:
 
 inline Configuration config{};
 
-#endif /* CONFIGURATION_H */
+#endif // T_U_CONFIGURATION_H

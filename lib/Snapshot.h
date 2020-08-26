@@ -6,8 +6,8 @@
   implementations can be found in the "Snapshot" directory
  */
 
-#ifndef SNAPSHOT_H
-#define SNAPSHOT_H
+#ifndef T_U_SNAPSHOT_H
+#define T_U_SNAPSHOT_H
 
 #include <filesystem>
 #include <memory>
@@ -37,4 +37,4 @@ public:
     static std::unique_ptr<Snapshot> get();
 };
 
-#endif /* SNAPSHOT_H */
+#endif // T_U_SNAPSHOT_H
