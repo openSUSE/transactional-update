@@ -82,6 +82,7 @@ MOUNT_DIR=""
 SNAPPER_NO_DBUS=""
 TMPFILE=""
 ETC_OVERLAY_DIR=""
+ETC_OVERLAY_DIR_PREV=""
 ETC_OVERLAY_WORK_DIR=""
 INOTIFY_PID=""
 
@@ -290,6 +291,13 @@ teardown() {
 	kill ${INOTIFY_PID}
 	log_info "The snapshot does not contain any changed files."
 	INOTIFY_PID=""
+
+	# Even if the snapshot itself did not contain any changes,
+	# /etc may do so. Changes in /etc may be applied immediately,
+	# so merge them back into the running system.
+	log_info "Merging overlay directory ${SNAPSHOT_DIR}/etc into /etc..."
+	rsync --archive --inplace --xattrs --filter='-x security.selinux' --acls --exclude 'fstab' --delete --quiet "${SNAPSHOT_DIR}/etc/" /etc
+
 	quit 0
     fi
 
