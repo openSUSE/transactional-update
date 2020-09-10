@@ -1178,6 +1178,11 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
     mount -o bind,ro /.snapshots ${MOUNT_DIR}/.snapshots
 
     if [ $DROP_IF_NO_CHANGE -eq 1 ]; then
+	INITIAL_EXCLUDES=""
+	for snapmount in ${INOTIFY_EXCLUDES}; do
+	    INITIAL_EXCLUDES="${INITIAL_EXCLUDES} @${SNAPSHOT_DIR}${snapmount}"
+	done
+	INOTIFY_EXCLUDES="${INITIAL_EXCLUDES}"
 	#TODO: Handle directories with special characters (space, newline, apostrophe etc)
 	for snapmount in `findmnt --noheadings --submounts --target "${SNAPSHOT_DIR}" --output TARGET --raw | grep "${SNAPSHOT_DIR}"`; do
 	    INOTIFY_EXCLUDES="${INOTIFY_EXCLUDES} @${snapmount}"
