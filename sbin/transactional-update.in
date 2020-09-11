@@ -535,6 +535,17 @@ sync_etc() {
     umount "${ETC_OVERLAY_DIR}"
 }
 
+# Return the optimized list of mount points
+root_mount_points() {
+    local prev=0
+    for mount in $(findmnt --noheadings --submounts --target / --output TARGET --raw | sort | tail -n +2); do
+	if [ "${prev}/" != "${mount:0:$( ( ${#prev} + 1 ) )}" ]; then
+	    echo "${mount}"
+	    prev="${mount}"
+	fi
+    done
+}
+
 ORIG_ARGS=("$@")
 
 while [ 1 ]; do
@@ -1179,8 +1190,8 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 
     if [ $DROP_IF_NO_CHANGE -eq 1 ]; then
 	#TODO: Handle directories with special characters (space, newline, apostrophe etc)
-	for snapmount in `findmnt --noheadings --submounts --target "${SNAPSHOT_DIR}" --output TARGET --raw | grep "${SNAPSHOT_DIR}"`; do
-	    INOTIFY_EXCLUDES="${INOTIFY_EXCLUDES} @${snapmount}"
+	for snapmount in $(root_mount_points); do
+	    INOTIFY_EXCLUDES="${INOTIFY_EXCLUDES} @${SNAPSHOT_DIR}${snapmount}"
 	done
 	INOTIFY_PID=$( ( inotifywait -r -e modify -e move -e create -e delete -e attrib "${SNAPSHOT_DIR}" ${INOTIFY_EXCLUDES} 2>&1 & echo "PID: $!" ) | ( grep -m1 '^PID: ' | cut -d ' ' -f 2 && grep -q "Watches established" ) )
     fi
