@@ -522,7 +522,7 @@ sync_etc() {
 root_mount_points() {
     local prev=0
     for mount in $(findmnt --noheadings --submounts --target / --output TARGET --raw | sort | tail -n +2); do
-	if [ "${prev}/" != "${mount:0:$( ( ${#prev} + 1 ) )}" ]; then
+	if [ "${prev}/" != "${mount:0:$((${#prev}+1))}" ]; then
 	    echo "${mount}"
 	    prev="${mount}"
 	fi
