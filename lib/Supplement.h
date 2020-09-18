@@ -19,6 +19,7 @@ class Supplements
 {
 public:
     Supplements() = default;
+    virtual ~Supplements() = default;
     Supplements(fs::path snapshot);
     void addDir(fs::path dir);
     void addFile(fs::path file);
