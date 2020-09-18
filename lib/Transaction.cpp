@@ -19,36 +19,46 @@
 #include <unistd.h>
 using namespace std;
 
-Transaction::Transaction() {
+class Transaction::impl {
+public:
+    void addSupplements();
+    void mount(std::string base = "");
+    std::unique_ptr<Snapshot> snapshot;
+    std::string bindDir;
+    std::vector<std::unique_ptr<Mount>> dirsToMount;
+    Supplements supplements;
+};
+
+Transaction::Transaction() : pImpl{std::make_unique<impl>()} {
     tulog.debug("Constructor Transaction");
-    snapshot = SnapshotFactory::get();
+    pImpl->snapshot = SnapshotFactory::get();
 }
 
 Transaction::~Transaction() {
     tulog.debug("Destructor Transaction");
 
-    supplements.cleanup();
+    pImpl->supplements.cleanup();
 
-    dirsToMount.clear();
+    pImpl->dirsToMount.clear();
     try {
-        filesystem::remove_all(filesystem::path{bindDir});
+        filesystem::remove_all(filesystem::path{pImpl->bindDir});
         if (isInitialized())
-            snapshot->abort();
+            pImpl->snapshot->abort();
     }  catch (const exception &e) {
         tulog.error("ERROR: ", e.what());
     }
 }
 
 bool Transaction::isInitialized() {
-    return snapshot ? true : false;
+    return pImpl->snapshot ? true : false;
 }
 
 string Transaction::getSnapshot()
 {
-    return snapshot->getUid();
+    return pImpl->snapshot->getUid();
 }
 
-void Transaction::mount(string base) {
+void Transaction::impl::mount(string base) {
     dirsToMount.push_back(make_unique<PropagatedBindMount>("/dev"));
     dirsToMount.push_back(make_unique<BindMount>("/var/log"));
 
@@ -113,7 +123,7 @@ void Transaction::mount(string base) {
     dirsToMount.push_back(std::move(mntBind));
 }
 
-void Transaction::addSupplements() {
+void Transaction::impl::addSupplements() {
     supplements = Supplements(snapshot->getRoot());
 
     Mount mntVar{"/var"};
@@ -130,23 +140,23 @@ void Transaction::addSupplements() {
 
 void Transaction::init(string base) {
     if (base == "active")
-        base = snapshot->getCurrent();
+        base = pImpl->snapshot->getCurrent();
     else if (base == "default")
-        base =snapshot->getDefault();
-    snapshot->create(base);
+        base = pImpl->snapshot->getDefault();
+    pImpl->snapshot->create(base);
 
-    mount(base);
-    addSupplements();
+    pImpl->mount(base);
+    pImpl->addSupplements();
 }
 
 void Transaction::resume(string uuid) {
-    snapshot->open(uuid);
-    mount();
+    pImpl->snapshot->open(uuid);
+    pImpl->mount();
 }
 
 int Transaction::execute(const char* argv[]) {
-    if (! snapshot->isInProgress())
-        throw std::invalid_argument{"Snapshot " + snapshot->getUid() + " is not an open transaction."};
+    if (! pImpl->snapshot->isInProgress())
+        throw std::invalid_argument{"Snapshot " + pImpl->snapshot->getUid() + " is not an open transaction."};
 
     std::string opts = "Executing `";
     int i = 0;
@@ -164,8 +174,8 @@ int Transaction::execute(const char* argv[]) {
     if (pid < 0) {
         throw runtime_error{"fork() failed: " + string(strerror(errno))};
     } else if (pid == 0) {
-        if (chroot(bindDir.c_str()) < 0) {
-            throw runtime_error{"Chrooting to " + bindDir + " failed: " + string(strerror(errno))};
+        if (chroot(pImpl->bindDir.c_str()) < 0) {
+            throw runtime_error{"Chrooting to " + pImpl->bindDir + " failed: " + string(strerror(errno))};
         }
         // Set indicator for RPM pre/post sections to detect whether we run in a
         // transactional update
@@ -188,16 +198,16 @@ int Transaction::execute(const char* argv[]) {
 }
 
 void Transaction::finalize() {
-    snapshot->close();
+    pImpl->snapshot->close();
 
     std::unique_ptr<Snapshot> defaultSnap = SnapshotFactory::get();
-    defaultSnap->open(snapshot->getDefault());
+    defaultSnap->open(pImpl->snapshot->getDefault());
     if (defaultSnap->isReadOnly())
-        snapshot->setReadOnly(true);
+        pImpl->snapshot->setReadOnly(true);
 
-    snapshot.reset();
+    pImpl->snapshot.reset();
 }
 
 void Transaction::keep() {
-    snapshot.reset();
+    pImpl->snapshot.reset();
 }

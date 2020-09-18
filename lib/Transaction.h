@@ -17,6 +17,7 @@
 #include "Snapshot.h"
 #include "Supplement.h"
 #include <algorithm>
+#include <memory>
 #include <vector>
 
 class Transaction {
@@ -31,12 +32,8 @@ public:
     bool isInitialized();
     std::string getSnapshot();
 private:
-    void addSupplements();
-    void mount(std::string base = "");
-    std::unique_ptr<Snapshot> snapshot;
-    std::string bindDir;
-    std::vector<std::unique_ptr<Mount>> dirsToMount;
-    Supplements supplements;
+    class impl;
+    std::unique_ptr<impl> pImpl;
 };
 
 #endif // T_U_TRANSACTION_H
