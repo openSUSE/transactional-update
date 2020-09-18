@@ -10,6 +10,8 @@
 #include "Log.h"
 #include <exception>
 
+namespace TransactionalUpdate {
+
 Supplements::Supplements(fs::path snapshot):
     snapshot{snapshot}
 {
@@ -69,3 +71,5 @@ void Supplements::cleanup() {
         }
     }
 }
+
+} // namespace TransactionalUpdate

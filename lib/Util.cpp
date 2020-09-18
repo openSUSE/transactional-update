@@ -9,6 +9,9 @@
 #include "Util.h"
 #include "Exceptions.h"
 #include <algorithm>
+
+namespace TransactionalUpdate {
+
 using namespace std;
 
 string Util::exec(const string cmd) {
@@ -59,3 +62,5 @@ void Util::trim(string &s) {
     ltrim(s);
     rtrim(s);
 }
+
+} // namespace TransactionalUpdate

@@ -12,6 +12,8 @@
 #include <array>
 #include <iostream>
 
+namespace TransactionalUpdate {
+
 struct Util {
     static std::string exec(const std::string cmd);
     static void ltrim(std::string &s);
@@ -25,5 +27,7 @@ struct CString {
     operator char*() { return ptr; }
     char *ptr = nullptr;
 };
+
+} // namespace TransactionalUpdate
 
 #endif // T_U_UTIL_H

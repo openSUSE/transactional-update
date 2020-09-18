@@ -23,6 +23,8 @@ using std::unique_ptr;
 using std::vector;
 namespace fs = std::filesystem;
 
+namespace TransactionalUpdate {
+
 /*
  * Create a new overlay instance for the given snapshot number.
  * For existing overlays the lowerdirs are read automatically from the given snapshot overlay;
@@ -175,3 +177,5 @@ void Overlay::create(string base = "") {
     // inserted at the end. Use ranges for the check as soon as C++20 is available instead.
     lowerdirs.insert(lowerdirs.begin(), parent.upperdir);
 }
+
+} // namespace TransactionalUpdate

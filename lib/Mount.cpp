@@ -11,6 +11,8 @@
 #include <filesystem>
 #include <stdexcept>
 
+namespace TransactionalUpdate {
+
 Mount::Mount(std::string target, unsigned long flags)
     : mnt_cxt{NULL}, mnt_table{mnt_new_table()}, mnt_fs{NULL},
       target{std::move(target)}, flags{std::move(flags)}
@@ -278,3 +280,5 @@ PropagatedBindMount::PropagatedBindMount(std::string target, unsigned long flags
     : BindMount(target, flags | MS_REC | MS_SLAVE)
 {
 }
+
+} // namespace TransactionalUpdate

@@ -23,6 +23,7 @@
 #include <typeinfo>
 
 using namespace std;
+using TransactionalUpdate::config;
 
 void Transkit::getHelp() {
     cout << "Syntax: transkit [option...] command" << endl;
@@ -57,7 +58,7 @@ int Transkit::parseOptions(int argc, const char *argv[]) {
     for (int i = 1; i < argc; i++) {
         string arg = argv[i];
         if (arg == "execute") {
-            Transaction transaction{};
+            TransactionalUpdate::Transaction transaction{};
             transaction.init(baseSnapshot);
             int status = transaction.execute(&argv[i + 1]); // All remaining arguments
             if (status == 0) {
@@ -68,7 +69,7 @@ int Transkit::parseOptions(int argc, const char *argv[]) {
             return 0;
         }
         else if (arg == "open") {
-            Transaction transaction{};
+            TransactionalUpdate::Transaction transaction{};
             transaction.init(baseSnapshot);
             cout << "UUID: " << transaction.getSnapshot() << endl;
             transaction.keep();
@@ -79,20 +80,20 @@ int Transkit::parseOptions(int argc, const char *argv[]) {
                 getHelp();
                 throw invalid_argument{"Missing argument for 'call'"};
             }
-            Transaction transaction{};
+            TransactionalUpdate::Transaction transaction{};
             transaction.resume(argv[i + 1]);
             int status = transaction.execute(&argv[i + 2]); // All remaining arguments
             transaction.keep();
             return status;
         }
         else if (arg == "close") {
-            Transaction transaction{};
+            TransactionalUpdate::Transaction transaction{};
             transaction.resume(argv[i + 1]);
             transaction.finalize();
             return 0;
         }
         else if (arg == "abort") {
-            Transaction transaction{};
+            TransactionalUpdate::Transaction transaction{};
             transaction.resume(argv[i + 1]);
             return 0;
         }

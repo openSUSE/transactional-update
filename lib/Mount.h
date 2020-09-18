@@ -12,6 +12,8 @@
 #include <libmount/libmount.h>
 #include <string>
 
+namespace TransactionalUpdate {
+
 class Mount
 {
 public:
@@ -54,5 +56,7 @@ class PropagatedBindMount : public BindMount
 public:
     PropagatedBindMount(std::string target, unsigned long flags = 0);
 };
+
+} // namespace TransactionalUpdate
 
 #endif // T_U_MOUNT_H

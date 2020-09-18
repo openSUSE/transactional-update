@@ -10,9 +10,9 @@
 #include "Util.h"
 #include <map>
 #include <stdexcept>
-extern "C" {
 #include <libeconf.h>
-}
+
+namespace TransactionalUpdate {
 
 Configuration::Configuration() {
     econf_err error = econf_newIniFile(&key_file);
@@ -41,3 +41,5 @@ std::string Configuration::get(const std::string &key) {
         throw std::runtime_error{"Could not read configuration setting '" + key + "'."};
     return std::string(val);
 }
+
+} // namespace TransactionalUpdate

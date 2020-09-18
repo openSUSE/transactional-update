@@ -10,6 +10,8 @@
 #include "Log.h"
 #include "Util.h"
 
+namespace TransactionalUpdate {
+
 void Snapper::create(std::string base) {
     snapshotId = callSnapper("create --from " + base + " --read-write --print-number --description 'Snapshot Update of #" + base + "' --userdata 'transactional-update-in-progress=yes'");
     Util::rtrim(snapshotId);
@@ -80,3 +82,5 @@ std::string Snapper::callSnapper(std::string opts) {
         return Util::exec("snapper --no-dbus " + opts);
     }
 }
+
+} // namespace TransactionalUpdate

@@ -13,6 +13,8 @@
 #include <string>
 #include <vector>
 
+namespace TransactionalUpdate {
+
 class Overlay {
 public:
     Overlay(std::string snapshot);
@@ -29,5 +31,7 @@ public:
 private:
     static std::string getIdOfOverlayDir(const std::string dir);
 };
+
+} // namespace TransactionalUpdate
 
 #endif // T_U_OVERLAY_H

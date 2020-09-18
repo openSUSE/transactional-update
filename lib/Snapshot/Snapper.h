@@ -12,6 +12,8 @@
 #include <filesystem>
 #include <string>
 
+namespace TransactionalUpdate {
+
 class Snapper: public Snapshot {
 public:
     Snapper() = default;
@@ -31,5 +33,7 @@ public:
 private:
     std::string callSnapper(std::string);
 };
+
+} // namespace TransactionalUpdate
 
 #endif // T_U_SNAPPER_H

@@ -10,6 +10,8 @@
 #include "Snapshot/Snapper.h"
 using namespace std;
 
+namespace TransactionalUpdate {
+
 // TODO: Make configurable to be able to force a certain implementation
 unique_ptr<Snapshot> SnapshotFactory::get() {
     if (filesystem::exists("/usr/bin/snapper")) {
@@ -18,3 +20,5 @@ unique_ptr<Snapshot> SnapshotFactory::get() {
         throw runtime_error{"No supported environment found."};
     }
 }
+
+} // namespace TransactionalUpdate

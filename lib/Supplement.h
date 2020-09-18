@@ -13,6 +13,8 @@
 #include <string>
 #include <vector>
 
+namespace TransactionalUpdate {
+
 namespace fs = std::filesystem;
 
 class Supplements
@@ -30,5 +32,7 @@ protected:
     std::vector<fs::path> supplementalFiles;
     void createDirs(fs::path dir);
 };
+
+} // namespace TransactionalUpdate
 
 #endif // T_U_SUPPLEMENT_H

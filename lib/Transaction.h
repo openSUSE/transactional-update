@@ -20,6 +20,8 @@
 #include <memory>
 #include <vector>
 
+namespace TransactionalUpdate {
+
 class Transaction {
 public:
     Transaction();
@@ -35,5 +37,7 @@ private:
     class impl;
     std::unique_ptr<impl> pImpl;
 };
+
+} // namespace TransactionalUpdate
 
 #endif // T_U_TRANSACTION_H

@@ -13,6 +13,8 @@
 #include <memory>
 #include <string>
 
+namespace TransactionalUpdate {
+
 class Snapshot {
 public:
     Snapshot() = default;
@@ -36,5 +38,7 @@ class SnapshotFactory {
 public:
     static std::unique_ptr<Snapshot> get();
 };
+
+} // namespace TransactionalUpdate
 
 #endif // T_U_SNAPSHOT_H

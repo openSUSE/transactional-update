@@ -13,6 +13,8 @@
 
 typedef struct econf_file econf_file;
 
+namespace TransactionalUpdate {
+
 class Configuration {
 public:
     Configuration();
@@ -25,5 +27,7 @@ private:
 };
 
 inline Configuration config{};
+
+} // namespace TransactionalUpdate
 
 #endif // T_U_CONFIGURATION_H
