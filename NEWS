@@ -2,6 +2,10 @@ transactional-update NEWS -- history of user-visible changes.
 
 Copyright (C) 2016-2019 Thorsten Kukuk et al.
 
+Version 2.25.1
+* Fix inotify watcher setup
+* Use log_{info,error} for more messages to avoid messing up Salt logs
+
 Version 2.25
 * Reduce number of overlays:
   Instead of using transparent overlays for all previous layers only add the
