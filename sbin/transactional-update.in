@@ -439,10 +439,9 @@ get_etc_overlay_from() {
     local option lowerdir overlay_id
 
     fstab=""
-    fstab_active_lowerdirs=()
     fstab_lowerdirs=()
     fstab_upper=""
-    fstab_oldest_active_snapshot=""
+    fstab_previous_snapshot=""
     fstab_otheroptions=""
 
     # Check for /etc overlay
@@ -463,18 +462,8 @@ get_etc_overlay_from() {
 		for lowerdir in `echo ${option#*=} | tr ':' ' '`; do
 		    overlay_id=`echo "${lowerdir#/sysroot}" | sed -n 's#^/var/lib/overlay/\([[:digit:]]\+\)/etc$#\1#p'`
 
-		    # Special handling for old overlay location
-		    if [ "${lowerdir}" = "/sysroot/var/lib/overlay/etc" ]; then
-			if [ "${fstab_lowerdirs[*]}" = "${fstab_active_lowerdirs[*]}" ]; then
-			    fstab_active_lowerdirs+=("${lowerdir}")
-			fi
-		    # Add common directories and directories of existing snapshots
-		    elif [ -z "${overlay_id}" -o -e "/.snapshots/${overlay_id}/snapshot" ]; then
-			if [ -n "${overlay_id}" ]; then
-			    fstab_oldest_active_snapshot="/.snapshots/${overlay_id}/snapshot"
-			    fstab_active_lowerdirs=("${fstab_lowerdirs[@]}")
-			fi
-			fstab_active_lowerdirs+=("${lowerdir}")
+		    if [ -z "${fstab_previous_snapshot}" -a -n "${overlay_id}" ]; then
+			fstab_previous_snapshot="/.snapshots/${overlay_id}/snapshot"
 		    fi
 		    fstab_lowerdirs+=("${lowerdir}")
 		done
@@ -488,7 +477,6 @@ get_etc_overlay_from() {
 		;;
 	esac
     done
-    fstab_oldest_active_snapshot="${fstab_oldest_active_snapshot:-/.snapshots/${CURRENT_SNAPSHOT_ID}/snapshot}"
 }
 
 # Replace all /sysroot prefixes from /etc fstab entry; for the overlays in /var
@@ -510,16 +498,11 @@ sync_etc() {
     if [ ${#fstab_lowerdirs[@]} -le 1 ]; then
 	return
     fi
-    log_info "Syncing /etc of oldest snapshot $1 as base into new snapshot $2"
+    log_info "Syncing /etc of previous snapshot $1 as base into new snapshot $2"
 
     mount_opts="defaults,"
     mount_opts+="lowerdir="
-    # Special case: If the current in-use snapshot is the oldest snapshot
-    # already it will be added as a lowerdir, so don't mount it for
-    # syncing (it may change at any time anyway).
-    if [ "${fstab_upper}" != "${current_upper}" ]; then
-	mount_opts+="${fstab_upper#/sysroot}:"
-    fi
+    mount_opts+="${fstab_upper#/sysroot}:"
     mount_opts+="`parse_lowerdirs_for_mount $1`"
     mount -t overlay overlay "${ETC_OVERLAY_DIR}" -o ${mount_opts}
     if [ $? -ne 0 ]; then
@@ -1017,10 +1000,14 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 
 	get_etc_overlay_from /
 	current_upper="${fstab_upper}"
-
-	# Copy the contents of oldest /etc layer into snapshot
-	sync_etc "${fstab_oldest_active_snapshot}" "${SNAPSHOT_DIR}"
 	get_etc_overlay_from "/.snapshots/${BASE_SNAPSHOT_ID}/snapshot"
+
+	# Copy the previous snapshot's /etc state into new snapshot (if it
+	# hasn't been synced in a previous layer already)
+	if [ -n "${fstab_previous_snapshot}" ] && [[ ${fstab_lowerdirs[@]} != *"${current_upper}"* ]]; then
+	    sync_etc "${fstab_previous_snapshot}" "${SNAPSHOT_DIR}"
+	    get_etc_overlay_from "/.snapshots/${BASE_SNAPSHOT_ID}/snapshot"
+	fi
 
 	# Special handling /etc/fstab{.sys}: dracut needs the *current* version
 	# of the files in the snapshot, as the overlay is not yet mounted
@@ -1044,10 +1031,19 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	    gawk -i inplace '$3 == "overlay" && $4 ~ "=/sysroot/var/lib/overlay/" { $4 = $4",x-systemd.requires-mounts-for=/var,x-systemd.requires-mounts-for=/var/lib/overlay,x-systemd.requires-mounts-for=/sysroot/var,x-systemd.requires-mounts-for=/sysroot/var/lib/overlay,x-initrd.mount"; } 1' "${SNAPSHOT_DIR}/etc/fstab"
 	fi
 
+	# Check whether the new snapshot is based on the currently running
+	# one - if so, then keep the overlay stack to not loose changes
+	# applied until reboot
+	if [[ ${fstab_lowerdirs[@]} == *"${current_upper}"* ]]; then
+	    lowerdirs="${fstab_upper}:$(echo ${fstab_lowerdirs[@]} | tr ' ' ':')"
+	else
+	    lowerdirs="${fstab_upper}:/sysroot/etc"
+	fi
+
 	# Update fstab{,.sys} entries for /etc overlays
 	fstab_line="overlay /etc overlay ${fstab_otheroptions}"
 	fstab_line+="upperdir=/sysroot${ETC_OVERLAY_DIR},"
-	fstab_line+="lowerdir=${fstab_upper}:`echo ${fstab_active_lowerdirs[@]} | tr ' ' ':'`,"
+	fstab_line+="lowerdir=${lowerdirs},"
 	fstab_line+="workdir=/sysroot/var/lib/overlay/work-etc,"
 	fstab_line+="x-systemd.requires-mounts-for=/var,"
 	fstab_line+="x-systemd.requires-mounts-for=/var/lib/overlay,"
@@ -1116,11 +1112,16 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 
     if [ ${ETC_IS_OVERLAY} -eq 1 ]; then
 	lowerdir="${fstab_upper///sysroot\/var//var}:"
-	lowerdir+="`parse_lowerdirs_for_mount "/.snapshots/${BASE_SNAPSHOT_ID}/snapshot"`"
-	# Check whether the current upper directory is part of the snapshot's lower
-	# directory stack; if so use reuse /etc directly instead, as mounting
-	# the same upper directory multiple times is not supported by overlayfs
-	lowerdir="${lowerdir/${current_upper#/sysroot}*/\/etc}"
+	# Is the snapshot based on the currently running system?
+	if [[ ${fstab_lowerdirs[@]} == *"${current_upper}"* ]]; then
+	    lowerdir+="$(parse_lowerdirs_for_mount "/.snapshots/${BASE_SNAPSHOT_ID}/snapshot")"
+	    # Mounting an already used overlay directory again is not
+	    # supported by overlayfs - use the old mount point instead
+	    lowerdir="${lowerdir/${current_upper#/sysroot}*/\/etc}"
+	else
+	    # Use the (synced) /etc directory of the new snapshot as base
+	    lowerdir+="/.snapshots/${SNAPSHOT_ID}/snapshot/etc"
+	fi
 
 	etc_opts="defaults,"
 	etc_opts+="lowerdir=${lowerdir},"

@@ -104,11 +104,11 @@ corresponding <filename class='directory'>/etc</filename> overlay located in
 <filename class='directory'>/var/lib/overlay</filename>. As configuration files
 may be modified after a snapshot was created and before a reboot is performed
 (e.g. via configuration management software) the overlay file system will use
-multiple lower layers, i.e. changes in older layers will be visible in newer
-snapshots, but not vice versa. To keep the number of layers at a minimum and the
-amount of data stored in the overlays low the
-<filename class='directory'>/etc</filename> state of the oldest still available
-snapshot is synchronized into the new root file system; unused overlays will be
+multiple lower layers, i.e. configuration file changes applied to the currently
+running system will be visible in the new system, but not vice versa. To keep
+the number of layers at a minimum the
+<filename class='directory'>/etc</filename> state of the previous snapshot is
+synchronized into the new root file system; unused overlays will be
 removed at a later time (see the <option>cleanup</option> option).
 </para>
 <warning>
