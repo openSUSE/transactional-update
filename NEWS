@@ -2,6 +2,16 @@ transactional-update NEWS -- history of user-visible changes.
 
 Copyright (C) 2016-2019 Thorsten Kukuk et al.
 
+Version 2.25
+* Reduce number of overlays:
+  Instead of using transparent overlays for all previous layers only add the
+  previous snapshot's overlay; this will greatly reduce the number of overlays
+  while still making sure that /etc changes in the running system will be
+  visible in the next snapshot
+* When using --drop-if-no-change synchronize potential /etc changes with
+  running system
+* Exclude all non-root-fs mounts from inotify watcher
+
 Version 2.24.1
 * SELinux: adjust labels for etc, fstab and grub.cfg
 
