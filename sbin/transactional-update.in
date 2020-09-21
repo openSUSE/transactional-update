@@ -171,14 +171,14 @@ print_version() {
 log_info() {
     echo `date "+%Y-%m-%d %H:%M"` "$@" >> ${LOGFILE}
     if [ ${VERBOSITY} -ge 2 ]; then
-	echo "$@"
+	echo -e "$@"
     fi
 }
 
 log_error() {
     TELEM_PAYLOAD="${TELEM_PAYLOAD}\nmessage=$@"
     echo `date "+%Y-%m-%d %H:%M"` "$@" >> ${LOGFILE}
-    echo "$@" 1>&4
+    echo -e "$@" 1>&4
 }
 
 bashlock() {
@@ -265,11 +265,11 @@ quit() {
     done
 
     if [ -n "${SNAPSHOT_ID}" ] ; then
-	log_error "Removing snapshot #${SNAPSHOT_ID}..."
+	log_info "Removing snapshot #${SNAPSHOT_ID}..."
 	snapper ${SNAPPER_NO_DBUS} delete ${SNAPSHOT_ID} |& tee -a ${LOGFILE}
     fi
     if [ -n "${ETC_OVERLAY_DIR}" ] ; then
-	log_error "Removing overlay directory ${ETC_OVERLAY_DIR%/*}..."
+	log_info "Removing overlay directory ${ETC_OVERLAY_DIR%/*}..."
 	if findmnt "${ETC_OVERLAY_DIR}" >/dev/null; then
 	    umount "${ETC_OVERLAY_DIR}"
 	fi
@@ -522,7 +522,7 @@ sync_etc() {
 root_mount_points() {
     local prev=0
     for mount in $(findmnt --noheadings --submounts --target / --output TARGET --raw | sort | tail -n +2); do
-	if [ "${prev}/" != "${mount:0:$( ( ${#prev} + 1 ) )}" ]; then
+	if [ "${prev}/" != "${mount:0:$((${#prev}+1))}" ]; then
 	    echo "${mount}"
 	    prev="${mount}"
 	fi
@@ -736,7 +736,7 @@ fi
 if [ -z "${TA_UPDATE_TMPFILE}" ]; then
     bashlock
     if [ $? -ne 0 ]; then
-	echo "Couldn't get lock, is another instance already running?"
+	log_error "Couldn't get lock, is another instance already running?"
 	exit 1
     fi
     self_update "${ORIG_ARGS[@]}"
@@ -759,7 +759,7 @@ telem_start
 
 SNAPPER_VERSION=`snapper --version | head -1 | cut -d ' ' -f 2`
 if [ -n "${BASE_SNAPSHOT_ID}" -a $(zypper --terse versioncmp $SNAPPER_VERSION 0.8.4) -lt 0 ]; then
-    echo "ERROR: snapper >= 0.8.4 required for --continue option!"
+    log_error "ERROR: snapper >= 0.8.4 required for --continue option!"
     log_info "transactional-update finished"
     telem_finish 1
     exit 1
@@ -858,7 +858,7 @@ if [ ${DO_ROLLBACK} -eq 1 ]; then
 	NEED_REBOOT_WARNING=1
     fi
     if [ ${NEED_REBOOT_WARNING} -eq 1 ]; then
-	echo "Please reboot to finish rollback!"
+	log_error "Please reboot to finish rollback!"
     fi
     telem_finish 0
     exit 0
@@ -1260,7 +1260,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	else
 	    log_error "ERROR: zypper ${ZYPPER_ARG} on ${MOUNT_DIR} failed with exit code ${RETVAL}!"
 	    if [ -n "${ZYPPER_NONINTERACTIVE}" ]; then
-		echo "Use '--interactive' for manual problem resolution."
+		log_error "Use '--interactive' for manual problem resolution."
 	    fi
 	    EXITCODE=1
 	fi
@@ -1309,7 +1309,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
     fi
 
     if [ ${RUN_SHELL} -eq 1 ]; then
-	echo "Opening chroot in snapshot ${SNAPSHOT_ID}, continue with 'exit'"
+	log_info "Opening chroot in snapshot ${SNAPSHOT_ID}, continue with 'exit'"
 	env PS1="transactional update # " chroot ${MOUNT_DIR} bash 2>&4
     fi
 
@@ -1385,8 +1385,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
     if [ ${EXITCODE} -ne 0 ]; then
 	quit ${EXITCODE}
     elif [ $REBOOT_AFTERWARDS -eq 0 ]; then
-	echo
-	echo "Please reboot your machine to activate the changes and avoid data loss."
+	log_error "\nPlease reboot your machine to activate the changes and avoid data loss."
 	touch "${NEEDS_RESTARTING_FILE}"
     fi
 
@@ -1420,8 +1419,8 @@ if [ ${EXITCODE} -eq 0 ]; then
 	        reboot_autodetect
 	        ;;
 	esac
-	echo "The system couldn't be rebooted using method '${REBOOT_METHOD}'. Please reboot the system"
-	echo "manually."
+	log_error "The system couldn't be rebooted using method '${REBOOT_METHOD}'. Please reboot the system"
+	log_error "manually."
     fi
 fi
 
