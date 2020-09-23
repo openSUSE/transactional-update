@@ -506,7 +506,7 @@ systemctl reboot
       </itemizedlist>
       <para>
 	Overlays no longer referenced by any snapshots will be deleted during
-	the <command>transactional-update cleanup</command> run.
+	the <command>transactional-update cleanup-overlays</command> run.
       </para>
     </section>
 <!--

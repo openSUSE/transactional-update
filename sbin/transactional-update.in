@@ -31,7 +31,8 @@ REWRITE_BOOTLOADER=0
 REWRITE_GRUB_CFG=0
 REWRITE_INITRD=0
 REBUILD_KDUMP_INITRD=0
-DO_CLEANUP=0
+DO_CLEANUP_OVERLAYS=0
+DO_CLEANUP_SNAPSHOTS=0
 DO_MIGRATION=0
 DO_DUP=0
 DO_ROLLBACK=0
@@ -128,7 +129,9 @@ usage() {
     echo "system."
     echo ""
     echo "General Commands:"
-    echo "cleanup                    Mark unused snapshots for snapper removal"
+    echo "cleanup                    Run both cleanup-snapshots and cleanup-overlays"
+    echo "cleanup-snapshots          Mark unused snapshots for snapper removal"
+    echo "cleanup-overlays           Remove unused overlay layers"
     echo "grub.cfg                   Regenerate grub.cfg"
     echo "bootloader                 Reinstall the bootloader"
     echo "initrd                     Regenerate initrd"
@@ -538,7 +541,16 @@ while [ 1 ]; do
 
     case "$1" in
 	cleanup)
-	    DO_CLEANUP=1
+	    DO_CLEANUP_OVERLAYS=1
+	    DO_CLEANUP_SNAPSHOTS=1
+	    shift
+	    ;;
+	cleanup-snapshots)
+	    DO_CLEANUP_SNAPSHOTS=1
+	    shift
+	    ;;
+	cleanup-overlays)
+	    DO_CLEANUP_OVERLAYS=1
 	    shift
 	    ;;
 	dup)
@@ -726,7 +738,8 @@ done
 
 # If no commands were given, assume "up"
 if [ -z "${ZYPPER_ARG}" -a -z "${TELEM_CLASS}" -a "${REBOOT_AFTERWARDS}" -eq 0 \
-	-a "${DO_REGISTRATION}" -eq 0 -a "${DO_CLEANUP}" -eq 0 ]; then
+	-a "${DO_REGISTRATION}" -eq 0 -a "${DO_CLEANUP_OVERLAYS}" -eq 0 \
+	-a "${DO_CLEANUP_SNAPSHOTS}" -eq 0 ]; then
     ZYPPER_ARG="up"
     TELEM_CLASS="update"
 fi
@@ -867,7 +880,7 @@ fi
 #
 # Cleanup part: make sure old root file systems will be removed after they are no longer active.
 #
-if [ ${DO_CLEANUP} -eq 1 ]; then
+if [ ${DO_CLEANUP_SNAPSHOTS} -eq 1 ]; then
     # If there is a list of working snapshots, go through it and mark any snapshot for deletion, if it is
     # not the currently used one or the active one.
     if [ -n "${LAST_WORKING_SNAPSHOTS}" ]; then
@@ -932,7 +945,9 @@ if [ ${DO_CLEANUP} -eq 1 ]; then
 	UNUSED_SNAPSHOTS="${_new_unused}"
 	save_state_file 0
     fi
+fi
 
+if [ ${DO_CLEANUP_OVERLAYS} -eq 1 ]; then
     # Clean up old unused overlays
     if [ ${RO_ROOT} == "true" ]; then
 	shopt -s nullglob

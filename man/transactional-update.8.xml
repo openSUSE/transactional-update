@@ -109,7 +109,7 @@ running system will be visible in the new system, but not vice versa. To keep
 the number of layers at a minimum the
 <filename class='directory'>/etc</filename> state of the previous snapshot is
 synchronized into the new root file system; unused overlays will be
-removed at a later time (see the <option>cleanup</option> option).
+removed at a later time (see the <option>cleanup-overlays</option> option).
 </para>
 <warning>
 If a file in <filename class='directory'>/etc</filename> has been changed
@@ -157,6 +157,14 @@ for more information.
   <varlistentry>
     <term><option>cleanup</option></term>
     <listitem>
+      <para>Identical to calling both <option>cleanup-snapshots</option> and
+      <option>cleanup-overlays</option>.
+      </para>
+    </listitem>
+  </varlistentry>
+  <varlistentry>
+    <term><option>cleanup-snapshots</option></term>
+    <listitem>
       <para>If the current root filesystem is identical to the active root
       filesystem (means after a reboot, before
       <command>transactional-update</command> creates a new snapshot with
@@ -165,8 +173,13 @@ for more information.
       by snapper. See the section about cleanup algorithms in
       <citerefentry project='snapper'><refentrytitle>snapper</refentrytitle><manvolnum>8</manvolnum></citerefentry>.
       </para>
+    </listitem>
+  </varlistentry>
+  <varlistentry>
+    <term><option>cleanup-overlays</option></term>
+    <listitem>
       <para>
-	Also removes all unreferenced (and thus unused)
+	Removes all unreferenced (and thus unused)
 	<filename class='directory'>/etc</filename> overlay directories in
 	<filename class='directory'>/var/lib/overlay</filename>.
       </para>
