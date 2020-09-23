@@ -1056,15 +1056,21 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	fi
 
 	# Update fstab{,.sys} entries for /etc overlays
-	fstab_line="overlay /etc overlay ${fstab_otheroptions}"
-	fstab_line+="upperdir=/sysroot${ETC_OVERLAY_DIR},"
-	fstab_line+="lowerdir=${lowerdirs},"
-	fstab_line+="workdir=/sysroot/var/lib/overlay/work-etc,"
-	fstab_line+="x-systemd.requires-mounts-for=/var,"
-	fstab_line+="x-systemd.requires-mounts-for=/var/lib/overlay,"
-	fstab_line+="x-systemd.requires-mounts-for=/sysroot/var,"
-	fstab_line+="x-systemd.requires-mounts-for=/sysroot/var/lib/overlay,"
-	fstab_line+="x-initrd.mount 0 0"
+	fstab_options="${fstab_otheroptions}"
+	fstab_options+="upperdir=/sysroot${ETC_OVERLAY_DIR},"
+	fstab_options+="lowerdir=${lowerdirs},"
+	fstab_options+="workdir=/sysroot/var/lib/overlay/work-etc,"
+	fstab_options+="x-systemd.requires-mounts-for=/var,"
+	fstab_options+="x-systemd.requires-mounts-for=/var/lib/overlay,"
+	fstab_options+="x-systemd.requires-mounts-for=/sysroot/var,"
+	fstab_options+="x-systemd.requires-mounts-for=/sysroot/var/lib/overlay,"
+	fstab_options+="x-initrd.mount"
+	if [ ${#fstab_options} -ge $(getconf PAGE_SIZE) ]; then
+	    log_error "ERROR: Exceeding maximum length of mount options; please boot into the new"
+	    log_error "       snapshot before proceeding."
+	    quit 1
+	fi
+	fstab_line="overlay /etc overlay ${fstab_options} 0 0"
 	sed -i "/${ETC_OVERLAY_PATTERN}/c ${fstab_line}" "${SNAPSHOT_DIR}/etc/fstab"
 
 	# Prettify fstab
