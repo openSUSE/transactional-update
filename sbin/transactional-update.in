@@ -497,10 +497,6 @@ sync_etc() {
 
     get_etc_overlay_from "$1"
 
-    # After fresh installations there's no overlay to sync yet
-    if [ ${#fstab_lowerdirs[@]} -le 1 ]; then
-	return
-    fi
     log_info "Syncing /etc of previous snapshot $1 as base into new snapshot $2"
 
     mount_opts="defaults,"
