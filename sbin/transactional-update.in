@@ -778,6 +778,12 @@ if [ -n "${BASE_SNAPSHOT_ID}" -a $(zypper --terse versioncmp $SNAPPER_VERSION 0.
     exit 1
 fi
 
+if [ $DROP_IF_NO_CHANGE -eq 1 ] && ! command -v inotifywait &> /dev/null; then
+    log_error "ERROR: 'inotifywait' is required for --drop-if-no-change option!"
+    log_info "transactional-update finished"
+    exit 1
+fi
+
 if [ "`stat -f -c %T /`" != "btrfs" ]; then
   log_error "ERROR: not using btrfs as root file system!"
   log_info "transactional-update finished"
