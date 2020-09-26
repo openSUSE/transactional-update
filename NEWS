@@ -2,6 +2,12 @@ transactional-update NEWS -- history of user-visible changes.
 
 Copyright (C) 2016-2019 Thorsten Kukuk et al.
 
+Version 2.26
+* Fix broken sync for second snapshot [boo#1176989]
+* Add new options to allow separate cleanup of snapshots and overlays
+* Check for existence of inotifywait before using it
+* Check that mount options don't exceed maximum length
+
 Version 2.25.1
 * Fix inotify watcher setup
 * Use log_{info,error} for more messages to avoid messing up Salt logs
