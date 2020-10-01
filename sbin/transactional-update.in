@@ -528,6 +528,16 @@ root_mount_points() {
     done
 }
 
+check_resolved_resolvconf() {
+    [ -L /etc/resolv.conf ] || return 0
+    local resolveddir="/run/systemd/resolve"
+    local r="`readlink /etc/resolv.conf`"
+    if [ "${r%/*}" = "$resolveddir" ]; then
+        mkdir -p "${SNAPSHOT_DIR}$resolveddir"
+        cp "$resolveddir"/*.conf "${SNAPSHOT_DIR}$resolveddir"
+    fi
+}
+
 ORIG_ARGS=("$@")
 
 while [ 1 ]; do
@@ -1195,6 +1205,8 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	fi
 	cp -r /run/netconfig ${SNAPSHOT_DIR}/run/
     fi
+
+    check_resolved_resolvconf
 
     # Create bind mount for CA certificates to support HTTPS connections
     if [ ${HAS_SEPARATE_VAR} -eq 1 ]; then
