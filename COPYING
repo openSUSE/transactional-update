@@ -1,14 +1,14 @@
 Copying
 =======
-transactional-update is covered under two separate licenses: GPLv2 and
+transactional-update is covered under two separate licenses: GPLv2+ and
 LGPLv2.1+.
 
 
-GPLv2
------
+GPLv2+
+------
 The entire code base may be distributed under the terms of the
-GNU General Public License version 2 (GPLv2). The complete text of the license
-is available in the gpl-2.0.txt file.
+GNU General Public License version 2 and any later version (GPLv2+).
+The complete text of the license is available in the gpl-2.0.txt file.
 
 
 LGPLv2.1+
