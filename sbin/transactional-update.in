@@ -1205,7 +1205,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
     # Create bind mount for CA certificates to support HTTPS connections
     if [ ${HAS_SEPARATE_VAR} -eq 1 ]; then
 	mkdir -p ${SNAPSHOT_DIR}/var/lib/ca-certificates
-	mount -o bind,ro /var/lib/ca-certificates ${SNAPSHOT_DIR}/var/lib/ca-certificates
+	mount -o bind /var/lib/ca-certificates ${SNAPSHOT_DIR}/var/lib/ca-certificates
     fi
 
     # Do we need to cleanup the /var/cache directory?
