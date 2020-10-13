@@ -740,6 +740,12 @@ if [ -z "${ZYPPER_ARG}" -a -z "${TELEM_CLASS}" -a "${REBOOT_AFTERWARDS}" -eq 0 \
     TELEM_CLASS="update"
 fi
 
+# Prevent running transactional-update inside transactional-update
+if [ -n "${TRANSACTIONAL_UPDATE}" ]; then
+    log_error "Cannot call transactional-update from within transactional-update environment!"
+    exit 1
+fi
+
 # Check if this is a self-updated transactional-update; if it isn't lock and
 # check for update
 if [ -z "${TA_UPDATE_TMPFILE}" ]; then
