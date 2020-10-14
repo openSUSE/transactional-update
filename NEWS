@@ -2,6 +2,12 @@ transactional-update NEWS -- history of user-visible changes.
 
 Copyright (C) 2016-2019 Thorsten Kukuk et al.
 
+Version 2.27
+* Add support for network systemd-resolvd network connections in t-u
+  environment
+* Mount /var/lib/ca-certificates read-write to prevent SELinux error
+* Prevent calling transactional-update from within transactional-update
+
 Version 2.26
 * Fix broken sync for second snapshot [boo#1176989]
 * Add new options to allow separate cleanup of snapshots and overlays
