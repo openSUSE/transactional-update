@@ -175,6 +175,7 @@ int Transaction::execute(const char* argv[]) {
     if (pid < 0) {
         throw std::runtime_error{"fork() failed: " + std::string(strerror(errno))};
     } else if (pid == 0) {
+        chdir(pImpl->bindDir.c_str());
         if (chroot(pImpl->bindDir.c_str()) < 0) {
             throw std::runtime_error{"Chrooting to " + pImpl->bindDir + " failed: " + std::string(strerror(errno))};
         }
