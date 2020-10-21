@@ -224,12 +224,8 @@ void Mount::persist(std::filesystem::path file) {
 
 void Mount::umountRecursive(libmnt_table* umount_table, libmnt_fs* umount_fs) {
     int rc;
-    int mountStatus = 0;
     struct libmnt_context* umount_cxt = mnt_new_context();
-    if (mnt_cxt && umount_fs && (rc = mnt_context_is_fs_mounted(umount_cxt, umount_fs, &mountStatus)) != 0)
-        tulog.error("Error determining mount status of ", mnt_fs_get_target(umount_fs), ": ", rc);
-
-    if (mountStatus == 1) {
+    if (mnt_cxt && umount_fs) {
         // Check for child mounts
         struct libmnt_fs* child_fs;
         struct libmnt_iter *iter = mnt_new_iter(MNT_ITER_BACKWARD);
