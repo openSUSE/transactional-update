@@ -685,7 +685,7 @@ while [ 1 ]; do
 	setup-selinux)
 	    test -z "$TELEM_CLASS" && TELEM_CLASS="selinux"
 	    SETUP_SELINUX=1
-	    break
+	    shift
 	    ;;
 	-i|--interactive)
 	    ZYPPER_NONINTERACTIVE=""
@@ -757,8 +757,9 @@ if [ "${SETUP_SELINUX}" -eq 1 ]; then
     # 3. Adjust /etc/selinux/config
     # 4. Rebuild grub.cfg and initrd
 
-    if [ -n "${ZYPPER_ARG}" ]; then
-	usage 1
+    if [ -n "${ZYPPER_ARG}" -a "${ZYPPER_ARG}" != "install" ]; then
+	log_error "ERROR: Cannot combine 'setup-selinux' with zypper command '${ZYPPER_ARG}'"
+	exit 1
     fi
     # Check if we need to install packages
     for pkg in selinux-policy-targeted container-selinux; do
