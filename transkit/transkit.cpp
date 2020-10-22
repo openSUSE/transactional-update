@@ -25,31 +25,31 @@
 using namespace std;
 using TransactionalUpdate::config;
 
-void Transkit::getHelp() {
-    cout << "Syntax: transkit [option...] command" << endl;
-    cout << "" << endl;
-    cout << "Manage transactions ..." << endl;
-    cout << "" << endl;
-    cout << "Commands:" << endl;
-    cout << "execute <command>" << endl;
-    cout << "\tOpens a new snapshot and executes the given command; on success the snapshot" << endl;
-    cout << "\twill be set as the new default snapshot, any non-zero return value will" << endl;
-    cout << "\tdelete the snapshot again." << endl;
-    cout << "\tIf no command is given an interactive shell will be opened." << endl;
-    cout << "open" << endl;
-    cout << "\tCreates a new transaction and prints its UUID" << endl;
-    cout << "call <UUID> <command>" << endl;
-    cout << "\tExecutes the given command, resuming the transaction with the given UUID; returns" << endl;
-    cout << "\tthe exit status of the given command, but will not delete the snapshot in case" << endl;
-    cout << "\tof errors" << endl;
-    cout << "close <UUID>" << endl;
-    cout << "\tCloses the given transaction and sets the snapshot as the new default snapshot" << endl;
-    cout << "abort <UUID>" << endl;
-    cout << "\tDeletes the given snapshot again" << endl;
-    cout << "Options:" << endl;
-    cout << "--continue [<number>], -c  Use latest or given snapshot as base" << endl;
-    cout << "--help, -h                 Display this help and exit" << endl;
-    cout << "--version                  Display version and exit" << endl << endl;
+void Transkit::displayHelp() {
+    cout << "Syntax: transkit [option...] command\n";
+    cout << "\n";
+    cout << "Manage transactions ...\n";
+    cout << "\n";
+    cout << "Commands:\n";
+    cout << "execute <command>\n";
+    cout << "\tOpens a new snapshot and executes the given command; on success the snapshot\n";
+    cout << "\twill be set as the new default snapshot, any non-zero return value will\n";
+    cout << "\tdelete the snapshot again.\n";
+    cout << "\tIf no command is given an interactive shell will be opened.\n";
+    cout << "open\n";
+    cout << "\tCreates a new transaction and prints its unique ID\n";
+    cout << "call <ID> <command>\n";
+    cout << "\tExecutes the given command, resuming the transaction with the given ID; returns\n";
+    cout << "\tthe exit status of the given command, but will not delete the snapshot in case\n";
+    cout << "\tof errors\n";
+    cout << "close <ID>\n";
+    cout << "\tCloses the given transaction and sets the snapshot as the new default snapshot\n";
+    cout << "abort <ID>\n";
+    cout << "\tDeletes the given snapshot again\n";
+    cout << "Options:\n";
+    cout << "--continue [<number>], -c  Use latest or given snapshot as base\n";
+    cout << "--help, -h                 Display this help and exit\n";
+    cout << "--version                  Display version and exit\n" << endl;
 }
 
 int Transkit::parseOptions(int argc, const char *argv[]) {
@@ -102,7 +102,7 @@ int Transkit::parseOptions(int argc, const char *argv[]) {
             baseSnapshot = "default";
         }
         else if (arg == "--help" || arg == "-h" ) {
-            getHelp();
+            displayHelp();
             return 0;
         }
         else {
@@ -110,7 +110,7 @@ int Transkit::parseOptions(int argc, const char *argv[]) {
                 baseSnapshot = arg;
                 waitForSnapNum = false;
             } else {
-                getHelp();
+                displayHelp();
                 throw invalid_argument{"Unknown command or option '" + arg + "'."};
             }
         }
