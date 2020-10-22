@@ -244,12 +244,25 @@ for more information.
       <para>
 	Execute the the command <replaceable>cmd</replaceable> inside
 	a new snapshot. By default this snaphot will remain, but if
-	<option>--drop-if-no-chage</option> is set, the new snapshot
+	<option>--drop-if-no-change</option> is set, the new snapshot
 	will be dropped if there is no change in the file system.
       </para>
       <para>
 	This command consumes all the remaining parameters, so should
-	be placed the in the last position.
+	be placed in the last position.
+      </para>
+      <para>
+	To use features like command lists (e.g. pipes or separators) wrap the
+	script into a Shell command like such as
+	<programlisting>
+	  transactional-update run bash -c '
+	    ls &amp;&amp; date
+	    if [ true ]; then
+	      echo -n "Hello "
+	      echo '\''world'\''
+	    fi
+	  '
+	</programlisting>
       </para>
     </listitem>
   </varlistentry>
