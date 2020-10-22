@@ -267,6 +267,20 @@ for more information.
     </listitem>
   </varlistentry>
   <varlistentry>
+    <term><option>setup-selinux</option></term>
+    <listitem>
+      <para>
+	Sets up a SELinux system: Installs the default SELinux "Targeted
+	policy" and enables it.
+      </para>
+      <para>
+	This command can not be combined with any
+	<link linkend='pkg_commands'>Package Command</link> other than
+	<option>install</option>.
+      </para>
+    </listitem>
+  </varlistentry>
+  <varlistentry>
     <term><option>shell</option></term>
     <listitem>
       <para>
