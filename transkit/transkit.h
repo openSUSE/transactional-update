@@ -15,7 +15,7 @@ public:
     Transkit(int argc, const char *argv[]);
     virtual ~Transkit() = default;
 
-    void getHelp();
+    void displayHelp();
     int parseOptions(int argc, const char *argv[]);
 private:
     std::string baseSnapshot = "active";

@@ -150,8 +150,8 @@ void Transaction::init(std::string base) {
     pImpl->addSupplements();
 }
 
-void Transaction::resume(std::string uuid) {
-    pImpl->snapshot->open(uuid);
+void Transaction::resume(std::string id) {
+    pImpl->snapshot->open(id);
     pImpl->mount();
 }
 

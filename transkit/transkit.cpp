@@ -71,7 +71,7 @@ int Transkit::parseOptions(int argc, const char *argv[]) {
         else if (arg == "open") {
             TransactionalUpdate::Transaction transaction{};
             transaction.init(baseSnapshot);
-            cout << "UUID: " << transaction.getSnapshot() << endl;
+            cout << "ID: " << transaction.getSnapshot() << endl;
             transaction.keep();
             return 0;
         }
