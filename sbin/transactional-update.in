@@ -679,7 +679,7 @@ while [ 1 ]; do
 		usage 1
 	    fi
 
-	    RUN_CMD="$@"
+	    RUN_CMD=("$@")
 	    break
 	    ;;
 	setup-selinux)
@@ -1401,7 +1401,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
     fi
 
     if [ ${DO_RUN} -eq 1 ]; then
-	chroot ${MOUNT_DIR} ${RUN_CMD}
+	chroot ${MOUNT_DIR} "${RUN_CMD[@]}"
     fi
 
     if [ ${RUN_SHELL} -eq 1 ]; then
