@@ -132,6 +132,9 @@ void Mount::setOption(std::string option, std::string value) {
 }
 
 void Mount::setTabSource(std::string source) {
+    if (mnt_fs != nullptr) {
+        throw std::logic_error{"Cannot set tab source for " + target + ": fs has been initialized already"};
+    }
     tabsource = source;
 }
 
