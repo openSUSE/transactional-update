@@ -68,7 +68,7 @@ void Transaction::impl::mount(std::string base) {
         dirsToMount.push_back(std::make_unique<BindMount>("/var/lib/ca-certificates", MS_RDONLY));
     }
     std::unique_ptr<Mount> mntEtc{new Mount{"/etc"}};
-    if (mntEtc->isMount() && mntEtc->getFS() == "overlay") {
+    if (mntEtc->isMount() && mntEtc->getFilesystem() == "overlay") {
         Overlay overlay = Overlay{snapshot->getUid()};
         overlay.create(base);
 

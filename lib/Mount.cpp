@@ -74,7 +74,7 @@ struct libmnt_fs* Mount::newFS() {
     return mnt_fs;
 }
 
-std::string Mount::getFS() {
+std::string Mount::getFilesystem() {
     mnt_fs = findFS();
     return mnt_fs_get_fstype(mnt_fs);
 }

@@ -20,7 +20,7 @@ public:
     Mount(std::string target, unsigned long flags = 0);
     Mount(Mount&& other) noexcept;
     virtual ~Mount();
-    std::string getFS();
+    std::string getFilesystem();
     std::string getOption(std::string option);
     std::string getTarget();
     bool isMount();
