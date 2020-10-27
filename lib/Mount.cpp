@@ -30,17 +30,16 @@ Mount::Mount(Mount&& other) noexcept
 }
 
 Mount::~Mount() {
-    int rc;
-    struct libmnt_table* umount_table = mnt_new_table();
-    struct libmnt_fs *umount_fs;
+    if (mnt_fs) {
+        struct libmnt_table* umount_table = mnt_new_table();
+        if ((mnt_table_parse_mtab(umount_table, nullptr)) != 0)
+            tulog.error("Error reading mtab for umount");
+        struct libmnt_fs* umount_fs = mnt_table_find_target(umount_table,  mnt_fs_get_target(mnt_fs), MNT_ITER_BACKWARD);
+        umountRecursive(umount_table, umount_fs);
+        mnt_free_fs(umount_fs);
+        mnt_free_table(umount_table);
+    }
 
-    if ((rc = mnt_table_parse_mtab(umount_table, NULL)) != 0)
-        tulog.error("Error reading mtab for umount");
-    umount_fs = mnt_table_find_target(umount_table,  mnt_fs_get_target(mnt_fs), MNT_ITER_BACKWARD);
-    umountRecursive(umount_table, umount_fs);
-
-    mnt_free_fs(umount_fs);
-    mnt_free_table(umount_table);
     mnt_free_context(mnt_cxt);
     mnt_unref_fs(mnt_fs);
     mnt_free_table(mnt_table);
