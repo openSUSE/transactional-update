@@ -144,7 +144,7 @@ std::string Mount::getTarget() {
 
 bool Mount::isMount() {
     getTabEntry();
-    return mnt_fs ? true : false;
+    return mnt_fs != nullptr;
 }
 
 void Mount::setSource(std::string source) {
