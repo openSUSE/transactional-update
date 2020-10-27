@@ -32,9 +32,9 @@ public:
     void setTabSource(std::string source);
     void setType(std::string type);
 protected:
-    struct libmnt_context* mnt_cxt;
-    struct libmnt_table* mnt_table;
-    struct libmnt_fs* mnt_fs;
+    struct libmnt_context* mnt_cxt = nullptr;
+    struct libmnt_table* mnt_table = nullptr;
+    struct libmnt_fs* mnt_fs = nullptr;
     std::string tabsource;
     std::string target;
     unsigned long flags;

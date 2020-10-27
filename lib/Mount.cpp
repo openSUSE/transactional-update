@@ -14,13 +14,12 @@
 namespace TransactionalUpdate {
 
 Mount::Mount(std::string target, unsigned long flags)
-    : mnt_cxt{nullptr}, mnt_table{mnt_new_table()}, mnt_fs{nullptr},
-      target{std::move(target)}, flags{std::move(flags)}
+    : mnt_table{mnt_new_table()}, target{std::move(target)},
+      flags{std::move(flags)}
 {
 }
 
 Mount::Mount(Mount&& other) noexcept
-    : mnt_cxt{nullptr}, mnt_table{nullptr}, mnt_fs{nullptr}
 {
     std::swap(mnt_table, other.mnt_table);
     std::swap(mnt_fs, other.mnt_fs);
