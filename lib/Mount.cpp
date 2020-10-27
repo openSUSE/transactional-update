@@ -120,7 +120,7 @@ void Mount::setOption(std::string option, std::string value) {
     int rc;
     const char* current_opts;
     if ((current_opts = mnt_fs_get_options(mnt_fs)) == nullptr)
-        throw std::runtime_error{"Options for file system " + target + "not found."};
+        throw std::runtime_error{"Options for file system " + target + " not found."};
 
     char* new_opts = strdup(current_opts);
     if ((rc = mnt_optstr_set_option(&new_opts, option.c_str(), value.c_str())) != 0) {
