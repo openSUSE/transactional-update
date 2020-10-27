@@ -109,7 +109,7 @@ std::string Mount::getOption(std::string option) {
         throw std::runtime_error{"Error retrieving options for file system " + target + ": " + std::to_string(rc)};
     else if (rc > 0)
         throw std::range_error{"Option " + option + " not found for file system " + target + "."};
-    return std::string(opt).substr(0, len);
+    return std::string(opt, len);
 }
 
 void Mount::setOption(std::string option, std::string value) {
