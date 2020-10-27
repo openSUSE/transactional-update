@@ -14,13 +14,13 @@
 namespace TransactionalUpdate {
 
 Mount::Mount(std::string target, unsigned long flags)
-    : mnt_cxt{NULL}, mnt_table{mnt_new_table()}, mnt_fs{NULL},
+    : mnt_cxt{nullptr}, mnt_table{mnt_new_table()}, mnt_fs{nullptr},
       target{std::move(target)}, flags{std::move(flags)}
 {
 }
 
 Mount::Mount(Mount&& other) noexcept
-    : mnt_cxt{NULL}, mnt_table{NULL}, mnt_fs{NULL}
+    : mnt_cxt{nullptr}, mnt_table{nullptr}, mnt_fs{nullptr}
 {
     std::swap(mnt_table, other.mnt_table);
     std::swap(mnt_fs, other.mnt_fs);
@@ -51,7 +51,7 @@ void Mount::getTabEntry() {
 
     int rc;
     if (tabsource.empty()) {
-        if ((rc = mnt_table_parse_fstab(mnt_table, NULL)) != 0)
+        if ((rc = mnt_table_parse_fstab(mnt_table, nullptr)) != 0)
             throw std::runtime_error{"Error reading " + target + " entry from fstab : " + std::to_string(rc)};
     } else {
         if ((rc = mnt_table_parse_file(mnt_table, tabsource.c_str())) != 0)
@@ -84,7 +84,7 @@ void Mount::removeOption(std::string option) {
 
     int rc;
     const char* current_opts;
-    if ((current_opts = mnt_fs_get_options(mnt_fs)) == NULL)
+    if ((current_opts = mnt_fs_get_options(mnt_fs)) == nullptr)
         throw std::runtime_error{"Options for file system " + target + "not found."};
 
     char* new_opts = strdup(current_opts);
@@ -117,7 +117,7 @@ void Mount::setOption(std::string option, std::string value) {
 
     int rc;
     const char* current_opts;
-    if ((current_opts = mnt_fs_get_options(mnt_fs)) == NULL)
+    if ((current_opts = mnt_fs_get_options(mnt_fs)) == nullptr)
         throw std::runtime_error{"Options for file system " + target + "not found."};
 
     char* new_opts = strdup(current_opts);
@@ -200,7 +200,7 @@ void Mount::persist(std::filesystem::path file) {
         err = "No mount table found in '" + std::string(file) + "': " + std::to_string(rc);
     struct libmnt_fs* old_fs_entry = mnt_table_find_target(snap_table, target.c_str(), MNT_ITER_BACKWARD);
 
-    struct libmnt_fs* new_fs = mnt_copy_fs(NULL, mnt_fs);
+    struct libmnt_fs* new_fs = mnt_copy_fs(nullptr, mnt_fs);
     if (!rc && (rc = mnt_table_remove_fs(snap_table, old_fs_entry)) != 0)
         err = "Removing old '" + target + "' from target table failed: " + std::to_string(rc);
     if (!rc && (rc = mnt_table_add_fs(snap_table, new_fs)) != 0)
