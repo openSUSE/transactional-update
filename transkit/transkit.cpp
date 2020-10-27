@@ -77,7 +77,7 @@ int Transkit::parseOptions(int argc, const char *argv[]) {
         }
         else if (arg == "call") {
             if (argc < i + 1) {
-                getHelp();
+                displayHelp();
                 throw invalid_argument{"Missing argument for 'call'"};
             }
             TransactionalUpdate::Transaction transaction{};
