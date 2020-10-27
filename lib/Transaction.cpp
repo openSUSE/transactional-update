@@ -38,8 +38,6 @@ Transaction::Transaction() : pImpl{std::make_unique<impl>()} {
 Transaction::~Transaction() {
     tulog.debug("Destructor Transaction");
 
-    pImpl->supplements.cleanup();
-
     pImpl->dirsToMount.clear();
     try {
         fs::remove_all(fs::path{pImpl->bindDir});
@@ -201,6 +199,7 @@ int Transaction::execute(const char* argv[]) {
 
 void Transaction::finalize() {
     pImpl->snapshot->close();
+    pImpl->supplements.cleanup();
 
     std::unique_ptr<Snapshot> defaultSnap = SnapshotFactory::get();
     defaultSnap->open(pImpl->snapshot->getDefault());
