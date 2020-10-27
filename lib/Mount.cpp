@@ -44,9 +44,9 @@ Mount::~Mount() {
     mnt_free_table(mnt_table);
 }
 
-void Mount::getTabEntry() {
+struct libmnt_fs* Mount::getTabEntry() {
     // Has been found already
-    if (mnt_fs != nullptr) return;
+    if (mnt_fs != nullptr) return mnt_fs;
 
     int rc;
     if (tabsource.empty()) {
@@ -56,30 +56,31 @@ void Mount::getTabEntry() {
         if ((rc = mnt_table_parse_file(mnt_table, tabsource.c_str())) != 0)
             throw std::runtime_error{"Error reading " + target + " entry from " + tabsource + ": " + std::to_string(rc)};
     }
-    mnt_fs = mnt_table_find_target(mnt_table, target.c_str(), MNT_ITER_BACKWARD);
+    return mnt_table_find_target(mnt_table, target.c_str(), MNT_ITER_BACKWARD);
 }
 
-void Mount::find() {
-    getTabEntry();
+struct libmnt_fs* Mount::findFS() {
+    struct libmnt_fs* mnt_fs = getTabEntry();
 
     if (mnt_fs == nullptr)
         throw std::runtime_error{"File system " + target + " not found in fstab."};
+
+    return mnt_fs;
 }
 
-void Mount::getMntFs() {
-    getTabEntry();
-
+struct libmnt_fs* Mount::newFS() {
     if (mnt_fs == nullptr)
-        mnt_fs = mnt_new_fs();
+        return mnt_new_fs();
+    return mnt_fs;
 }
 
 std::string Mount::getFS() {
-    find();
+    mnt_fs = findFS();
     return mnt_fs_get_fstype(mnt_fs);
 }
 
 void Mount::removeOption(std::string option) {
-    find();
+    mnt_fs = findFS();
 
     int rc;
     const char* current_opts;
@@ -99,7 +100,7 @@ void Mount::removeOption(std::string option) {
 }
 
 std::string Mount::getOption(std::string option) {
-    find();
+    mnt_fs = findFS();
 
     char* opt;
     size_t len = 0;
@@ -112,7 +113,7 @@ std::string Mount::getOption(std::string option) {
 }
 
 void Mount::setOption(std::string option, std::string value) {
-    find();
+    mnt_fs = findFS();
 
     int rc;
     const char* current_opts;
@@ -143,12 +144,12 @@ std::string Mount::getTarget() {
 }
 
 bool Mount::isMount() {
-    getTabEntry();
+    mnt_fs = getTabEntry();
     return mnt_fs != nullptr;
 }
 
 void Mount::setSource(std::string source) {
-    getMntFs();
+    mnt_fs = newFS();
 
     int rc;
     if ((rc = mnt_fs_set_source(mnt_fs, source.c_str())) != 0) {
@@ -157,7 +158,7 @@ void Mount::setSource(std::string source) {
 }
 
 void Mount::setType(std::string type) {
-    getMntFs();
+    mnt_fs = newFS();
 
     int rc;
     if ((rc = mnt_fs_set_fstype(mnt_fs, type.c_str())) != 0) {

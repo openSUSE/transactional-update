@@ -38,9 +38,9 @@ protected:
     std::string tabsource;
     std::string target;
     unsigned long flags;
-    void find();
-    void getTabEntry();
-    void getMntFs();
+    struct libmnt_fs* findFS();
+    struct libmnt_fs* getTabEntry();
+    struct libmnt_fs* newFS();
     void umountRecursive(libmnt_table* umount_table, libmnt_fs* umount_fs);
 };
 
