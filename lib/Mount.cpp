@@ -265,12 +265,8 @@ BindMount::BindMount(std::string target, unsigned long flags)
 }
 
 void BindMount::mount(std::string prefix) {
-    int rc;
     if (mnt_fs == nullptr) {
-        mnt_fs = mnt_new_fs();
-        if ((rc = mnt_fs_set_source(mnt_fs, target.c_str())) != 0) {
-            throw std::runtime_error{"Setting source for " + target + " mount failed: " + std::to_string(rc)};
-        }
+        setSource(target);
     }
     Mount::mount(prefix);
 }
