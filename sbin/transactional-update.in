@@ -1361,6 +1361,9 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	sed -i -e 's|^SELINUX=.*|SELINUX=enforcing|g' \
 	    -e 's|^SELINUXTYPE=.*|SELINUXTYPE=targeted|g' \
 	    "${MOUNT_DIR}/etc/selinux/config"
+
+	# Move an /.autorelabel file from initial installation to writeable location
+	test -f ${MOUNT_DIR}/.autorelabel && mv ${MOUNT_DIR}/.autorelabel ${MOUNT_DIR}/etc/selinux/.autorelabel
     fi
 
     if [ ${REWRITE_INITRD} -eq 1 ]; then
