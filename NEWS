@@ -2,6 +2,10 @@ transactional-update NEWS -- history of user-visible changes.
 
 Copyright (C) 2016-2020 Thorsten Kukuk, Ignaz Forster et al.
 
+Version 2.28.1
+* SELinux: Fixed changing the wrong grub configuration file
+* SELinux: Move /.autorelabel file to writeable location
+
 Version 2.28
 * Add 'setup-selinux' command for easy setup of a SELinux system
 * Allow complex commands for the 'run' command
