@@ -2,6 +2,9 @@ transactional-update NEWS -- history of user-visible changes.
 
 Copyright (C) 2016-2020 Thorsten Kukuk, Ignaz Forster et al.
 
+Version 2.28.2
+* SELinux: Exclude security.selinux attribute from rsyncing (again)
+
 Version 2.28.1
 * SELinux: Fixed changing the wrong grub configuration file
 * SELinux: Move /.autorelabel file to writeable location
