@@ -301,7 +301,7 @@ teardown() {
 	# /etc may do so. Changes in /etc may be applied immediately,
 	# so merge them back into the running system.
 	log_info "Merging overlay directory ${SNAPSHOT_DIR}/etc into /etc..."
-	rsync --archive --inplace --xattrs --acls --exclude 'fstab' --delete --quiet "${SNAPSHOT_DIR}/etc/" /etc
+	rsync --archive --inplace --xattrs --filter='-x security.selinux' --acls --exclude 'fstab' --delete --quiet "${SNAPSHOT_DIR}/etc/" /etc
 
 	quit 0
     fi
@@ -511,7 +511,7 @@ sync_etc() {
 	quit 1
     fi
 
-    rsync --archive --inplace --xattrs --acls --delete --quiet "${ETC_OVERLAY_DIR}" "$2"
+    rsync --archive --inplace --xattrs --filter='-x security.selinux' --acls --delete --quiet "${ETC_OVERLAY_DIR}" "$2"
     if [ $? -ne 0 ]; then
 	log_error "ERROR: syncing $1 into snapshot $2 failed!"
 	quit 1
