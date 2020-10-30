@@ -48,11 +48,11 @@ void Transkit::displayHelp() {
     cout << "abort <ID>\n";
     cout << "\tDeletes the given snapshot again\n";
     cout << "Options:\n";
-    cout << "--continue [<number>], -c  Use latest or given snapshot as base\n";
-    cout << "--help, -h                 Display this help and exit\n";
-    cout << "--quiet, -q                Decrease verbosity\n";
-    cout << "--verbose, -v              Increase verbosity\n";
-    cout << "--version                  Display version and exit\n" << endl;
+    cout << "--continue[=<ID>], -c[<ID>]  Use latest or given snapshot as base\n";
+    cout << "--help, -h                   Display this help and exit\n";
+    cout << "--quiet, -q                  Decrease verbosity\n";
+    cout << "--verbose, -v                Increase verbosity\n";
+    cout << "--version                    Display version and exit\n" << endl;
 }
 
 int Transkit::parseOptions(int argc, char *argv[]) {
