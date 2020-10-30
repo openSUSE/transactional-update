@@ -50,14 +50,18 @@ void Transkit::displayHelp() {
     cout << "Options:\n";
     cout << "--continue [<number>], -c  Use latest or given snapshot as base\n";
     cout << "--help, -h                 Display this help and exit\n";
+    cout << "--quiet, -q                Decrease verbosity\n";
+    cout << "--verbose, -v              Increase verbosity\n";
     cout << "--version                  Display version and exit\n" << endl;
 }
 
 int Transkit::parseOptions(int argc, char *argv[]) {
-    static const char optstring[] = "+c::h";
+    static const char optstring[] = "+c::hqv";
     static const struct option longopts[] = {
         { "continue", optional_argument, nullptr, 'c' },
         { "help", no_argument, nullptr, 'h' },
+        { "quiet", no_argument, nullptr, 'q' },
+        { "verbose", no_argument, nullptr, 'v' },
         { 0, 0, 0, 0 }
     };
 
@@ -75,6 +79,12 @@ int Transkit::parseOptions(int argc, char *argv[]) {
         case 'h':
             displayHelp();
             return 0;
+        case 'q':
+            tulog.level = TULogLevel::ERROR;
+            break;
+        case 'v':
+            tulog.level = TULogLevel::DEBUG;
+            break;
         case '?':
             displayHelp();
             return -1;
@@ -154,24 +164,25 @@ private:
 };
 
 Transkit::Transkit(int argc, char *argv[]) {
+    tulog.level = TULogLevel::INFO;
+
     int ret = parseOptions(argc, argv);
     if (ret <= 0) {
         throw ret;
     }
 
     Lock lock;
-    cout << "transkit @VERSION@ started" << endl;
-    tulog.level = TULogLevel::DEBUG;
+    tulog.info("transkit @VERSION@ started");
 
-    cout << "Options: ";
+    string optionsline = "Options: ";
     for(int i = 1; i < argc; ++i)
-        cout << argv[i] << " ";
-    cout << endl;
+        optionsline.append(argv[i]).append(" ");
+    tulog.info(optionsline);
 
     ret = processCommand(&argv[ret]);
     if (ret != 0) {
         throw ret;
     }
 
-    cout << "Transaction completed." << endl;
+    tulog.info("Transaction completed.");
 }
