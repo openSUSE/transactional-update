@@ -10,7 +10,7 @@
 #include <iostream>
 using namespace std;
 
-int main(int argc, const char *argv[]) {
+int main(int argc, char *argv[]) {
     try {
         Transkit ta{argc, argv};
     } catch (int e) {

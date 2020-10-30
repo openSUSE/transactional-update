@@ -12,11 +12,12 @@
 
 class Transkit {
 public:
-    Transkit(int argc, const char *argv[]);
+    Transkit(int argc, char *argv[]);
     virtual ~Transkit() = default;
 
     void displayHelp();
-    int parseOptions(int argc, const char *argv[]);
+    int parseOptions(int argc, char *argv[]);
+    int processCommand(char *argv[]);
 private:
     std::string baseSnapshot = "active";
 };

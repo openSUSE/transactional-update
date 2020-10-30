@@ -28,7 +28,7 @@ public:
     virtual ~Transaction();
     void init(std::string base);
     void resume(std::string id);
-    int execute(const char* argv[]);
+    int execute(char* argv[]);
     void finalize();
     void keep();
     bool isInitialized();

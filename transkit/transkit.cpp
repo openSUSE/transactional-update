@@ -10,6 +10,7 @@
 #include "../lib/Transaction.h"
 #include "../lib/Log.h"
 #include <fcntl.h>
+#include <getopt.h>
 #include <unistd.h>
 #include <algorithm>
 #include <cerrno>
@@ -52,15 +53,43 @@ void Transkit::displayHelp() {
     cout << "--version                  Display version and exit\n" << endl;
 }
 
-int Transkit::parseOptions(int argc, const char *argv[]) {
-    int waitForSnapNum = false;
+int Transkit::parseOptions(int argc, char *argv[]) {
+    static const char optstring[] = "+c::h";
+    static const struct option longopts[] = {
+        { "continue", optional_argument, nullptr, 'c' },
+        { "help", no_argument, nullptr, 'h' },
+        { 0, 0, 0, 0 }
+    };
 
-    for (int i = 1; i < argc; i++) {
-        string arg = argv[i];
+    char c;
+    int lopt_idx;
+
+    while ((c = getopt_long(argc, argv, optstring, longopts, &lopt_idx)) != -1) {
+        switch (c) {
+        case 'c':
+            if (optarg)
+                baseSnapshot = optarg;
+            else
+                baseSnapshot = "default";
+            break;
+        case 'h':
+            displayHelp();
+            return 0;
+        case '?':
+            displayHelp();
+            return -1;
+        }
+    }
+
+    return optind;
+}
+
+int Transkit::processCommand(char *argv[]) {
+        string arg = argv[0];
         if (arg == "execute") {
             TransactionalUpdate::Transaction transaction{};
             transaction.init(baseSnapshot);
-            int status = transaction.execute(&argv[i + 1]); // All remaining arguments
+            int status = transaction.execute(&argv[1]); // All remaining arguments
             if (status == 0) {
                 transaction.finalize();
             } else {
@@ -76,47 +105,31 @@ int Transkit::parseOptions(int argc, const char *argv[]) {
             return 0;
         }
         else if (arg == "call") {
-            if (argc < i + 1) {
+            if (argv[1] == nullptr) {
                 displayHelp();
                 throw invalid_argument{"Missing argument for 'call'"};
             }
             TransactionalUpdate::Transaction transaction{};
-            transaction.resume(argv[i + 1]);
-            int status = transaction.execute(&argv[i + 2]); // All remaining arguments
+            transaction.resume(argv[1]);
+            int status = transaction.execute(&argv[2]); // All remaining arguments
             transaction.keep();
             return status;
         }
         else if (arg == "close") {
             TransactionalUpdate::Transaction transaction{};
-            transaction.resume(argv[i + 1]);
+            transaction.resume(argv[1]);
             transaction.finalize();
             return 0;
         }
         else if (arg == "abort") {
             TransactionalUpdate::Transaction transaction{};
-            transaction.resume(argv[i + 1]);
-            return 0;
-        }
-        else if (arg == "--continue" || arg == "-c") {
-            waitForSnapNum = true;
-            baseSnapshot = "default";
-        }
-        else if (arg == "--help" || arg == "-h" ) {
-            displayHelp();
+            transaction.resume(argv[1]);
             return 0;
         }
         else {
-            if (waitForSnapNum) {
-                baseSnapshot = arg;
-                waitForSnapNum = false;
-            } else {
-                displayHelp();
-                throw invalid_argument{"Unknown command or option '" + arg + "'."};
-            }
+            displayHelp();
+            throw invalid_argument{"Unknown command or option '" + arg + "'."};
         }
-    }
-    cout << "Programmende" << endl;
-    return 0;
 }
 
 class Lock {
@@ -140,7 +153,12 @@ private:
     int lockfile;
 };
 
-Transkit::Transkit(int argc, const char *argv[]) {
+Transkit::Transkit(int argc, char *argv[]) {
+    int ret = parseOptions(argc, argv);
+    if (ret <= 0) {
+        throw ret;
+    }
+
     Lock lock;
     cout << "transkit @VERSION@ started" << endl;
     tulog.level = TULogLevel::DEBUG;
@@ -150,8 +168,10 @@ Transkit::Transkit(int argc, const char *argv[]) {
         cout << argv[i] << " ";
     cout << endl;
 
-    int ret = parseOptions(argc, argv);
+    ret = processCommand(&argv[ret]);
     if (ret != 0) {
         throw ret;
     }
+
+    cout << "Transaction completed." << endl;
 }

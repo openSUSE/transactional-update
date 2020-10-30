@@ -805,7 +805,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	fi
     fi
 
-    SNAPSHOT_ID=`transkit -c "${BASE_SNAPSHOT_ID}" open | grep -e "^UUID:" | cut -d " " -f 2-`
+    SNAPSHOT_ID=`transkit -c"${BASE_SNAPSHOT_ID}" open | grep -e "^UUID:" | cut -d " " -f 2-`
     SNAPSHOT_DIR="/.snapshots/${SNAPSHOT_ID}/snapshot/"
 
     # Remember all snapshots we create for update. If transactional-update is

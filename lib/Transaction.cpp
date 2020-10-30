@@ -153,7 +153,7 @@ void Transaction::resume(std::string id) {
     pImpl->mount();
 }
 
-int Transaction::execute(const char* argv[]) {
+int Transaction::execute(char* argv[]) {
     if (! pImpl->snapshot->isInProgress())
         throw std::invalid_argument{"Snapshot " + pImpl->snapshot->getUid() + " is not an open transaction."};
 
