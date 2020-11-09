@@ -301,7 +301,7 @@ teardown() {
 	# /etc may do so. Changes in /etc may be applied immediately,
 	# so merge them back into the running system.
 	log_info "Merging overlay directory ${SNAPSHOT_DIR}/etc into /etc..."
-	rsync --archive --inplace --xattrs --filter='-x security.selinux' --acls --exclude 'fstab' --delete --quiet "${SNAPSHOT_DIR}/etc/" /etc
+	rsync --archive --inplace --xattrs --acls --exclude 'fstab' --delete --quiet "${SNAPSHOT_DIR}/etc/" /etc
 
 	quit 0
     fi
@@ -495,7 +495,7 @@ parse_lowerdirs_for_mount() {
 
 # Sync /etc mount contents to target directory
 sync_etc() {
-    local mount_opts overlay_id
+    local mount_opts overlay_id rsync_extra_args
 
     get_etc_overlay_from "$1"
 
@@ -511,7 +511,14 @@ sync_etc() {
 	quit 1
     fi
 
-    rsync --archive --inplace --xattrs --filter='-x security.selinux' --acls --delete --quiet "${ETC_OVERLAY_DIR}" "$2"
+    if [ -x /usr/sbin/selinuxenabled ] && /usr/sbin/selinuxenabled ; then
+	# Ignore the SELinux attributes when synchronizing pre-SELinux files,
+	# rsync will fail otherwise
+	if [ "$(ls --directory --context "${ETC_OVERLAY_DIR}" | cut -d ' ' -f 1 | cut -d ':' -f 3)" == "unlabeled_t" ]; then
+	    rsync_extra_args=("--filter=-x security.selinux")
+	fi
+    fi
+    rsync --archive --inplace --xattrs "${rsync_extra_args[@]}" --acls --delete --quiet "${ETC_OVERLAY_DIR}" "$2"
     if [ $? -ne 0 ]; then
 	log_error "ERROR: syncing $1 into snapshot $2 failed!"
 	quit 1
