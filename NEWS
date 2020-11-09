@@ -2,6 +2,10 @@ transactional-update NEWS -- history of user-visible changes.
 
 Copyright (C) 2016-2020 Thorsten Kukuk, Ignaz Forster et al.
 
+Version 2.28.3
+* SELinux: Make synchronisation work for both pre-SELinux snapshots and later
+  snapshots; SELinux support should be ready for most tasks now.
+
 Version 2.28.2
 * SELinux: Exclude security.selinux attribute from rsyncing (again)
 

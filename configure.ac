@@ -1,5 +1,5 @@
 dnl Process this file with autoconf to produce a configure script.
-AC_INIT(transactional-update, 2.28.2)
+AC_INIT(transactional-update, 2.28.3)
 AM_INIT_AUTOMAKE
 AC_PREFIX_DEFAULT(/usr)
 
