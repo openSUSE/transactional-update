@@ -40,7 +40,6 @@ Transaction::~Transaction() {
 
     pImpl->dirsToMount.clear();
     try {
-        fs::remove_all(fs::path{pImpl->bindDir});
         if (isInitialized())
             pImpl->snapshot->abort();
     }  catch (const std::exception &e) {

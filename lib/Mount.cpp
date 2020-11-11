@@ -39,6 +39,14 @@ Mount::~Mount() {
         mnt_free_table(umount_table);
     }
 
+    if (!directoryCreated.empty()) {
+        try {
+            std::filesystem::remove_all(std::filesystem::path{directoryCreated});
+        }  catch (const std::exception &e) {
+            tulog.error("ERROR: ", e.what());
+        }
+    }
+
     mnt_free_context(mnt_cxt);
     mnt_unref_fs(mnt_fs);
     mnt_free_table(mnt_table);
@@ -182,6 +190,10 @@ void Mount::mount(std::string prefix) {
         throw std::runtime_error{"Setting mount flags for '" + mountpoint + "' failed: " + std::to_string(rc)};
     }
 
+    if (! std::filesystem::is_directory(mounttarget)) {
+        tulog.debug("Mount target ", mounttarget, " does not exist in snapshot - creating...");
+        directoryCreated = mounttarget;
+    }
     std::filesystem::create_directories(mounttarget);
 
     rc = mnt_context_mount(mnt_cxt);
