@@ -10,7 +10,7 @@ A "transactional update" is a kind of update that:
 
 ## Prerequires
 * SLES12 SP2, openSUSE Leap 42.2 or a current openSUSE Tumbleweed
- * The installation needs to be done with at least this versions, updating older versions to this version is not enough!
+  * The installation needs to be done with at least this versions, updating older versions to this version is not enough!
 * btrfs with snapshots and rollback enabled by default
 * snapper
 * zypper
@@ -32,9 +32,9 @@ state.
 ## Caveats
 * The RPMs needs to be aware, that they are updated in a chroot environment
 and not in the running system. This means:
- * %post install sections:
-  *  if a pre/post install scripts modifies data not inside the snapshot, but a subvolume, it could be that either the data is not modified at all (not accessible) or that the running system breaks. This data modification has to happen a the first boot.
-  * Don't restart services. This would interrupt the running system and the old daemon will be restarted, not the new one.
+  * %post install sections:
+    *  if a pre/post install scripts modifies data not inside the snapshot, but a subvolume, it could be that either the data is not modified at all (not accessible) or that the running system breaks. This data modification has to happen a the first boot.
+    * Don't restart services. This would interrupt the running system and the old daemon will be restarted, not the new one.
 * RPM installs into directories, which are subvolumes and not accessible
 * Strict seperation of applications, configuration and user data
 * RPMs installed in /opt or /usr/local can be updated while the system is executing them.
