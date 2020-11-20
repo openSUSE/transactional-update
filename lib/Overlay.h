@@ -19,9 +19,10 @@ class Overlay {
 public:
     Overlay(std::string snapshot);
     virtual ~Overlay() = default;
-    void create(std::string base);
-    std::string getOldestSnapshot();
-    void sync(std::string snapshot);
+    void create(std::string base, std::string snapshot);
+    std::string getPreviousSnapshotOvlId();
+    bool references(std::string snapshot);
+    void sync(std::string base, std::string snapshot);
     void setMountOptions(std::unique_ptr<Mount>& mount);
     void setMountOptionsForMount(std::unique_ptr<Mount>& mount);
 

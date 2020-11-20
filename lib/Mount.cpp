@@ -191,7 +191,7 @@ void Mount::mount(std::string prefix) {
     }
 
     if (! std::filesystem::is_directory(mounttarget)) {
-        tulog.debug("Mount target ", mounttarget, " does not exist in snapshot - creating...");
+        tulog.debug("Mount target ", mounttarget, " does not exist - creating...");
         directoryCreated = mounttarget;
     }
     std::filesystem::create_directories(mounttarget);

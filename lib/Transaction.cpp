@@ -66,25 +66,12 @@ void Transaction::impl::mount(std::string base) {
         dirsToMount.push_back(std::make_unique<BindMount>("/var/lib/ca-certificates", MS_RDONLY));
         if (fs::is_directory("/var/lib/alternatives"))
             dirsToMount.push_back(std::make_unique<BindMount>("/var/lib/alternatives"));
-
     }
     std::unique_ptr<Mount> mntEtc{new Mount{"/etc"}};
     if (mntEtc->isMount() && mntEtc->getFilesystem() == "overlay") {
         Overlay overlay = Overlay{snapshot->getUid()};
-        overlay.create(base);
-
-        overlay.setMountOptions(mntEtc);
-        mntEtc->persist(snapshot->getRoot() / "etc" / "fstab");
         overlay.setMountOptionsForMount(mntEtc);
-
-        overlay.sync(snapshot->getRoot());
-
         dirsToMount.push_back(std::move(mntEtc));
-
-        // Make sure both the snapshot and the overlay contain all relevant fstab data, i.e.
-        // user modifications from the overlay are present in the root fs and the /etc
-        // overlay is visible in the overlay
-        fs::copy(fs::path{snapshot->getRoot() / "etc" / "fstab"}, overlay.upperdir, fs::copy_options::overwrite_existing);
     }
 
     // Mount platform specific GRUB directories for GRUB updates
@@ -144,6 +131,22 @@ void Transaction::init(std::string base) {
     else if (base == "default")
         base = pImpl->snapshot->getDefault();
     pImpl->snapshot->create(base);
+
+    tulog.info("Using snapshot " + base + " as base for new snapshot " + pImpl->snapshot->getUid() + ".");
+
+    // Create /etc overlay
+    std::unique_ptr<Mount> mntEtc{new Mount{"/etc"}};
+    if (mntEtc->isMount() && mntEtc->getFilesystem() == "overlay") {
+        Overlay overlay = Overlay{pImpl->snapshot->getUid()};
+        overlay.create(base, pImpl->snapshot->getRoot());
+        overlay.setMountOptions(mntEtc);
+        mntEtc->persist(pImpl->snapshot->getRoot() / "etc" / "fstab");
+
+        // Make sure both the snapshot and the overlay contain all relevant fstab data, i.e.
+        // user modifications from the overlay are present in the root fs and the /etc
+        // overlay is visible in the overlay
+        fs::copy(fs::path{pImpl->snapshot->getRoot() / "etc" / "fstab"}, overlay.upperdir, fs::copy_options::overwrite_existing);
+    }
 
     pImpl->mount(base);
     pImpl->addSupplements();

@@ -60,26 +60,44 @@ string Overlay::getIdOfOverlayDir(const string dir) {
     return "";
 }
 
-void Overlay::sync(string snapshot) {
-    Mount currentEtc{"/etc"};
+string Overlay::getPreviousSnapshotOvlId() {
+    for (auto it = lowerdirs.begin(); it != lowerdirs.end(); it++) {
+        string id = getIdOfOverlayDir(*it);
+        if (! id.empty())
+            return id;
+    }
+    return "";
+}
 
-    auto oldestSnapId = getOldestSnapshot();
-    unique_ptr<Snapshot> oldestSnap = SnapshotFactory::get();
-    oldestSnap->open(oldestSnapId);
-    unique_ptr<Mount> oldestEtc{new Mount("/etc")};
-    oldestEtc->setTabSource(oldestSnap->getRoot() / "etc" / "fstab");
+bool Overlay::references(string snapshot) {
+    for (auto it = lowerdirs.begin(); it != lowerdirs.end(); it++) {
+        string id = getIdOfOverlayDir(*it);
+        if (id == snapshot)
+            return true;
+    }
+    return false;
+}
 
-    if (oldestEtc->getOption("upperdir") == currentEtc.getOption("upperdir"))
+void Overlay::sync(string base, string snapshot) {
+    Overlay baseOverlay = Overlay{base};
+    auto previousSnapId = baseOverlay.getPreviousSnapshotOvlId();
+    if (previousSnapId.empty())
         return;
 
-    // Mount read-only, so mount everything as lowerdir
-    Overlay oldestOvl{oldestSnapId};
-    oldestOvl.lowerdirs.insert(oldestOvl.lowerdirs.begin(), oldestOvl.upperdir);
-    oldestOvl.setMountOptionsForMount(oldestEtc);
-    oldestEtc->removeOption("upperdir");
+    unique_ptr<Snapshot> previousSnapshot = SnapshotFactory::get();
+    previousSnapshot->open(previousSnapId);
+    unique_ptr<Mount> previousEtc{new Mount("/etc")};
+    previousEtc->setTabSource(previousSnapshot->getRoot() / "etc" / "fstab");
 
-    oldestEtc->mount(oldestOvl.upperdir.parent_path() / "sync");
-    Util::exec("rsync --quiet --archive --inplace --xattrs --exclude='/fstab' --filter='-x security.selinux' --acls --delete " + string(oldestOvl.upperdir.parent_path() / "sync" / "etc") + "/ " + snapshot + "/etc");
+    // Mount read-only, so mount everything as lowerdir
+    Overlay previousOvl{previousSnapId};
+    previousOvl.lowerdirs.insert(previousOvl.lowerdirs.begin(), previousOvl.upperdir);
+    previousOvl.setMountOptionsForMount(previousEtc);
+    previousEtc->removeOption("upperdir");
+
+    previousEtc->mount(previousOvl.upperdir.parent_path() / "sync");
+    tulog.info("Syncing /etc of previous snapshot ", previousSnapId, " as base into new snapshot ", snapshot);
+    Util::exec("rsync --quiet --archive --inplace --xattrs --exclude='/fstab' --filter='-x security.selinux' --acls --delete " + string(previousOvl.upperdir.parent_path() / "sync" / "etc") + "/ " + snapshot + "/etc");
 }
 
 void Overlay::setMountOptions(unique_ptr<Mount>& mount) {
@@ -94,6 +112,7 @@ void Overlay::setMountOptions(unique_ptr<Mount>& mount) {
     mount->setOption("workdir", config.get("DRACUT_SYSROOT") / workdir.relative_path());
 }
 
+/* Mount all layers mentioned as lowerdirs... */
 void Overlay::setMountOptionsForMount(unique_ptr<Mount>& mount) {
     string lower;
     Mount mntCurrentEtc{"/etc"};
@@ -125,57 +144,31 @@ void Overlay::setMountOptionsForMount(unique_ptr<Mount>& mount) {
     mount->setOption("workdir", workdir);
 }
 
-string Overlay::getOldestSnapshot() {
-    for (auto it = lowerdirs.rbegin(); it != lowerdirs.rend(); it++) {
-        string id = getIdOfOverlayDir(*it);
-        if (! id.empty())
-            return id;
-    }
-    return getIdOfOverlayDir(upperdir);
-}
-
-void Overlay::create(string base = "") {
-    if (base.empty())
-        return;
-
-    tulog.debug("Using snapshot " + base + " as base for overlay.");
+void Overlay::create(string base, string snapshot) {
     Overlay parent = Overlay{base};
+
     // Remove overlay directory if it already exists (e.g. after the snapshot was deleted)
     fs::remove_all(upperdir);
     fs::create_directories(upperdir);
 
-    for (auto it = parent.lowerdirs.begin(); it != parent.lowerdirs.end(); it++) {
-        string lowerdir = *it;
-        // Compatibilty handling for old overlay location without separate directories for each
-        // snapshot - keep it until all snapshots that could reference it have gone, which is the
-        // case as soon as any (numbered) overlay in the list references a removed snapshot.
-        if ((lowerdir == "/sysroot/var/lib/overlay/etc") && (lowerdirs == parent.lowerdirs)) {
-            lowerdirs.push_back(lowerdir);
-        } else {
-            string snapId = getIdOfOverlayDir(lowerdir);
-            // Add non-snapshot overlays (usually just /etc - but who knows, this would allow
-            // interesting setups...)
-            if (snapId.empty())
-                lowerdirs.push_back(lowerdir);
-            else {
-                unique_ptr<Snapshot> oldSnap = SnapshotFactory::get();
-                oldSnap->open(snapId);
-                // Check whether the snapshot of the overlay still exists
-                if (fs::is_directory(fs::path{oldSnap->getRoot()})) {
-                    tulog.debug("Re-adding overlay stack up to ", oldSnap->getRoot(), " to /etc lowerdirs - snapshot is still active.");
-                    // In case some snapshots in the middle of the overlay stack have been
-                    // deleted the overlays still have to be added again up to the oldest still
-                    // available snapshot, otherwise the overlay contents would be inconsistent
-                    lowerdirs = vector<fs::path>(parent.lowerdirs.begin(), it+1);
-                } else {
-                    tulog.debug("Snapshot for " + lowerdir + " has been deleted - may be discarded from /etc lowerdirs.");
-                }
-            }
+    // Assemble the new lowerdirs
+    lowerdirs.push_back(parent.upperdir);
+
+    Mount currentEtc{"/etc"};
+    string currentUpper = currentEtc.getOption("upperdir");
+    // It is possible that files in /etc will be modified after the creation of the snapshot,
+    // but before rebooting the system. When using the --continue option and if the snapshot is
+    // based on the currently running system, then the snapshot stack has to be preserved to
+    // keep the layer transparency. Otherwise just sync the previous snapshots /etc into the
+    // new layer as a base.
+    if (parent.references(getIdOfOverlayDir(currentUpper))) {
+        for (auto it = parent.lowerdirs.begin(); it != parent.lowerdirs.end(); it++) {
+            lowerdirs.push_back(*it);
         }
+    } else {
+        lowerdirs.push_back(parent.lowerdirs.back());
+        sync(base, snapshot);
     }
-    // For the old overlay compatibility check above to work the old upperdir must only be
-    // inserted at the end. Use ranges for the check as soon as C++20 is available instead.
-    lowerdirs.insert(lowerdirs.begin(), parent.upperdir);
 }
 
 } // namespace TransactionalUpdate
