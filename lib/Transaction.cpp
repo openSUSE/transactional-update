@@ -66,6 +66,8 @@ void Transaction::impl::mount(std::string base) {
         dirsToMount.push_back(std::make_unique<BindMount>("/var/lib/ca-certificates", MS_RDONLY));
         if (fs::is_directory("/var/lib/alternatives"))
             dirsToMount.push_back(std::make_unique<BindMount>("/var/lib/alternatives"));
+        if (fs::is_directory("/var/lib/selinux"))
+            dirsToMount.push_back(std::make_unique<BindMount>("/var/lib/selinux"));
     }
     std::unique_ptr<Mount> mntEtc{new Mount{"/etc"}};
     if (mntEtc->isMount() && mntEtc->getFilesystem() == "overlay") {
