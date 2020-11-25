@@ -15,6 +15,7 @@
 #include <filesystem>
 #include <regex>
 #include <sstream>
+#include <unistd.h>
 
 using std::exception;
 using std::string;
@@ -106,6 +107,9 @@ void Overlay::setMountOptions(unique_ptr<Mount>& mount) {
         if (! lower.empty())
             lower.append(":");
         lower.append(config.get("DRACUT_SYSROOT") / lowerdir.relative_path());
+    }
+    if (lower.length() >= sysconf(_SC_PAGE_SIZE)) {
+        throw std::runtime_error{"Exceeding maximum length of mount options; please boot into the new snapshot before proceeding."};
     }
     mount->setOption("lowerdir", lower);
     mount->setOption("upperdir", config.get("DRACUT_SYSROOT") / upperdir.relative_path());
