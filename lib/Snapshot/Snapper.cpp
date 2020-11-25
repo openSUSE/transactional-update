@@ -68,6 +68,10 @@ bool Snapper::isReadOnly() {
         return false;
 }
 
+void Snapper::setDefault() {
+    Util::exec("btrfs subvolume set-default " + std::string(getRoot()));
+}
+
 void Snapper::setReadOnly(bool readonly) {
     std::string boolstr = "true";
     if (readonly == false)

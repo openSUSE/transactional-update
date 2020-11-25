@@ -213,6 +213,8 @@ void Transaction::finalize() {
     defaultSnap->open(pImpl->snapshot->getDefault());
     if (defaultSnap->isReadOnly())
         pImpl->snapshot->setReadOnly(true);
+    pImpl->snapshot->setDefault();
+    tulog.info("New default snapshot is #" + pImpl->snapshot->getUid() + " (" + std::string(pImpl->snapshot->getRoot()) + ").");
 
     pImpl->snapshot.reset();
 }

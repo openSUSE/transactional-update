@@ -28,6 +28,7 @@ public:
     virtual std::string getDefault() = 0;
     virtual bool isInProgress() = 0;
     virtual bool isReadOnly() = 0;
+    virtual void setDefault() = 0;
     virtual void setReadOnly(bool readonly) = 0;
     std::string getUid() { return snapshotId; };
 protected:

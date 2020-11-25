@@ -28,6 +28,7 @@ public:
     std::string getDefault();
     bool isInProgress();
     bool isReadOnly();
+    void setDefault();
     void setReadOnly(bool readonly);
 
 private:
