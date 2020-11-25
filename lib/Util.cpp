@@ -18,7 +18,7 @@ string Util::exec(const string cmd) {
     array<char, 128> buffer;
     string result;
 
-    tulog.info("Executing `", cmd, "`:");
+    tulog.debug("Executing `", cmd, "`:");
 
     auto pipe = popen(cmd.c_str(), "r");
 
@@ -33,7 +33,7 @@ string Util::exec(const string cmd) {
     int rc = pclose(pipe);
 
     if (rc == EXIT_SUCCESS) {
-        tulog.info("◸", result, "◿");
+        tulog.debug("◸", result, "◿");
     } else {
         throw ExecutionException{"`" + cmd + "` returned with error code " + to_string(rc%255) + ".", rc};
     }
