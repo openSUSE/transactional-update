@@ -49,10 +49,7 @@ AC_PROG_LIBTOOL
 LT_INIT([disable-static])
 
 PKG_CHECK_MODULES(ECONF, libeconf)
-
-dnl
-dnl Check for librpm
-dnl
+PKG_CHECK_MODULES([LIBMOUNT], [mount])
 PKG_CHECK_MODULES([LIBRPM], [rpm])
 
 AC_ARG_WITH([doc],
