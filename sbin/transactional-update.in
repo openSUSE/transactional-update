@@ -210,7 +210,7 @@ rebuild_kdump_initrd() {
     test -f /usr/lib/systemd/system/kdump.service || return
     systemctl is-enabled --quiet kdump.service
     if [ $? = 0 -a -x "/.snapshots/$1/snapshot/usr/sbin/tu-rebuild-kdump-initrd" ]; then
-        transkit call "$1" /usr/sbin/tu-rebuild-kdump-initrd |& tee -a ${LOGFILE}
+        tukit call "$1" /usr/sbin/tu-rebuild-kdump-initrd |& tee -a ${LOGFILE}
     fi
 }
 
@@ -252,7 +252,7 @@ quit() {
 
     if [ -n "${SNAPSHOT_ID}" ] ; then
 	log_error "Removing snapshot #${SNAPSHOT_ID}..."
-        transkit abort ${SNAPSHOT_ID} |& tee -a ${LOGFILE}
+        tukit abort ${SNAPSHOT_ID} |& tee -a ${LOGFILE}
     fi
     if [ $USE_SALT_GRAINS -eq 1 ]; then
 	if [ -f /etc/salt/grains ]; then
@@ -805,7 +805,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	fi
     fi
 
-    SNAPSHOT_ID=`transkit -c"${BASE_SNAPSHOT_ID}" open | grep -e "^UUID:" | cut -d " " -f 2-`
+    SNAPSHOT_ID=`tukit -c"${BASE_SNAPSHOT_ID}" open | grep -e "^UUID:" | cut -d " " -f 2-`
     SNAPSHOT_DIR="/.snapshots/${SNAPSHOT_ID}/snapshot/"
 
     # Remember all snapshots we create for update. If transactional-update is
@@ -832,7 +832,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	if [ ${DO_MIGRATION} -eq 1 ]; then
 	    # transactional-update migration
             export DISABLE_RESTART_ON_UPDATE=yes
-            transkit call "${SNAPSHOT_ID}" zypper ${ZYPPER_ARG} ${ZYPPER_NONINTERACTIVE} "${ZYPPER_ARG_PKGS[@]}" |& tee -a ${LOGFILE}
+            tukit call "${SNAPSHOT_ID}" zypper ${ZYPPER_ARG} ${ZYPPER_NONINTERACTIVE} "${ZYPPER_ARG_PKGS[@]}" |& tee -a ${LOGFILE}
 	    RETVAL=${PIPESTATUS[0]}
 	else
 	    # Check if there are updates at all.
@@ -857,7 +857,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	    fi
 
             export DISABLE_RESTART_ON_UPDATE=yes
-            transkit call "${SNAPSHOT_ID}" zypper ${ZYPPER_ARG} ${ZYPPER_NONINTERACTIVE} "${ZYPPER_ARG_PKGS[@]}" |& tee -a ${LOGFILE}
+            tukit call "${SNAPSHOT_ID}" zypper ${ZYPPER_ARG} ${ZYPPER_NONINTERACTIVE} "${ZYPPER_ARG_PKGS[@]}" |& tee -a ${LOGFILE}
 	    RETVAL=${PIPESTATUS[0]}
 	fi
 	# in case of migration, we need to do a little bit more:
@@ -899,7 +899,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 
     if [ ${REWRITE_INITRD} -eq 1 ]; then
 	log_info "Creating new initrd"
-        transkit call "${SNAPSHOT_ID}" /sbin/mkinitrd
+        tukit call "${SNAPSHOT_ID}" /sbin/mkinitrd
 	if [ $? -ne 0 ]; then
 	    log_error "ERROR: mkinitrd failed!"
 	    EXITCODE=1
@@ -915,7 +915,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 
     if [ ${REWRITE_GRUB_CFG} -eq 1 ]; then
 	log_info "Creating a new grub2 config"
-        transkit call "${SNAPSHOT_ID}" bash -c "/usr/sbin/grub2-mkconfig > /boot/grub2/grub.cfg"
+        tukit call "${SNAPSHOT_ID}" bash -c "/usr/sbin/grub2-mkconfig > /boot/grub2/grub.cfg"
 	if [ $? -ne 0 ]; then
 	    log_error "ERROR: grub2-mkconfig failed!"
 	    EXITCODE=1;
@@ -924,7 +924,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 
     if [ ${REWRITE_BOOTLOADER} -eq 1 ]; then
 	log_info "Writing new bootloader"
-        transkit call "${SNAPSHOT_ID}" /sbin/pbl --install
+        tukit call "${SNAPSHOT_ID}" /sbin/pbl --install
 	if [ $? -ne 0 ]; then
 	    log_error "ERROR: /sbin/pbl --install failed!"
 	    EXITCODE=1;
@@ -934,14 +934,14 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
     if [ ${RUN_SHELL} -eq 1 ]; then
 	if [ "${SHELL_CMD}" = "-" ]; then
 	    while read line; do
-                transkit call "${SNAPSHOT_ID}" $line
+                tukit call "${SNAPSHOT_ID}" $line
 	    done < /dev/stdin
 	elif [ -n "${SHELL_CMD}" ]; then
-            transkit call "${SNAPSHOT_ID}" ${SHELL_CMD}
+            tukit call "${SNAPSHOT_ID}" ${SHELL_CMD}
 	else
 	    echo "Opening chroot in snapshot ${SNAPSHOT_ID}, continue with 'exit'"
             export PS1="transactional update # "
-            transkit call "${SNAPSHOT_ID}" bash 2>&4
+            tukit call "${SNAPSHOT_ID}" bash 2>&4
 	fi
     fi
 
@@ -957,10 +957,10 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	    echo "EXPECTED_SNAPSHOT_ID=${SNAPSHOT_ID}" > "${NEW_SNAPSHOT_FLAG}"
 	    echo "PREV_SNAPSHOT_ID=${CURRENT_SNAPSHOT_ID}" >> "${NEW_SNAPSHOT_FLAG}"
 	fi
-	transkit close "${SNAPSHOT_ID}"
+	tukit close "${SNAPSHOT_ID}"
     fi
 
-# TODO: Non-functional, needs to be converted to transkit
+# TODO: Non-functional, needs to be converted to tukit
 if false; then
     DIR_TO_MOUNT=awk '$2 ~ "'^${SNAPSHOT_DIR}'" { print $2 }' /proc/mounts
     # Check for installation artefacts: Packages may have created files in

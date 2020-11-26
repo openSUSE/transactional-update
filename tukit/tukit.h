@@ -10,10 +10,10 @@
 
 #include <string>
 
-class Transkit {
+class TUKit {
 public:
-    Transkit(int argc, char *argv[]);
-    virtual ~Transkit() = default;
+    TUKit(int argc, char *argv[]);
+    virtual ~TUKit() = default;
 
     void displayHelp();
     int parseOptions(int argc, char *argv[]);

@@ -5,7 +5,7 @@
 #
 AUTOMAKE_OPTIONS = 1.6 foreign check-news dist-xz
 #
-SUBDIRS = lib transkit sbin man systemd logrotate dracut doc etc
+SUBDIRS = lib tukit sbin man systemd logrotate dracut doc etc
 
 CLEANFILES = *~
 

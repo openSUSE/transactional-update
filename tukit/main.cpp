@@ -5,14 +5,14 @@
   transactional-update - apply updates to the system in an atomic way
  */
 
-#include "transkit.h"
+#include "tukit.h"
 #include <exception>
 #include <iostream>
 using namespace std;
 
 int main(int argc, char *argv[]) {
     try {
-        Transkit ta{argc, argv};
+        TUKit ta{argc, argv};
     } catch (int e) {
 	    return e;
     } catch (const exception &e) {

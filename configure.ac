@@ -97,6 +97,6 @@ else
      fi
 fi
 
-AC_OUTPUT([Makefile lib/Makefile transkit/Makefile sbin/Makefile man/Makefile \
+AC_OUTPUT([Makefile lib/Makefile tukit/Makefile sbin/Makefile man/Makefile \
 	systemd/Makefile logrotate/Makefile dracut/Makefile doc/Makefile \
 	etc/Makefile sbin/transactional-update])

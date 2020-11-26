@@ -5,7 +5,7 @@
   transactional-update - apply updates to the system in an atomic way
  */
 
-#include "transkit.h"
+#include "tukit.h"
 #include "../lib/Configuration.h"
 #include "../lib/Transaction.h"
 #include "../lib/Log.h"
@@ -26,8 +26,8 @@
 using namespace std;
 using TransactionalUpdate::config;
 
-void Transkit::displayHelp() {
-    cout << "Syntax: transkit [option...] command\n";
+void TUKit::displayHelp() {
+    cout << "Syntax: tukit [option...] command\n";
     cout << "\n";
     cout << "Manage transactions ...\n";
     cout << "\n";
@@ -55,7 +55,7 @@ void Transkit::displayHelp() {
     cout << "--version                    Display version and exit\n" << endl;
 }
 
-int Transkit::parseOptions(int argc, char *argv[]) {
+int TUKit::parseOptions(int argc, char *argv[]) {
     static const char optstring[] = "+c::hqv";
     static const struct option longopts[] = {
         { "continue", optional_argument, nullptr, 'c' },
@@ -94,7 +94,7 @@ int Transkit::parseOptions(int argc, char *argv[]) {
     return optind;
 }
 
-int Transkit::processCommand(char *argv[]) {
+int TUKit::processCommand(char *argv[]) {
         string arg = argv[0];
         if (arg == "execute") {
             TransactionalUpdate::Transaction transaction{};
@@ -151,7 +151,7 @@ public:
         }
         int status = lockf(lockfile, F_TLOCK, (off_t)10000);
         if (status) {
-            throw runtime_error{"Another instance of transkit is already running: " + string(strerror(errno))};
+            throw runtime_error{"Another instance of tukit is already running: " + string(strerror(errno))};
             remove(config.get("LOCKFILE").c_str());
         }
     }
@@ -163,7 +163,7 @@ private:
     int lockfile;
 };
 
-Transkit::Transkit(int argc, char *argv[]) {
+TUKit::TUKit(int argc, char *argv[]) {
     tulog.level = TULogLevel::INFO;
 
     int ret = parseOptions(argc, argv);
@@ -172,7 +172,7 @@ Transkit::Transkit(int argc, char *argv[]) {
     }
 
     Lock lock;
-    tulog.info("transkit @VERSION@ started");
+    tulog.info("tukit @VERSION@ started");
 
     string optionsline = "Options: ";
     for(int i = 1; i < argc; ++i)
