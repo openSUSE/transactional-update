@@ -33,6 +33,7 @@ public:
     void keep();
     bool isInitialized();
     std::string getSnapshot();
+    std::filesystem::path getRoot();
 private:
     class impl;
     std::unique_ptr<impl> pImpl;

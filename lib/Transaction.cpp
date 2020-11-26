@@ -54,9 +54,12 @@ bool Transaction::isInitialized() {
     return pImpl->snapshot ? true : false;
 }
 
-std::string Transaction::getSnapshot()
-{
+std::string Transaction::getSnapshot() {
     return pImpl->snapshot->getUid();
+}
+
+fs::path Transaction::getRoot() {
+    return pImpl->snapshot->getRoot();
 }
 
 void Transaction::impl::mount(std::string base) {
