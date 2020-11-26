@@ -32,6 +32,9 @@ public:
 
 Transaction::Transaction() : pImpl{std::make_unique<impl>()} {
     tulog.debug("Constructor Transaction");
+    if (getenv("TRANSACTIONAL_UPDATE") != NULL) {
+        throw std::runtime_error{"Cannot open a new transaction from within a running transaction."};
+    }
     pImpl->snapshot = SnapshotFactory::get();
 }
 
