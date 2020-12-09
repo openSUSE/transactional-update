@@ -4,8 +4,9 @@ libt_u_la_SOURCES=Transaction.cpp \
         Snapshot.cpp Snapshot/Snapper.cpp \
         Mount.cpp Overlay.cpp Configuration.cpp \
         Util.cpp Supplement.cpp
-noinst_HEADERS=Transaction.h \
-        Snapshot.h Snapshot/Snapper.h \
+publicheadersdir=$(includedir)/t-u
+publicheaders_HEADERS=Transaction.h
+noinst_HEADERS=Snapshot.h Snapshot/Snapper.h \
         Mount.h Overlay.h Log.h Configuration.h \
         Util.h Supplement.h Exceptions.h
 libt_u_la_CPPFLAGS=$(ECONF_CFLAGS)
