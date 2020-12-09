@@ -33,6 +33,7 @@ m4
 test-driver
 test-suite.log
 check-output.*
+t-u.pc
 sbin/transactional-update
 src/transactional-update
 systemd/transactional-update.service
