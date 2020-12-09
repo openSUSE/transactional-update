@@ -6,9 +6,9 @@
  */
 
 #include "tukit.h"
-#include "../lib/Configuration.h"
-#include "../lib/Transaction.h"
-#include "../lib/Log.h"
+#include "Configuration.h"
+#include "Transaction.h"
+#include "Log.h"
 #include <fcntl.h>
 #include <getopt.h>
 #include <unistd.h>
