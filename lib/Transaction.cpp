@@ -10,11 +10,13 @@
 #include "Transaction.h"
 #include "Configuration.h"
 #include "Log.h"
+#include "Mount.h"
 #include "Overlay.h"
+#include "Snapshot.h"
+#include "Supplement.h"
 #include <cerrno>
 #include <cstdlib>
 #include <cstring>
-#include <filesystem>
 #include <sys/wait.h>
 #include <unistd.h>
 using namespace TransactionalUpdate;
