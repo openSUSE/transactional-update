@@ -3,10 +3,10 @@ exec_prefix=@exec_prefix@
 libdir=@libdir@
 includedir=@includedir@
 
-Name: transactional-update
-Description: Update an operating system in a transactional way
+Name: tukit
+Description: Toolkit library for operating system transactional updates
 Version: @VERSION@
 URL: https://github.com/openSUSE/transactional-update
 Requires.private: rpm, libeconf, mount
-Cflags: -I${includedir}/tukit
+Cflags: -I${includedir}
 Libs: -L${libdir} -ltukit
