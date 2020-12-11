@@ -1,6 +1,8 @@
 dnl Process this file with autoconf to produce a configure script.
-AC_INIT(transactional-update, 2.28.3)
+AC_INIT(transactional-update, 3.0)
+AC_CANONICAL_SYSTEM
 AM_INIT_AUTOMAKE
+AC_CONFIG_FILES([t-u.pc])
 AC_PREFIX_DEFAULT(/usr)
 
 AC_SUBST(PACKAGE)
@@ -24,13 +26,16 @@ AC_SUBST(SYSTEMDDIR)
 AC_SUBST(DRACUTDIR)
 AC_SUBST(LOGROTATEDDIR)
 
+AC_PROG_CXX
+AX_CXX_COMPILE_STDCXX_17(, mandatory)
 AC_PROG_CC
 AC_PROG_INSTALL
 AC_PROG_LN_S
+AC_PROG_LIBTOOL
+LT_INIT([disable-static])
 
-dnl
-dnl Check for librpm
-dnl
+PKG_CHECK_MODULES([ECONF], [libeconf])
+PKG_CHECK_MODULES([LIBMOUNT], [mount])
 PKG_CHECK_MODULES([LIBRPM], [rpm >= 4.15], AC_DEFINE([HAVE_RPMDBCOOKIE]),
 	[PKG_CHECK_MODULES([LIBRPM], [rpm])])
 
@@ -76,6 +81,6 @@ else
      fi
 fi
 
-AC_OUTPUT([Makefile sbin/Makefile man/Makefile systemd/Makefile \
-	logrotate/Makefile dracut/Makefile doc/Makefile etc/Makefile \
-	sbin/transactional-update])
+AC_OUTPUT([Makefile lib/Makefile tukit/Makefile sbin/Makefile man/Makefile \
+	systemd/Makefile logrotate/Makefile dracut/Makefile doc/Makefile \
+	etc/Makefile sbin/transactional-update])
