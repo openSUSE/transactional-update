@@ -8,5 +8,5 @@ Description: Update an operating system in a transactional way
 Version: @VERSION@
 URL: https://github.com/openSUSE/transactional-update
 Requires.private: rpm, libeconf, mount
-Cflags: -I${includedir}/t-u
-Libs: -L${libdir} -lt-u
+Cflags: -I${includedir}/tukit
+Libs: -L${libdir} -ltukit

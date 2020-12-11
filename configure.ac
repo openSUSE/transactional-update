@@ -2,7 +2,7 @@ dnl Process this file with autoconf to produce a configure script.
 AC_INIT(transactional-update, 3.0)
 AC_CANONICAL_SYSTEM
 AM_INIT_AUTOMAKE
-AC_CONFIG_FILES([t-u.pc])
+AC_CONFIG_FILES([tukit.pc])
 AC_PREFIX_DEFAULT(/usr)
 
 AC_SUBST(PACKAGE)
