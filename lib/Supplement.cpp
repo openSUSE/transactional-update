@@ -43,7 +43,7 @@ void Supplements::addFile(fs::path file) {
     if (fs::exists(file)) {
         createDirs(file.parent_path());
         fs::path target = snapshot / file.relative_path();
-        fs::copy(file, target);
+        fs::copy(file, target, fs::copy_options::overwrite_existing);
         supplementalFiles.push_back(std::move(target));
     }
 }
