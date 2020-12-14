@@ -1005,7 +1005,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
     fi
 
     if [ ${DO_RUN} -eq 1 ]; then
-	chroot ${MOUNT_DIR} "${RUN_CMD[@]}"
+	tukit call "${SNAPSHOT_ID}" "${RUN_CMD[@]}"
     fi
 
     if [ ${RUN_SHELL} -eq 1 ]; then
