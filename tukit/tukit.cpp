@@ -172,7 +172,7 @@ TUKit::TUKit(int argc, char *argv[]) {
     }
 
     Lock lock;
-    tulog.info("tukit @VERSION@ started");
+    tulog.info("tukit ", VERSION, " started");
 
     string optionsline = "Options: ";
     for(int i = 1; i < argc; ++i)
