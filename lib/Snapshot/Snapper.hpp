@@ -8,7 +8,7 @@
 #ifndef T_U_SNAPPER_H
 #define T_U_SNAPPER_H
 
-#include "Snapshot.h"
+#include "Snapshot.hpp"
 #include <filesystem>
 #include <string>
 

@@ -6,8 +6,8 @@
   environment.
  */
 
-#include "Supplement.h"
-#include "Log.h"
+#include "Supplement.hpp"
+#include "Log.hpp"
 #include <exception>
 
 namespace TransactionalUpdate {

@@ -5,10 +5,10 @@
   Snapper backend for snapshot handling
  */
 
-#include "Snapper.h"
-#include "Exceptions.h"
-#include "Log.h"
-#include "Util.h"
+#include "Snapper.hpp"
+#include "Exceptions.hpp"
+#include "Log.hpp"
+#include "Util.hpp"
 
 namespace TransactionalUpdate {
 

@@ -5,10 +5,10 @@
   transactional-update - apply updates to the system in an atomic way
  */
 
-#include "tukit.h"
-#include "Configuration.h"
-#include "Transaction.h"
-#include "Log.h"
+#include "tukit.hpp"
+#include "Configuration.hpp"
+#include "Transaction.hpp"
+#include "Log.hpp"
 #include <fcntl.h>
 #include <getopt.h>
 #include <unistd.h>

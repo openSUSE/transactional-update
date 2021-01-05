@@ -6,8 +6,8 @@
   implementations can be found in the "Snapshot" directory
  */
 
-#include "Snapshot.h"
-#include "Snapshot/Snapper.h"
+#include "Snapshot.hpp"
+#include "Snapshot/Snapper.hpp"
 using namespace std;
 
 namespace TransactionalUpdate {

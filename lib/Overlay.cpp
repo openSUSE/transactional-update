@@ -5,13 +5,13 @@
   Handling of /etc overlayfs layers
  */
 
-#include "Overlay.h"
+#include "Overlay.hpp"
 
-#include "Configuration.h"
-#include "Log.h"
-#include "Mount.h"
-#include "Snapshot.h"
-#include "Util.h"
+#include "Configuration.hpp"
+#include "Log.hpp"
+#include "Mount.hpp"
+#include "Snapshot.hpp"
+#include "Util.hpp"
 #include <filesystem>
 #include <regex>
 #include <selinux/selinux.h>

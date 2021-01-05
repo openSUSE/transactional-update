@@ -5,9 +5,9 @@
   Helper class
  */
 
-#include "Log.h"
-#include "Util.h"
-#include "Exceptions.h"
+#include "Log.hpp"
+#include "Util.hpp"
+#include "Exceptions.hpp"
 #include <algorithm>
 
 namespace TransactionalUpdate {

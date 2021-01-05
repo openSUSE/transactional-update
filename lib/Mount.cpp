@@ -5,8 +5,8 @@
   Wrapper for libmount
  */
 
-#include "Log.h"
-#include "Mount.h"
+#include "Log.hpp"
+#include "Mount.hpp"
 #include <cstring>
 #include <filesystem>
 #include <stdexcept>

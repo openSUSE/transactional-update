@@ -7,13 +7,13 @@
   correct context.
  */
 
-#include "Transaction.h"
-#include "Configuration.h"
-#include "Log.h"
-#include "Mount.h"
-#include "Overlay.h"
-#include "Snapshot.h"
-#include "Supplement.h"
+#include "Transaction.hpp"
+#include "Configuration.hpp"
+#include "Log.hpp"
+#include "Mount.hpp"
+#include "Overlay.hpp"
+#include "Snapshot.hpp"
+#include "Supplement.hpp"
 #include <cerrno>
 #include <cstdlib>
 #include <cstring>

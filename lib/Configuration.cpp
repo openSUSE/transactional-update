@@ -6,8 +6,8 @@
   default values otherwise.
  */
 
-#include "Configuration.h"
-#include "Util.h"
+#include "Configuration.hpp"
+#include "Util.hpp"
 #include <map>
 #include <stdexcept>
 #include <libeconf.h>
