@@ -25,15 +25,19 @@ PKG_CHECK_VAR([DRACUTDIR], [dracut], [dracutmodulesdir], [],
 	[AC_MSG_ERROR([Could not determine value for 'dracutmodulesdir' - is the 'dracut.pc' file installed?])])
 PKG_CHECK_VAR([UDEVDIR], [udev], [udevdir], [],
 	[AC_MSG_ERROR([Could not determine value for 'udevdir' - is the 'udev.pc' file installed?])])
+PKG_CHECK_VAR([DBUSDATADIR], [dbus-1], [datadir], [],
+	[AC_MSG_ERROR([Could not determine value for 'datadir' - is the 'dbus-1.pc' file installed?])])
 
 UDEVRULESDIR=${UDEVDIR}/rules.d
 LOGROTATEDDIR=${sysconfdir}/logrotate.d
+DBUSCONFDIR=${DBUSDATADIR}/dbus-1/system.d
 
 AC_SUBST(TMPFILESDIR)
 AC_SUBST(UDEVRULESDIR)
 AC_SUBST(SYSTEMDDIR)
 AC_SUBST(DRACUTDIR)
 AC_SUBST(LOGROTATEDDIR)
+AC_SUBST(DBUSCONFDIR)
 
 AC_PROG_CXX
 AX_CXX_COMPILE_STDCXX_17(, mandatory)
@@ -47,6 +51,7 @@ PKG_CHECK_MODULES([SELINUX], [libselinux])
 PKG_CHECK_MODULES([LIBMOUNT], [mount])
 PKG_CHECK_MODULES([LIBRPM], [rpm >= 4.15], AC_DEFINE([HAVE_RPMDBCOOKIE]),
 	[PKG_CHECK_MODULES([LIBRPM], [rpm])])
+PKG_CHECK_MODULES([LIBSYSTEMD], [libsystemd])
 
 AC_ARG_WITH([doc],
 	[AS_HELP_STRING([--with-doc], [Build documentation])], ,
@@ -92,4 +97,4 @@ fi
 
 AC_OUTPUT([Makefile lib/Makefile tukit/Makefile sbin/Makefile man/Makefile \
 	systemd/Makefile logrotate/Makefile dracut/Makefile doc/Makefile \
-	etc/Makefile sbin/transactional-update])
+	etc/Makefile dbus/Makefile sbin/transactional-update])

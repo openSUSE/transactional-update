@@ -34,6 +34,7 @@ test-driver
 test-suite.log
 check-output.*
 tukit.pc
+tukitd
 sbin/transactional-update
 src/transactional-update
 systemd/transactional-update.service
