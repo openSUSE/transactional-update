@@ -4,46 +4,50 @@
 #include <systemd/sd-bus.h>
 #include <systemd/sd-event.h>
 
-int exec(const char* cmd, char* output) {
+int exec(const char *cmd, char **output) {
     int rc;
 
-    printf ("Executing `%s`:", cmd);
+    printf ("Executing `%s`.\n", cmd);
 
     FILE* pipe = popen(cmd, "r");
     if (!pipe) {
-        fprintf(stderr, "popen() failed!");
+        fprintf(stderr, "popen() failed!\n");
         return -1;
     }
 
     // Does the caller want to see the output?
     if (output != NULL) {
-        char buffer[1024];
+        int buffincr = 1;
+        char buffer[BUFSIZ];
         while (!feof(pipe)) {
-            if (fgets(buffer, 1024, pipe) != NULL) {
-                printf("Size of output: %lu", sizeof(output));
-                char* newmem = realloc(output, sizeof(output) + 1024);
+            if (fgets(buffer, BUFSIZ, pipe) != NULL) {
+                char* newmem = realloc(*output, buffincr * BUFSIZ);
                 if (newmem == NULL) {
-                    fprintf(stderr, "realloc() failed!");
-                    free(output);
+                    fprintf(stderr, "realloc() failed!\n");
                     return -1;
                 }
-                output = newmem;
-                strcat(output, buffer);
+                *output = newmem;
+                *output = strcat(*output, buffer);
+                buffincr++;
             }
         }
     }
 
     rc = pclose(pipe);
-    free(output);
     return rc;
 }
 
 static int method_open(sd_bus_message *m, void *userdata, sd_bus_error *ret_error) {
-    char* command;
+    char *command;
     int ret;
 
+    char *output;
+    output = calloc(1, sizeof(char));
+    exec("ls", &output);
     /* Reply with the response */
-    return sd_bus_reply_method_return(m, "s", "Hallo");
+    printf("Output: %s", output);
+    return sd_bus_reply_method_return(m, "s", output);
+    free(output);
 }
 
 static int method_divide(sd_bus_message *m, void *userdata, sd_bus_error *ret_error) {
