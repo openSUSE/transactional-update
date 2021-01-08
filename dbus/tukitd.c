@@ -41,6 +41,9 @@ static int method_open(sd_bus_message *m, void *userdata, sd_bus_error *ret_erro
     char *command;
     int ret;
 
+}
+
+static int method_call(sd_bus_message *m, void *userdata, sd_bus_error *ret_error) {
     char *output;
     output = calloc(1, sizeof(char));
     exec("ls", &output);
@@ -73,6 +76,7 @@ static int method_divide(sd_bus_message *m, void *userdata, sd_bus_error *ret_er
 static const sd_bus_vtable tukit_vtable[] = {
     SD_BUS_VTABLE_START(0),
     SD_BUS_METHOD_WITH_ARGS("open", SD_BUS_NO_ARGS, SD_BUS_RESULT("s", ret), method_open, 0),
+    SD_BUS_METHOD_WITH_ARGS("call", SD_BUS_NO_ARGS, SD_BUS_RESULT("s", ret), method_open, 0),
     SD_BUS_VTABLE_END
 };
 
