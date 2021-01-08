@@ -12,16 +12,8 @@
 #include <fcntl.h>
 #include <getopt.h>
 #include <unistd.h>
-#include <algorithm>
-#include <cerrno>
 #include <cstring>
-#include <deque>
-#include <filesystem>
 #include <iostream>
-#include <iterator>
-#include <memory>
-#include <stdexcept>
-#include <typeinfo>
 
 using namespace std;
 using TransactionalUpdate::config;
