@@ -13,10 +13,7 @@
 #ifndef T_U_TRANSACTION_H
 #define T_U_TRANSACTION_H
 
-#include <algorithm>
 #include <filesystem>
-#include <memory>
-#include <vector>
 
 namespace TransactionalUpdate {
 
