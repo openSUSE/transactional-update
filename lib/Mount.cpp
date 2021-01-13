@@ -60,6 +60,9 @@ struct libmnt_fs* Mount::getTabEntry() {
     if (tabsource.empty()) {
         if ((rc = mnt_table_parse_fstab(mnt_table, nullptr)) != 0)
             throw std::runtime_error{"Error reading " + mountpoint + " entry from fstab : " + std::to_string(rc)};
+    } else if (tabsource == "mtab") {
+        if ((rc = mnt_table_parse_mtab(mnt_table, nullptr)) != 0)
+            throw std::runtime_error{"Error reading " + mountpoint + " entry from mtab : " + std::to_string(rc)};
     } else {
         if ((rc = mnt_table_parse_file(mnt_table, tabsource.c_str())) != 0)
             throw std::runtime_error{"Error reading " + mountpoint + " entry from " + tabsource + ": " + std::to_string(rc)};
@@ -177,6 +180,13 @@ void Mount::mount(std::string prefix) {
 
     int rc;
     std::string mounttarget = prefix + mountpoint.c_str();
+
+    // Check whether target is mounted already
+    Mount mountTarget{mounttarget};
+    mountTarget.setTabSource("mtab");
+    if (mountTarget.isMount())
+        return;
+
     if ((rc = mnt_fs_set_target(mnt_fs, mounttarget.c_str())) != 0) {
         throw std::runtime_error{"Setting target '" + mounttarget + "' for mountpoint failed: " + std::to_string(rc)};
     }
