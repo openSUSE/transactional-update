@@ -19,6 +19,7 @@
 #include <cstring>
 #include <sys/wait.h>
 #include <unistd.h>
+#include <utime.h>
 using namespace TransactionalUpdate;
 namespace fs = std::filesystem;
 
@@ -215,6 +216,10 @@ int Transaction::execute(char* argv[]) {
 }
 
 void Transaction::finalize() {
+    // Update /usr timestamp to support system offline update mechanism
+    if (utime((pImpl->snapshot->getRoot() / "usr").c_str(), nullptr) != 0)
+        throw std::runtime_error{"Updating /usr timestamp failed: " + std::string(strerror(errno))};
+
     pImpl->snapshot->close();
     pImpl->supplements.cleanup();
 
