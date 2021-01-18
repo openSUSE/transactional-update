@@ -1,3 +1,4 @@
+#include "Bindings/libtukit.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
@@ -38,9 +39,26 @@ int exec(const char *cmd, char **output) {
 }
 
 static int method_open(sd_bus_message *m, void *userdata, sd_bus_error *ret_error) {
-    char *command;
-    int ret;
+    const char *snapid;
 
+    struct tukit_tx* tx = tukit_new_tx();
+    if (tx == NULL) {
+        sd_bus_error_set_const(ret_error, "org.opensuse.tukit.error", "Creating the transaction failed.");
+        return -1;
+    }
+    tukit_set_loglevel(DEBUG);
+    if (tukit_tx_init(tx, "default") != 0) {
+        sd_bus_error_set_const(ret_error, "org.opensuse.tukit.error", "Initializing the transaction failed.");
+        return -1;
+    }
+    snapid = tukit_tx_get_snapshot(tx);
+    if (snapid == NULL) {
+        sd_bus_error_set_const(ret_error, "org.opensuse.tukit.error", "Retrieving the Snapshot ID failed.");
+        return -1;
+    }
+    tukit_tx_keep(tx);
+    tukit_free_tx(tx);
+    return sd_bus_reply_method_return(m, "s", snapid);
 }
 
 static int method_call(sd_bus_message *m, void *userdata, sd_bus_error *ret_error) {
@@ -76,7 +94,7 @@ static int method_divide(sd_bus_message *m, void *userdata, sd_bus_error *ret_er
 static const sd_bus_vtable tukit_vtable[] = {
     SD_BUS_VTABLE_START(0),
     SD_BUS_METHOD_WITH_ARGS("open", SD_BUS_NO_ARGS, SD_BUS_RESULT("s", ret), method_open, 0),
-    SD_BUS_METHOD_WITH_ARGS("call", SD_BUS_NO_ARGS, SD_BUS_RESULT("s", ret), method_open, 0),
+    SD_BUS_METHOD_WITH_ARGS("call", SD_BUS_NO_ARGS, SD_BUS_RESULT("s", ret), method_call, 0),
     SD_BUS_VTABLE_END
 };
 
@@ -149,6 +167,7 @@ int main(int argc, char *argv[]) {
     }
 
 finish:
+    sd_event_unref(event);
     sd_bus_slot_unref(slot);
     sd_bus_unref(bus);
 

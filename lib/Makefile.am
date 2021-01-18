@@ -3,9 +3,9 @@ lib_LTLIBRARIES = libtukit.la
 libtukit_la_SOURCES=Transaction.cpp \
         Snapshot.cpp Snapshot/Snapper.cpp \
         Mount.cpp Overlay.cpp Configuration.cpp \
-        Util.cpp Supplement.cpp
+        Util.cpp Supplement.cpp Bindings/CBindings.cpp
 publicheadersdir=$(includedir)/tukit
-publicheaders_HEADERS=Transaction.hpp
+publicheaders_HEADERS=Transaction.hpp Bindings/libtukit.h
 noinst_HEADERS=Snapshot.hpp Snapshot/Snapper.hpp \
         Mount.hpp Overlay.hpp Log.hpp Configuration.hpp \
         Util.hpp Supplement.hpp Exceptions.hpp
