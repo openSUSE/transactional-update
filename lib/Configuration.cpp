@@ -20,7 +20,7 @@ Configuration::Configuration() {
         throw std::runtime_error{"Could not create default configuration."};
     std::map<const char*, const char*> defaults = {
         {"DRACUT_SYSROOT", "/sysroot"},
-        {"LOCKFILE", "/var/run/transactional-update.pid"},
+        {"LOCKFILE", "/var/run/tukit.lock"},
         {"OVERLAY_DIR", "/var/lib/overlay"}
     };
     for(auto &[key, value] : defaults) {

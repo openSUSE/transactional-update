@@ -896,7 +896,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	else
 	    # Check if there are updates at all.
 	    TMPFILE=`mktemp ${TMPDIR}/transactional-update.XXXXXXXXXX`
-	    zypper -R "${SNAPSHOT_DIR}" --xmlout ${ZYPPER_ARG} -y --auto-agree-with-product-licenses --dry-run "${ZYPPER_ARG_PKGS[@]}" > ${TMPFILE}
+	    tukit call "${SNAPSHOT_ID}" zypper --xmlout ${ZYPPER_ARG} -y --auto-agree-with-product-licenses --dry-run "${ZYPPER_ARG_PKGS[@]}" > ${TMPFILE}
 	    PACKAGE_UPDATES=`grep "install-summary download-size" ${TMPFILE} | sed -e 's|.*install-summary download-size=\"\(.*\)\" space-usage-diff.*|\1|g'`
 	    SIZE_OF_UPDATES=`grep "install-summary.*space-usage-diff" ${TMPFILE} | sed -e 's|.*install-summary.*space-usage-diff=\"\([^"]*\)\".*|\1|g'`
 	    NUM_OF_UPDATES=`grep "install-summary.*packages-to-change" ${TMPFILE} | sed -e 's|.*install-summary.*packages-to-change=\"\([^"]*\)\".*|\1|g'`
@@ -1036,20 +1036,14 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	tukit close "${SNAPSHOT_ID}"
     fi
 
-# TODO: Non-functional, needs to be converted to tukit
-if false; then
-    DIR_TO_MOUNT=awk '$2 ~ "'^${SNAPSHOT_DIR}'" { print $2 }' /proc/mounts
     # Check for installation artefacts: Packages may have created files in
     # directories outside of the root file system; these files will not be
     # visible in the actual system as they are shadowed by the real mount
     # points, so warn the user
     searchdirs=""
     # Filter out commented lines and swap partition
-    for mountdir in $(awk '$1 !~ "^#.*" && $2 ~ "^/.*" { print $2 }' ${SNAPSHOT_DIR}/etc/fstab); do
-	# Filter out root fs and fstab entries which we bind mounted anyway
-        if [[ ! $mountdir =~ ^(${DIR_TO_MOUNT// /|})$ ]]; then
-            searchdirs+="${mountdir} "
-	fi
+    for mountdir in $(awk '$1 !~ "^#.*" && $2 ~ "^/.+" { print $2 }' ${SNAPSHOT_DIR}/etc/fstab); do
+	searchdirs+="${SNAPSHOT_DIR}${mountdir} "
     done
     if [ -n "${searchdirs}" ]; then
 	filelist="$(find ${searchdirs} -cnewer ${LOCKFILE} -not -type d 2>/dev/null)"
@@ -1067,7 +1061,6 @@ if false; then
 	    log_info "${filelist}"
 	fi
     fi
-fi
 
     if [ ${EXITCODE} -ne 0 ]; then
 	quit ${EXITCODE}

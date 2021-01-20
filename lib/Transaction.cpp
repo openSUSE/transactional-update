@@ -167,6 +167,7 @@ void Transaction::init(std::string base = "active") {
 void Transaction::resume(std::string id) {
     pImpl->snapshot->open(id);
     pImpl->mount();
+    pImpl->addSupplements();
 }
 
 int Transaction::execute(char* argv[]) {
@@ -234,5 +235,6 @@ void Transaction::finalize() {
 }
 
 void Transaction::keep() {
+    pImpl->supplements.cleanup();
     pImpl->snapshot.reset();
 }
