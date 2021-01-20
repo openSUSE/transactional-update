@@ -128,6 +128,8 @@ void Transaction::impl::addSupplements() {
     if (mntVar.isMount()) {
         supplements.addDir(fs::path{"/var/tmp"});
         supplements.addFile(fs::path{"/var/lib/zypp/RequestedLocales"}); // locale specific packages with zypper
+        supplements.addFile(fs::path{"/var/lib/zypp/AnonymousUniqueId"});
+        supplements.addFile(fs::path{"/var/lib/zypp/LastDistributionFlavor"});
         supplements.addLink(fs::path{"/run"}, fs::path{"/var/run"});
     }
     supplements.addLink(fs::path{"/usr/lib/sysimage/rpm"}, fs::path{"/var/lib/rpm"});
