@@ -57,7 +57,7 @@ NEEDS_RESTARTING_FILE="/var/run/reboot-needed"
 LOCKFILE="/var/run/transactional-update.pid"
 ZYPPER_AUTO_IMPORT_KEYS=0
 ETC_OVERLAY_PATTERN='^[^[:space:]]\+[[:space:]]\+\/etc[[:space:]]\+overlay[[:space:]]\+\([^[:space:]]*,\|\)workdir=\/sysroot\/var\/lib\/overlay\/work-etc[,[:space:]]'
-NON_ROOTFS_WHITELIST=("/var/lib/rpm" "/var/lib/systemd/migrated" "/var/run/zypp.pid")
+NON_ROOTFS_WHITELIST=("/var/lib/YaST2/cookies" "/var/lib/rpm" "/var/lib/systemd/migrated" "/var/run/zypp.pid")
 DROP_IF_NO_CHANGE=0
 INOTIFY_EXCLUDES=""
 
