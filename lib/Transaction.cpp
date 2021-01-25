@@ -45,6 +45,13 @@ Transaction::~Transaction() {
     tulog.debug("Destructor Transaction");
 
     pImpl->dirsToMount.clear();
+    if (!pImpl->bindDir.empty()) {
+        try {
+            fs::remove(fs::path{pImpl->bindDir});
+        }  catch (const std::exception &e) {
+            tulog.error("ERROR: ", e.what());
+        }
+    }
     try {
         if (isInitialized())
             pImpl->snapshot->abort();
