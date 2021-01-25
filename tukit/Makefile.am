@@ -1,5 +1,5 @@
 AUTOMAKE_OPTIONS = subdir-objects
-bin_PROGRAMS=tukit
+sbin_PROGRAMS=tukit
 tukit_SOURCES=main.cpp \
         tukit.cpp
 noinst_HEADERS=tukit.hpp
