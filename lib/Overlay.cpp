@@ -50,7 +50,7 @@ Overlay::Overlay(string snapshot):
             lowerdir = regex_replace(lowerdir, std::regex("^" + config.get("DRACUT_SYSROOT")), "");
             lowerdirs.push_back(lowerdir);
         }
-    } catch (exception e) {}
+    } catch (exception &e) {}
 }
 
 string Overlay::getIdOfOverlayDir(const string dir) {
