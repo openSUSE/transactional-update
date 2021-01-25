@@ -1,5 +1,8 @@
 dnl Process this file with autoconf to produce a configure script.
 AC_INIT(transactional-update, 3.0)
+LIBTOOL_CURRENT=0 # Increase on any interface change and reset revision
+LIBTOOL_REVISION=0 # Increase or reset on any VERSION update
+LIBTOOL_AGE=0 # Increase if interface change is backwards compatible, reset otherwise
 AC_CANONICAL_SYSTEM
 AM_INIT_AUTOMAKE
 AC_CONFIG_FILES([tukit.pc])
@@ -7,6 +10,9 @@ AC_PREFIX_DEFAULT(/usr)
 
 AC_SUBST(PACKAGE)
 AC_SUBST(VERSION)
+AC_SUBST(LIBTOOL_CURRENT)
+AC_SUBST(LIBTOOL_REVISION)
+AC_SUBST(LIBTOOL_AGE)
 
 PKG_CHECK_VAR([SYSTEMDDIR], [systemd], [systemdsystemunitdir], [],
 	[AC_MSG_ERROR([Could not determine value for 'systemdsystemunitdir' - is the 'systemd.pc' file installed?])])
