@@ -119,7 +119,8 @@ void Overlay::setMountOptions(unique_ptr<Mount>& mount) {
             lower.append(":");
         lower.append(config.get("DRACUT_SYSROOT") / lowerdir.relative_path());
     }
-    if (lower.length() >= sysconf(_SC_PAGE_SIZE)) {
+    long pagesize = sysconf(_SC_PAGE_SIZE);
+    if (pagesize > 0 && lower.length() >= reinterpret_cast<unsigned long&>(pagesize)) {
         throw std::runtime_error{"Exceeding maximum length of mount options; please boot into the new snapshot before proceeding."};
     }
     mount->setOption("lowerdir", lower);
