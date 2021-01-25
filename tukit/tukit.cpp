@@ -44,7 +44,7 @@ void TUKit::displayHelp() {
     cout << "--help, -h                   Display this help and exit\n";
     cout << "--quiet, -q                  Decrease verbosity\n";
     cout << "--verbose, -v                Increase verbosity\n";
-    cout << "--version                    Display version and exit\n" << endl;
+    cout << "--version, -V                Display version and exit\n" << endl;
 }
 
 int TUKit::parseOptions(int argc, char *argv[]) {
@@ -54,6 +54,7 @@ int TUKit::parseOptions(int argc, char *argv[]) {
         { "help", no_argument, nullptr, 'h' },
         { "quiet", no_argument, nullptr, 'q' },
         { "verbose", no_argument, nullptr, 'v' },
+        { "version", no_argument, nullptr, 'V' },
         { 0, 0, 0, 0 }
     };
 
@@ -77,6 +78,9 @@ int TUKit::parseOptions(int argc, char *argv[]) {
         case 'v':
             tulog.level = TULogLevel::DEBUG;
             break;
+        case 'V':
+            cout << VERSION << endl;
+            return 0;
         case '?':
             displayHelp();
             return -1;
