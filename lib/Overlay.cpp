@@ -14,6 +14,7 @@
 #include "Util.h"
 #include <filesystem>
 #include <regex>
+#include <selinux/selinux.h>
 #include <sstream>
 #include <unistd.h>
 
@@ -96,9 +97,19 @@ void Overlay::sync(string base, string snapshot) {
     previousOvl.setMountOptionsForMount(previousEtc);
     previousEtc->removeOption("upperdir");
 
+    string syncSource = string(previousOvl.upperdir.parent_path() / "sync" / "etc") + "/";
+    string rsyncExtraArgs;
     previousEtc->mount(previousOvl.upperdir.parent_path() / "sync");
     tulog.info("Syncing /etc of previous snapshot ", previousSnapId, " as base into new snapshot ", snapshot);
-    Util::exec("rsync --quiet --archive --inplace --xattrs --exclude='/fstab' --filter='-x security.selinux' --acls --delete " + string(previousOvl.upperdir.parent_path() / "sync" / "etc") + "/ " + snapshot + "/etc");
+    if (is_selinux_enabled()) {
+        // Ignore the SELinux attributes when synchronizing pre-SELinux files,
+        // rsync will fail otherwise
+        char* context;
+        if (getfilecon(syncSource.c_str(), &context) > 0 && strcmp(context, "unlabeled_t") != 0) {
+            rsyncExtraArgs = "--filter=-x security.selinux";
+        }
+    }
+    Util::exec("rsync --quiet --archive --inplace --xattrs --exclude='/fstab' " + rsyncExtraArgs + " --acls --delete " + syncSource + " " + snapshot + "/etc");
 }
 
 void Overlay::setMountOptions(unique_ptr<Mount>& mount) {
