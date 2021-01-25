@@ -79,6 +79,7 @@ void Transaction::impl::mount(std::string base) {
     Mount mntVar{"/var"};
     if (mntVar.isMount()) {
         dirsToMount.push_back(std::make_unique<BindMount>("/var/cache"));
+        dirsToMount.push_back(std::make_unique<BindMount>("/var/lib/zypp"));
         dirsToMount.push_back(std::make_unique<BindMount>("/var/lib/ca-certificates"));
         if (fs::is_directory("/var/lib/alternatives"))
             dirsToMount.push_back(std::make_unique<BindMount>("/var/lib/alternatives"));
@@ -134,9 +135,6 @@ void Transaction::impl::addSupplements() {
     Mount mntVar{"/var"};
     if (mntVar.isMount()) {
         supplements.addDir(fs::path{"/var/tmp"});
-        supplements.addFile(fs::path{"/var/lib/zypp/RequestedLocales"}); // locale specific packages with zypper
-        supplements.addFile(fs::path{"/var/lib/zypp/AnonymousUniqueId"});
-        supplements.addFile(fs::path{"/var/lib/zypp/LastDistributionFlavor"});
         supplements.addLink(fs::path{"/run"}, fs::path{"/var/run"});
     }
     supplements.addLink(fs::path{"/usr/lib/sysimage/rpm"}, fs::path{"/var/lib/rpm"});
