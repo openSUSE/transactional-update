@@ -649,6 +649,31 @@ if [ -z "${TA_UPDATE_TMPFILE}" ]; then
     self_update "${ORIG_ARGS[@]}"
 else # Set exit handler to clean up artifacts of the self-update
     trap 'rm -f "$LOCKFILE" && rm -rf "${TA_UPDATE_TMPFILE}" && unset TA_UPDATE_TMPFILE' EXIT
+    pushd "${TA_UPDATE_TMPFILE}" >/dev/null
+    zypper --non-interactive --pkg-cache-dir "${TA_UPDATE_TMPFILE}" download libtukit0
+    find . -name transactional-update*.rpm -exec rpm2cpio {} \; | cpio -idmv 2>/dev/null
+    if [ $? -ne 0 ]; then
+	log_error "ERROR: Couldn't extract the tukit."
+	quit 1
+    fi
+    find . -name libtukit0*.rpm -exec rpm2cpio {} \; | cpio -idmv 2>/dev/null
+    if [ $? -ne 0 ]; then
+	log_error "ERROR: Couldn't extract the libtukit0."
+	quit 1
+    fi
+    popd >/dev/null
+    export LD_LIBRARY_PATH="${TA_UPDATE_TMPFILE}/usr/lib64:${TA_UPDATE_TMPFILE}/usr/lib"
+    if "${TA_UPDATE_TMPFILE}"/usr/sbin/tukit --version >/dev/null; then
+	# tukit is executable - use new version
+	export PATH="${TA_UPDATE_TMPFILE}/usr/sbin:${PATH}"
+    elif [ -f /usr/sbin/tukit ]; then
+	log_info "WARNING: New tukit version cannot be executed - using the old one."
+	unset LD_LIBRARY_PATH
+    else
+	log_info "WARNING: tukit cannot be executed - falling back to old transactional-update version."
+	unset LD_LIBRARY_PATH
+	exec transactional-update --no-selfupdate "${ORIG_ARGS[@]}"
+    fi
 fi
 
 # Clean up in case the application is interrupted
