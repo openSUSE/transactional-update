@@ -39,9 +39,16 @@ Overlay::Overlay(string snapshot):
 {
     fs::create_directories(fs::path{workdir});
 
-    // Read lowerdirs if this is an existing snapshot
+    // Read lowerdirs
+    // Always use the root file system for reading fstab, as the first snapshot overlay doesn't
+    // contain an fstab in the /etc overlay yet.
+    // Note: Due to this for new overlays (i.e. when "create" will be called later) the lowerdirs
+    // will be initialized with outdated data of the base snapshot - it will be initalized
+    // correctly during "create".
+    unique_ptr<Snapshot> snap = SnapshotFactory::get();
+    snap->open(snapshot);
     Mount mntEtc{"/etc"};
-    mntEtc.setTabSource(upperdir / "fstab");
+    mntEtc.setTabSource(snap->getRoot() / "etc" / "fstab");
     try {
         const string fstabLowerdirs = mntEtc.getOption("lowerdir");
         string lowerdir;
@@ -98,6 +105,7 @@ void Overlay::sync(string base, string snapshot) {
     previousOvl.lowerdirs.insert(previousOvl.lowerdirs.begin(), previousOvl.upperdir);
     previousOvl.setMountOptionsForMount(previousEtc);
     previousEtc->removeOption("upperdir");
+    previousEtc->removeOption("workdir");
 
     string syncSource = string(previousOvl.upperdir.parent_path() / "sync" / "etc") + "/";
     string rsyncExtraArgs;
@@ -170,6 +178,7 @@ void Overlay::create(string base, string snapshot) {
     fs::create_directories(upperdir);
 
     // Assemble the new lowerdirs
+    lowerdirs.clear();
     lowerdirs.push_back(parent.upperdir);
 
     Mount currentEtc{"/etc"};
