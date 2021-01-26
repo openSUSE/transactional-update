@@ -230,6 +230,7 @@ void Transaction::finalize() {
 
     pImpl->snapshot->close();
     pImpl->supplements.cleanup();
+    pImpl->dirsToMount.clear();
 
     std::unique_ptr<Snapshot> defaultSnap = SnapshotFactory::get();
     defaultSnap->open(pImpl->snapshot->getDefault());
