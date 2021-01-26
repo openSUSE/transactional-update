@@ -1071,7 +1071,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	searchdirs+="${SNAPSHOT_DIR}${mountdir} "
     done
     if [ -n "${searchdirs}" ]; then
-	filelist="$(find ${searchdirs} -cnewer ${LOCKFILE} -not -type d 2>/dev/null)"
+	filelist="$(find ${searchdirs} -cnewer ${LOCKFILE} -not -type d 2>/dev/null | grep -v "${SNAPSHOT_DIR}/etc")"
 	# Filter acceptable hits
 	whitelist=""
 	for wlentry in "${NON_ROOTFS_WHITELIST[@]}"; do
