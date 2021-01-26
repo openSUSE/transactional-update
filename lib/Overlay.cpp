@@ -83,8 +83,10 @@ bool Overlay::references(string snapshot) {
 void Overlay::sync(string base, string snapshot) {
     Overlay baseOverlay = Overlay{base};
     auto previousSnapId = baseOverlay.getPreviousSnapshotOvlId();
-    if (previousSnapId.empty())
+    if (previousSnapId.empty()) {
+        tulog.info("No previous snapshot to sync with - skipping");
         return;
+    }
 
     unique_ptr<Snapshot> previousSnapshot = SnapshotFactory::get();
     previousSnapshot->open(previousSnapId);
