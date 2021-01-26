@@ -973,25 +973,30 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	fi
     fi
 
+    if [ -d /var/lib/overlay/${SNAPSHOT_ID} ]; then
+	ETC_BASE="/var/lib/overlay/${SNAPSHOT_ID}"
+    else
+	ETC_BASE="${SNAPSHOT_DIR}"
+    fi
     if [ ${SETUP_SELINUX} -eq 1 ]; then
 	# Adjust grub configuration
 
 	# Check if we don't have selinux already enabled.
 	grep ^GRUB_CMDLINE_LINUX_DEFAULT /etc/default/grub | grep -q security=selinux || \
-	    sed -i -e 's|\(^GRUB_CMDLINE_LINUX_DEFAULT=.*\)"|\1 security=selinux selinux=1"|g' "${MOUNT_DIR}/etc/default/grub"
+	    tukit call "${SNAPSHOT_ID}" sed -i -e 's|\(^GRUB_CMDLINE_LINUX_DEFAULT=.*\)"|\1 security=selinux selinux=1"|g' "/etc/default/grub"
 	REWRITE_GRUB_CFG=1
 
-	if [ ! -e "${MOUNT_DIR}/etc/selinux/config" ]; then
+	if tukit call "${SNAPSHOT_ID}" [ ! -e "/etc/selinux/config" ]; then
 	    log_error "ERROR: /etc/selinux/config does not exist!"
 	    EXITCODE=1
 	fi
 	# Adjust selinux config
-	sed -i -e 's|^SELINUX=.*|SELINUX=enforcing|g' \
+	tukit call "${SNAPSHOT_ID}" sed -i -e 's|^SELINUX=.*|SELINUX=enforcing|g' \
 	    -e 's|^SELINUXTYPE=.*|SELINUXTYPE=targeted|g' \
-	    "${MOUNT_DIR}/etc/selinux/config"
+	    "/etc/selinux/config"
 
 	# Move an /.autorelabel file from initial installation to writeable location
-	test -f ${MOUNT_DIR}/.autorelabel && mv ${MOUNT_DIR}/.autorelabel ${MOUNT_DIR}/etc/selinux/.autorelabel
+	test -f ${SNAPSHOT_DIR}/.autorelabel && mv ${SNAPSHOT_DIR}/.autorelabel ${ETC_BASE}/etc/selinux/.autorelabel
     fi
 
     if [ ${REWRITE_INITRD} -eq 1 ]; then
@@ -1018,7 +1023,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	    EXITCODE=1;
         else
             if [ -x /usr/sbin/selinuxenabled ] && /usr/sbin/selinuxenabled ; then
-                chcon --reference /boot/grub2/grub.cfg "${MOUNT_DIR}/boot/grub2/grub.cfg"
+                chcon --reference /boot/grub2/grub.cfg "${SNAPSHOT_DIR}/boot/grub2/grub.cfg"
             fi
 	fi
     fi
@@ -1043,7 +1048,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
     fi
 
     if [ -x /usr/sbin/selinuxenabled ] && /usr/sbin/selinuxenabled ; then
-        chcon --reference /etc/fstab "${MOUNT_DIR}/etc/fstab"
+        chcon --reference /etc/fstab "${ETC_BASE}/etc/fstab"
     fi
 
     teardown
