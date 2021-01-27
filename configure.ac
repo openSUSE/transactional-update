@@ -4,7 +4,7 @@ LIBTOOL_CURRENT=0 # Increase on any interface change and reset revision
 LIBTOOL_REVISION=0 # Increase or reset on any VERSION update
 LIBTOOL_AGE=0 # Increase if interface change is backwards compatible, reset otherwise
 AC_CANONICAL_SYSTEM
-AM_INIT_AUTOMAKE
+AM_INIT_AUTOMAKE([foreign])
 AC_CONFIG_FILES([tukit.pc])
 AC_PREFIX_DEFAULT(/usr)
 
