@@ -2,6 +2,21 @@ transactional-update NEWS -- history of user-visible changes.
 
 Copyright (C) 2016-2020 Thorsten Kukuk, Ignaz Forster et al.
 
+Version 3.0.0
+* This release changes the internal structure, but should be identical to the
+  previous release feature wise.
+* Major parts of the previous Bash only application have been rewritten in C++
+  with the goal to provide an API around transactions; the transactional-update
+  script is using that new interface internally already, however the API should
+  be considered experimental for now - if you are interested to use it, please
+  notify us in https://github.com/openSUSE/transactional-update/issues/52
+* A new tool called "tukit" is providing a Shell wrapper for above
+  functionality. Please also consider it experimental for now, the commands may
+  still change.
+* Bugfixes:
+  * Implement support for system offline update [boo#1180808]
+  * Add statistics files to update environment [boo#1173282]
+
 Version 2.28.3
 * SELinux: Make synchronisation work for both pre-SELinux snapshots and later
   snapshots; SELinux support should be ready for most tasks now.
