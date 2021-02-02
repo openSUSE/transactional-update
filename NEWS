@@ -2,6 +2,12 @@ transactional-update NEWS -- history of user-visible changes.
 
 Copyright (C) 2016-2020 Thorsten Kukuk, Ignaz Forster et al.
 
+Version 3.1.0
+* t-u: Support installing RPMs from the user's directory again
+* Adapt selfupdate to new packaging
+* Implement signal handling
+* Remove empty text files
+
 Version 3.0.0
 * This release changes the internal structure, but should be identical to the
   previous release feature wise.
