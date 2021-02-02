@@ -95,6 +95,15 @@ public:
     void keep();
 
     /**
+     * @brief Sends a signal to the executed process
+     * @param int Signal number
+     *
+     * If a transaction is currently running, then the given signal will be sent to the
+     * transaction's process (i.e. the command called by execute()) if started already.
+     */
+    void sendSignal(int signal);
+
+    /**
      * @brief Check whether a snapshot has been initialized already
      * @return
      *

@@ -17,6 +17,7 @@
 #include <cerrno>
 #include <cstdlib>
 #include <cstring>
+#include <signal.h>
 #include <sys/wait.h>
 #include <unistd.h>
 #include <utime.h>
@@ -31,6 +32,7 @@ public:
     std::string bindDir;
     std::vector<std::unique_ptr<Mount>> dirsToMount;
     Supplements supplements;
+    pid_t pid;
 };
 
 Transaction::Transaction() : pImpl{std::make_unique<impl>()} {
@@ -53,7 +55,7 @@ Transaction::~Transaction() {
         }
     }
     try {
-        if (isInitialized())
+        if (isInitialized() && !getSnapshot().empty())
             pImpl->snapshot->abort();
     }  catch (const std::exception &e) {
         tulog.error("ERROR: ", e.what());
@@ -211,7 +213,9 @@ int Transaction::execute(char* argv[]) {
         }
     } else {
         int ret;
+        this->pImpl->pid = pid;
         ret = waitpid(pid, &status, 0);
+        this->pImpl->pid = 0;
         if (tulog.level > TULogLevel::ERROR)
             std::cout << "◿" << std::endl;
         if (ret < 0) {
@@ -221,6 +225,14 @@ int Transaction::execute(char* argv[]) {
         }
     }
     return WEXITSTATUS(status);
+}
+
+void Transaction::sendSignal(int signal) {
+    if (pImpl->pid != 0) {
+        if (kill(pImpl->pid, signal) < 0) {
+            throw std::runtime_error{"Could not send signal " + std::to_string(signal) + " to process " + std::to_string(pImpl->pid) + ": " + std::string(strerror(errno))};
+        }
+    }
 }
 
 void Transaction::finalize() {

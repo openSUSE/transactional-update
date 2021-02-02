@@ -12,11 +12,14 @@
 #include <fcntl.h>
 #include <getopt.h>
 #include <unistd.h>
+#include <csignal>
 #include <cstring>
 #include <iostream>
 
 using namespace std;
 using TransactionalUpdate::config;
+
+TransactionalUpdate::Transaction transaction{};
 
 void TUKit::displayHelp() {
     cout << "Syntax: tukit [option...] command\n";
@@ -93,7 +96,6 @@ int TUKit::parseOptions(int argc, char *argv[]) {
 int TUKit::processCommand(char *argv[]) {
         string arg = argv[0];
         if (arg == "execute") {
-            TransactionalUpdate::Transaction transaction{};
             transaction.init(baseSnapshot);
             int status = transaction.execute(&argv[1]); // All remaining arguments
             if (status == 0) {
@@ -104,7 +106,6 @@ int TUKit::processCommand(char *argv[]) {
             return 0;
         }
         else if (arg == "open") {
-            TransactionalUpdate::Transaction transaction{};
             transaction.init(baseSnapshot);
             cout << "ID: " << transaction.getSnapshot() << endl;
             transaction.keep();
@@ -115,20 +116,17 @@ int TUKit::processCommand(char *argv[]) {
                 displayHelp();
                 throw invalid_argument{"Missing argument for 'call'"};
             }
-            TransactionalUpdate::Transaction transaction{};
             transaction.resume(argv[1]);
             int status = transaction.execute(&argv[2]); // All remaining arguments
             transaction.keep();
             return status;
         }
         else if (arg == "close") {
-            TransactionalUpdate::Transaction transaction{};
             transaction.resume(argv[1]);
             transaction.finalize();
             return 0;
         }
         else if (arg == "abort") {
-            TransactionalUpdate::Transaction transaction{};
             transaction.resume(argv[1]);
             return 0;
         }
@@ -159,7 +157,17 @@ private:
     int lockfile;
 };
 
+void interrupt(int signal) {
+    tulog.info("tukit: Received request to terminate...");
+    transaction.sendSignal(signal);
+}
+
 TUKit::TUKit(int argc, char *argv[]) {
+    signal(SIGINT, interrupt);
+    signal(SIGHUP, interrupt);
+    signal(SIGQUIT, interrupt);
+    signal(SIGTERM, interrupt);
+
     tulog.level = TULogLevel::INFO;
 
     int ret = parseOptions(argc, argv);

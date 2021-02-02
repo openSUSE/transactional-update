@@ -258,14 +258,6 @@ quit() {
 	sleep 0.5
     done
 
-    # Wait for things to settle down
-    for delay in {1..10}; do
-	if [ -z "${SNAPSHOT_DIR}" -o -z "`lsof "${SNAPSHOT_DIR}" 2>/dev/null`" ]; then
-	    break
-	fi
-	sleep $delay
-    done
-
     if [ -n "${SNAPSHOT_ID}" ] ; then
 	log_error "Removing snapshot #${SNAPSHOT_ID}..."
 	tukit abort ${SNAPSHOT_ID} |& tee -a ${LOGFILE}
