@@ -61,7 +61,7 @@ int TUKit::parseOptions(int argc, char *argv[]) {
         { 0, 0, 0, 0 }
     };
 
-    char c;
+    int c;
     int lopt_idx;
 
     while ((c = getopt_long(argc, argv, optstring, longopts, &lopt_idx)) != -1) {
