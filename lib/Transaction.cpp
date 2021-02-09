@@ -175,14 +175,15 @@ void Transaction::init(std::string base = "active") {
 
 void Transaction::resume(std::string id) {
     pImpl->snapshot->open(id);
+    if (! pImpl->snapshot->isInProgress()) {
+        pImpl->snapshot.reset();
+        throw std::invalid_argument{"Snapshot " + id + " is not an open transaction."};
+    }
     pImpl->mount();
     pImpl->addSupplements();
 }
 
 int Transaction::execute(char* argv[]) {
-    if (! pImpl->snapshot->isInProgress())
-        throw std::invalid_argument{"Snapshot " + pImpl->snapshot->getUid() + " is not an open transaction."};
-
     std::string opts = "Executing `";
     int i = 0;
     while (argv[i]) {
