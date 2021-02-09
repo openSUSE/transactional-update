@@ -85,9 +85,14 @@ void Snapper::setReadOnly(bool readonly) {
 }
 
 std::string Snapper::callSnapper(std::string opts) {
-    try {
-        return Util::exec("snapper " + opts);
-    } catch (const ExecutionException &e) {
+    if (snapperNoDbus == false) {
+        try {
+            return Util::exec("snapper " + opts);
+        } catch (const ExecutionException &e) {
+            snapperNoDbus = true;
+        }
+    }
+    if (snapperNoDbus == true) {
         return Util::exec("snapper --no-dbus " + opts);
     }
 }

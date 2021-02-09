@@ -33,6 +33,7 @@ public:
 
 private:
     std::string callSnapper(std::string);
+    bool snapperNoDbus = false;
 };
 
 } // namespace TransactionalUpdate
