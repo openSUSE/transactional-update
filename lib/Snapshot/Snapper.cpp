@@ -9,6 +9,7 @@
 #include "Exceptions.hpp"
 #include "Log.hpp"
 #include "Util.hpp"
+#include <regex>
 
 namespace TransactionalUpdate {
 
@@ -40,23 +41,27 @@ std::string Snapper::getUid() {
 }
 
 std::string Snapper::getCurrent() {
-    std::string id = callSnapper("--csvout list --columns active,number | grep yes | cut -f 2 -d ,");
-    Util::rtrim(id);
-    return id;
+    std::string id = callSnapper("--csvout list --columns active,number");
+    std::smatch match;
+    bool found = std::regex_search(id, match, std::regex("yes,([0-9]+)"));
+    if (!found)
+        throw std::runtime_error{"Couldn't determine current snapshot number"};
+    return match[1].str();
 }
 
 std::string Snapper::getDefault() {
-    std::string id = callSnapper("--csvout list --columns default,number | grep yes | cut -f 2 -d ,");
-    Util::rtrim(id);
-    return id;
+    std::string id = callSnapper("--csvout list --columns default,number");
+    std::smatch match;
+    bool found = std::regex_search(id, match, std::regex("yes,([0-9]+)"));
+    if (!found)
+        throw std::runtime_error{"Couldn't determine default snapshot number"};
+    return match[1].str();
 }
 
 bool Snapper::isInProgress() {
-    std::string desc = callSnapper("--csvout list --columns number,userdata | grep '^" + snapshotId + ",'");
-    if (desc.find("transactional-update-in-progress=yes") == std::string::npos)
-        return false;
-    else
-        return true;
+    std::string desc = callSnapper("--csvout list --columns number,userdata");
+    std::smatch match;
+    return std::regex_search(desc, match, std::regex("(^|\n)" + snapshotId + ",.*transactional-update-in-progress=yes"));
 }
 
 bool Snapper::isReadOnly() {
