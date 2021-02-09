@@ -2,6 +2,12 @@ transactional-update NEWS -- history of user-visible changes.
 
 Copyright (C) 2016-2020 Thorsten Kukuk, Ignaz Forster et al.
 
+Version 3.1.1
+* Fix hang in tukit on aarch64 [bsc#1181844]
+* Prevent deletion of snapshots when resuming a snapshot where no transaction
+  is open
+* Make tukit work in non-dbus environments [boo#1181934]
+
 Version 3.1.0
 * t-u: Support installing RPMs from the user's directory again
 * Adapt selfupdate to new packaging
