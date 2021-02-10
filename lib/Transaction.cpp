@@ -27,7 +27,7 @@ namespace fs = std::filesystem;
 class Transaction::impl {
 public:
     void addSupplements();
-    void mount(std::string base = "");
+    void mount();
     std::unique_ptr<Snapshot> snapshot;
     std::string bindDir;
     std::vector<std::unique_ptr<Mount>> dirsToMount;
@@ -74,7 +74,7 @@ fs::path Transaction::getRoot() {
     return pImpl->snapshot->getRoot();
 }
 
-void Transaction::impl::mount(std::string base) {
+void Transaction::impl::mount() {
     dirsToMount.push_back(std::make_unique<PropagatedBindMount>("/dev"));
     dirsToMount.push_back(std::make_unique<BindMount>("/var/log"));
 
@@ -169,7 +169,7 @@ void Transaction::init(std::string base = "active") {
         fs::copy(fs::path{pImpl->snapshot->getRoot() / "etc" / "fstab"}, overlay.upperdir, fs::copy_options::overwrite_existing);
     }
 
-    pImpl->mount(base);
+    pImpl->mount();
     pImpl->addSupplements();
 }
 
@@ -200,7 +200,9 @@ int Transaction::execute(char* argv[]) {
     if (pid < 0) {
         throw std::runtime_error{"fork() failed: " + std::string(strerror(errno))};
     } else if (pid == 0) {
-        chdir(pImpl->bindDir.c_str());
+        if (chdir(pImpl->bindDir.c_str()) < 0) {
+            tulog.info("Warning: Couldn't set working directory: ", std::string(strerror(errno)));
+        }
         if (chroot(pImpl->bindDir.c_str()) < 0) {
             throw std::runtime_error{"Chrooting to " + pImpl->bindDir + " failed: " + std::string(strerror(errno))};
         }

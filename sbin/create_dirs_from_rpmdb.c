@@ -179,7 +179,7 @@ check_package (rpmts ts, Header h)
 	  const char *prefixes[] = {"/var/", "/srv/"};
 	  const char *fn = rpmfiFN(fi);
 	  rpmfileAttrs fflags = rpmfiFFlags(fi);
-	  int i;
+	  size_t i;
 
 	  for (i = 0; i < sizeof (prefixes)/sizeof(char *); i++)
 	    {
@@ -245,7 +245,8 @@ check_package (rpmts ts, Header h)
 int
 create_dirs (struct node *node, size_t size)
 {
-  int rc = 0, i;
+  int rc = 0;
+  size_t i;
 
   for(i = 0; i < size; ++i, ++node)
     {
@@ -283,7 +284,8 @@ create_dirs (struct node *node, size_t size)
 int
 rpmCookieUnchanged (const char *rpmdb_cookie)
 {
-  int unchanged = 0, size = 0;
+  int unchanged = 0;
+  size_t size = 0;
   char *oldcookie = NULL;
   FILE *cookiefile = fopen("/var/lib/create-dirs-from-rpmdb/cookie", "rb");
 
