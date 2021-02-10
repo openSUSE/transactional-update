@@ -95,6 +95,7 @@ std::string Snapper::callSnapper(std::string opts) {
     if (snapperNoDbus == true) {
         return Util::exec("snapper --no-dbus " + opts);
     }
+    return "false ";
 }
 
 } // namespace TransactionalUpdate
