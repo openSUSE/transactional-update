@@ -2,6 +2,15 @@ transactional-update NEWS -- history of user-visible changes.
 
 Copyright (C) 2016-2020 Thorsten Kukuk, Ignaz Forster et al.
 
+Version 3.1.2
+* libtukit: Report when application was terminated due to a signal, and
+  return the signal number as a return value. This will cause the
+  transaction to be aborted when called via `execute`.
+* libtukit: Set PATH variable for internal commands to fixed value to
+  find the helper applications, as in some environments such as PolicyKit
+  PATH wouldn't be set.
+* Fix compiler warnings
+
 Version 3.1.1
 * Fix hang in tukit on aarch64 [bsc#1181844]
 * Prevent deletion of snapshots when resuming a snapshot where no transaction
