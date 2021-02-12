@@ -196,6 +196,7 @@ int Transaction::execute(char* argv[]) {
     tulog.info(opts);
 
     int status = 1;
+    int ret;
     pid_t pid = fork();
     if (pid < 0) {
         throw std::runtime_error{"fork() failed: " + std::string(strerror(errno))};
@@ -215,7 +216,6 @@ int Transaction::execute(char* argv[]) {
             throw std::runtime_error{"Calling " + std::string(argv[0]) + " failed: " + std::string(strerror(errno))};
         }
     } else {
-        int ret;
         this->pImpl->pid = pid;
         ret = waitpid(pid, &status, 0);
         this->pImpl->pid = 0;
@@ -224,10 +224,17 @@ int Transaction::execute(char* argv[]) {
         if (ret < 0) {
             throw std::runtime_error{"waitpid() failed: " + std::string(strerror(errno))};
         } else {
-            tulog.info("Application returned with exit status ", WEXITSTATUS(status), ".");
+            if (WIFEXITED(status)) {
+                ret = WEXITSTATUS(status);
+                tulog.info("Application returned with exit status ", ret, ".");
+            }
+            if (WIFSIGNALED(status)) {
+                ret = WTERMSIG(status);
+                tulog.info("Application was terminated by signal ", ret, ".");
+            }
         }
     }
-    return WEXITSTATUS(status);
+    return ret;
 }
 
 void Transaction::sendSignal(int signal) {
