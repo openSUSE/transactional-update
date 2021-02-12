@@ -20,7 +20,10 @@ string Util::exec(const string cmd) {
 
     tulog.debug("Executing `", cmd, "`:");
 
-    auto pipe = popen(cmd.c_str(), "r");
+    // Ensure there is a sane path set
+    const string cmd_pathenv = "PATH='/usr/bin:/usr/sbin:/bin:/sbin' " + cmd;
+
+    auto pipe = popen(cmd_pathenv.c_str(), "r");
 
     if (!pipe)
         throw runtime_error{"popen() failed!"};
