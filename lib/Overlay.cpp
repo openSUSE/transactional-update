@@ -116,7 +116,7 @@ void Overlay::sync(string base, string snapshot) {
         // rsync will fail otherwise
         char* context;
         if (getfilecon(syncSource.c_str(), &context) > 0 && strcmp(context, "unlabeled_t") != 0) {
-            rsyncExtraArgs = "--filter=-x security.selinux";
+            rsyncExtraArgs = "--filter='-x security.selinux'";
         }
     }
     Util::exec("rsync --quiet --archive --inplace --xattrs --exclude='/fstab' " + rsyncExtraArgs + " --acls --delete " + syncSource + " " + snapshot + "/etc");
