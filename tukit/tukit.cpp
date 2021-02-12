@@ -19,7 +19,7 @@
 using namespace std;
 using TransactionalUpdate::config;
 
-TransactionalUpdate::Transaction transaction{};
+bool cancel;
 
 void TUKit::displayHelp() {
     cout << "Syntax: tukit [option...] command\n";
@@ -94,46 +94,48 @@ int TUKit::parseOptions(int argc, char *argv[]) {
 }
 
 int TUKit::processCommand(char *argv[]) {
-        string arg = argv[0];
-        if (arg == "execute") {
-            transaction.init(baseSnapshot);
-            int status = transaction.execute(&argv[1]); // All remaining arguments
-            if (status == 0) {
-                transaction.finalize();
-            } else {
-                throw runtime_error{"Application returned with exit status " + to_string(status)};
-            }
-            return 0;
-        }
-        else if (arg == "open") {
-            transaction.init(baseSnapshot);
-            cout << "ID: " << transaction.getSnapshot() << endl;
-            transaction.keep();
-            return 0;
-        }
-        else if (arg == "call") {
-            if (argv[1] == nullptr) {
-                displayHelp();
-                throw invalid_argument{"Missing argument for 'call'"};
-            }
-            transaction.resume(argv[1]);
-            int status = transaction.execute(&argv[2]); // All remaining arguments
-            transaction.keep();
-            return status;
-        }
-        else if (arg == "close") {
-            transaction.resume(argv[1]);
+    TransactionalUpdate::Transaction transaction{};
+
+    string arg = argv[0];
+    if (arg == "execute") {
+        transaction.init(baseSnapshot);
+        int status = transaction.execute(&argv[1]); // All remaining arguments
+        if (status == 0) {
             transaction.finalize();
-            return 0;
+        } else {
+            throw runtime_error{"Application returned with exit status " + to_string(status)};
         }
-        else if (arg == "abort") {
-            transaction.resume(argv[1]);
-            return 0;
-        }
-        else {
+        return 0;
+    }
+    else if (arg == "open") {
+        transaction.init(baseSnapshot);
+        cout << "ID: " << transaction.getSnapshot() << endl;
+        transaction.keep();
+        return 0;
+    }
+    else if (arg == "call") {
+        if (argv[1] == nullptr) {
             displayHelp();
-            throw invalid_argument{"Unknown command or option '" + arg + "'."};
+            throw invalid_argument{"Missing argument for 'call'"};
         }
+        transaction.resume(argv[1]);
+        int status = transaction.execute(&argv[2]); // All remaining arguments
+        transaction.keep();
+        return status;
+    }
+    else if (arg == "close") {
+        transaction.resume(argv[1]);
+        transaction.finalize();
+        return 0;
+    }
+    else if (arg == "abort") {
+        transaction.resume(argv[1]);
+        return 0;
+    }
+    else {
+        displayHelp();
+        throw invalid_argument{"Unknown command or option '" + arg + "'."};
+    }
 }
 
 class Lock {
@@ -158,8 +160,10 @@ private:
 };
 
 void interrupt(int signal) {
-    tulog.info("tukit: Received request to terminate...");
-    transaction.sendSignal(signal);
+    //Nothing to do here - the child has been signalled already as it's part of the same
+    // progress group. Maybe it may be worth killing the process when receiving multiple
+    // interrupts?
+    tulog.debug("tukit: Received signal ", signal);
 }
 
 TUKit::TUKit(int argc, char *argv[]) {
