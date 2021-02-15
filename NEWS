@@ -2,6 +2,10 @@ transactional-update NEWS -- history of user-visible changes.
 
 Copyright (C) 2016-2020 Thorsten Kukuk, Ignaz Forster et al.
 
+Version 3.1.3
+* Fix overlay syncing on SELinux systems
+* Fix resuming transactions where the parent does not exist any more
+
 Version 3.1.2
 * libtukit: Report when application was terminated due to a signal, and
   return the signal number as a return value. This will cause the
