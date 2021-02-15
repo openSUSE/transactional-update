@@ -96,7 +96,12 @@ void Overlay::sync(string base, string snapshot) {
     }
 
     unique_ptr<Snapshot> previousSnapshot = SnapshotFactory::get();
-    previousSnapshot->open(previousSnapId);
+    try {
+        previousSnapshot->open(previousSnapId);
+    } catch (std::invalid_argument &e) {
+        tulog.info("Parent snapshot ", previousSnapId, " does not exist any more - skipping rsync");
+        return;
+    }
     unique_ptr<Mount> previousEtc{new Mount("/etc")};
     previousEtc->setTabSource(previousSnapshot->getRoot() / "etc" / "fstab");
 
