@@ -150,7 +150,7 @@ void Transaction::impl::addSupplements() {
     supplements.addDir(fs::path{"/var/spool"});
 }
 
-void Transaction::init(std::string base = "active") {
+void Transaction::init(std::string base) {
     if (base == "active")
         base = pImpl->snapshot->getCurrent();
     else if (base == "default")

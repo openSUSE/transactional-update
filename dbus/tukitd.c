@@ -38,67 +38,49 @@ int exec(const char *cmd, char **output) {
     return rc;
 }
 
-static int method_open(sd_bus_message *m, void *userdata, sd_bus_error *ret_error) {
+static int method_open(sd_bus_message *m, [[maybe_unused]] void *userdata, sd_bus_error *ret_error) {
+    char *base;
     const char *snapid;
 
+    if (sd_bus_message_read(m, "s", &base) < 0) {
+        sd_bus_error_set_const(ret_error, "org.opensuse.tukit.error", "Could not read base snapshot identifier");
+        return -1;
+    }
     struct tukit_tx* tx = tukit_new_tx();
     if (tx == NULL) {
-        sd_bus_error_set_const(ret_error, "org.opensuse.tukit.error", "Creating the transaction failed.");
+        sd_bus_error_set_const(ret_error, "org.opensuse.tukit.error", tukit_get_errmsg());
         return -1;
     }
     tukit_set_loglevel(DEBUG);
-    if (tukit_tx_init(tx, "default") != 0) {
-        sd_bus_error_set_const(ret_error, "org.opensuse.tukit.error", "Initializing the transaction failed.");
+    if (tukit_tx_init(tx, base) != 0) {
+        sd_bus_error_set_const(ret_error, "org.opensuse.tukit.error", tukit_get_errmsg());
         return -1;
     }
     snapid = tukit_tx_get_snapshot(tx);
     if (snapid == NULL) {
-        sd_bus_error_set_const(ret_error, "org.opensuse.tukit.error", "Retrieving the Snapshot ID failed.");
+        sd_bus_error_set_const(ret_error, "org.opensuse.tukit.error", tukit_get_errmsg());
         return -1;
     }
-    tukit_tx_keep(tx);
+    if (tukit_tx_keep(tx) != 0) {
+        sd_bus_error_set_const(ret_error, "org.opensuse.tukit.error", tukit_get_errmsg());
+        return -1;
+    }
     tukit_free_tx(tx);
-    return sd_bus_reply_method_return(m, "s", snapid);
-}
-
-static int method_call(sd_bus_message *m, void *userdata, sd_bus_error *ret_error) {
-    char *output;
-    output = calloc(1, sizeof(char));
-    exec("ls", &output);
-    /* Reply with the response */
-    printf("Output: %s", output);
-    return sd_bus_reply_method_return(m, "s", output);
-    free(output);
-}
-
-static int method_divide(sd_bus_message *m, void *userdata, sd_bus_error *ret_error) {
-    int64_t x, y;
-    int ret;
-
-    /* Read the parameters */
-    ret = sd_bus_message_read(m, "xx", &x, &y);
-    if (ret < 0) {
-        fprintf(stderr, "Failed to parse parameters: %s\n", strerror(-ret));
-        return ret;
+    if (sd_bus_emit_signal(sd_bus_message_get_bus(m), "/org/opensuse/tukit", "org.opensuse.tukit", "TransactionOpened", "s", snapid) < 0) {
+        sd_bus_error_set_const(ret_error, "org.opensuse.tukit.error", "Sending signal 'TransactionOpened' failed.");
+        return -1;
     }
-
-    /* Return an error on division by zero */
-    if (y == 0) {
-        sd_bus_error_set_const(ret_error, "net.poettering.DivisionByZero", "Sorry, can't allow division by zero.");
-        return -EINVAL;
-    }
-
-    return sd_bus_reply_method_return(m, "x", x / y);
+    return sd_bus_reply_method_return(m, "");
 }
 
 static const sd_bus_vtable tukit_vtable[] = {
     SD_BUS_VTABLE_START(0),
-    SD_BUS_METHOD_WITH_ARGS("open", SD_BUS_NO_ARGS, SD_BUS_RESULT("s", ret), method_open, 0),
-    SD_BUS_METHOD_WITH_ARGS("call", SD_BUS_NO_ARGS, SD_BUS_RESULT("s", ret), method_call, 0),
+    SD_BUS_METHOD_WITH_ARGS("open", SD_BUS_ARGS("s", base), SD_BUS_NO_RESULT, method_open, 0),
+    SD_BUS_SIGNAL_WITH_ARGS("TransactionOpened", SD_BUS_ARGS("s", snapshot), 0),
     SD_BUS_VTABLE_END
 };
 
-int main(int argc, char *argv[]) {
+int main() {
     sd_bus_slot *slot = NULL;
     sd_bus *bus = NULL;
     sd_event *event = NULL;

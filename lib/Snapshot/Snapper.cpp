@@ -14,6 +14,8 @@
 namespace TransactionalUpdate {
 
 void Snapper::create(std::string base) {
+    if (! std::filesystem::exists("/.snapshots/" + base + "/snapshot"))
+        throw std::invalid_argument{"Base snapshot '" + base + "' does not exist."};
     snapshotId = callSnapper("create --from " + base + " --read-write --print-number --description 'Snapshot Update of #" + base + "' --userdata 'transactional-update-in-progress=yes'");
     Util::rtrim(snapshotId);
 }
