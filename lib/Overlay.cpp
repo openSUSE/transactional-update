@@ -120,7 +120,7 @@ void Overlay::sync(string base, string snapshot) {
         // Ignore the SELinux attributes when synchronizing pre-SELinux files,
         // rsync will fail otherwise
         char* context;
-        if (getfilecon(syncSource.c_str(), &context) > 0 && strcmp(context, "unlabeled_t") != 0) {
+        if (getfilecon(syncSource.c_str(), &context) > 0 && strcmp(context, "unlabeled_t") == 0) {
             rsyncExtraArgs = "--filter='-x security.selinux'";
         }
     }
