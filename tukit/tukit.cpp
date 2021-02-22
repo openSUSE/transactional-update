@@ -96,6 +96,9 @@ int TUKit::parseOptions(int argc, char *argv[]) {
 int TUKit::processCommand(char *argv[]) {
     TransactionalUpdate::Transaction transaction{};
 
+    if (argv[0] == nullptr) {
+        throw invalid_argument{"Missing command. See --help for usage information."};
+    }
     string arg = argv[0];
     if (arg == "execute") {
         transaction.init(baseSnapshot);
