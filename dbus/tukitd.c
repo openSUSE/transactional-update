@@ -1,9 +1,10 @@
 #include "Bindings/libtukit.h"
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <errno.h>
 #include <systemd/sd-bus.h>
 #include <systemd/sd-event.h>
+#include <wordexp.h>
 
 int exec(const char *cmd, char **output) {
     int rc;
@@ -43,7 +44,7 @@ static int method_open(sd_bus_message *m, [[maybe_unused]] void *userdata, sd_bu
     const char *snapid;
 
     if (sd_bus_message_read(m, "s", &base) < 0) {
-        sd_bus_error_set_const(ret_error, "org.opensuse.tukit.error", "Could not read base snapshot identifier");
+        sd_bus_error_set_const(ret_error, "org.opensuse.tukit.error", "Could not read base snapshot identifier.");
         return -1;
     }
     struct tukit_tx* tx = tukit_new_tx();
@@ -51,7 +52,6 @@ static int method_open(sd_bus_message *m, [[maybe_unused]] void *userdata, sd_bu
         sd_bus_error_set_const(ret_error, "org.opensuse.tukit.error", tukit_get_errmsg());
         return -1;
     }
-    tukit_set_loglevel(DEBUG);
     if (tukit_tx_init(tx, base) != 0) {
         sd_bus_error_set_const(ret_error, "org.opensuse.tukit.error", tukit_get_errmsg());
         return -1;
@@ -73,10 +73,54 @@ static int method_open(sd_bus_message *m, [[maybe_unused]] void *userdata, sd_bu
     return sd_bus_reply_method_return(m, "");
 }
 
+static int method_call(sd_bus_message *m, [[maybe_unused]] void *userdata, sd_bus_error *ret_error) {
+    char *transaction;
+    char *command;
+    int ret = 0;
+    int error = 0;
+
+    if (sd_bus_message_read(m, "ss", &transaction, &command) < 0) {
+        sd_bus_error_set_const(ret_error, "org.opensuse.tukit.error", "Could not read D-Bus parameters.");
+        return -1;
+    }
+    struct tukit_tx* tx = tukit_new_tx();
+    if (tx == NULL) {
+        sd_bus_error_set_const(ret_error, "org.opensuse.tukit.error", tukit_get_errmsg());
+        return -1;
+    }
+    if (tukit_tx_resume(tx, transaction) != 0) {
+        sd_bus_error_set_const(ret_error, "org.opensuse.tukit.error", tukit_get_errmsg());
+        error = -1; //!!!!!
+    }
+    wordexp_t p;
+    if (wordexp(command, &p, 0) != 0) {
+        sd_bus_error_set_const(ret_error, "org.opensuse.tukit.error", "Command could not be parsed.");
+        return -1;
+    }
+    ret = tukit_tx_execute(tx, p.we_wordv);
+    wordfree(&p);
+    if (ret != 0) {
+        sd_bus_error_set_const(ret_error, "org.opensuse.tukit.error", tukit_get_errmsg());
+        return -1;
+    }
+    if (tukit_tx_keep(tx) != 0) {
+        sd_bus_error_set_const(ret_error, "org.opensuse.tukit.error", tukit_get_errmsg());
+        return -1;
+    }
+    tukit_free_tx(tx);
+    if (sd_bus_emit_signal(sd_bus_message_get_bus(m), "/org/opensuse/tukit", "org.opensuse.tukit", "CommandExecuted", "s", transaction, "i", ret) < 0) {
+        sd_bus_error_set_const(ret_error, "org.opensuse.tukit.error", "Sending signal 'CommandExecuted' failed.");
+        return -1;
+    }
+    return sd_bus_reply_method_return(m, ""); //Muss nach vorne, um nicht zu blockieren
+}
+
 static const sd_bus_vtable tukit_vtable[] = {
     SD_BUS_VTABLE_START(0),
     SD_BUS_METHOD_WITH_ARGS("open", SD_BUS_ARGS("s", base), SD_BUS_NO_RESULT, method_open, 0),
+    SD_BUS_METHOD_WITH_ARGS("call", SD_BUS_ARGS("s", transaction, "s", command), SD_BUS_NO_RESULT, method_call, 0),
     SD_BUS_SIGNAL_WITH_ARGS("TransactionOpened", SD_BUS_ARGS("s", snapshot), 0),
+    SD_BUS_SIGNAL_WITH_ARGS("CommandExecuted", SD_BUS_ARGS("s", snapshot, "i", returncode), 0),
     SD_BUS_VTABLE_END
 };
 
