@@ -55,8 +55,10 @@ Transaction::~Transaction() {
         }
     }
     try {
-        if (isInitialized() && !getSnapshot().empty())
+        if (isInitialized() && !getSnapshot().empty() && fs::exists(getRoot())) {
+            tulog.info("Discarding snapshot ", pImpl->snapshot->getUid(), ".");
             pImpl->snapshot->abort();
+        }
     }  catch (const std::exception &e) {
         tulog.error("ERROR: ", e.what());
     }
