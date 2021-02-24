@@ -35,9 +35,14 @@ void TUKit::displayHelp() {
     cout << "open\n";
     cout << "\tCreates a new transaction and prints its unique ID\n";
     cout << "call <ID> <command>\n";
-    cout << "\tExecutes the given command, resuming the transaction with the given ID; returns\n";
-    cout << "\tthe exit status of the given command, but will not delete the snapshot in case\n";
-    cout << "\tof errors\n";
+    cout << "\tExecutes the given command from within the transaction's chroot environment,\n";
+    cout << "\tresuming the transaction with the given ID; returns the exit status of the\n";
+    cout << "\tgiven command, but will not delete the snapshot in case of errors\n";
+    cout << "callext <ID> <command>\n";
+    cout << "\tExecutes the given command. The command is not executed in a chroot\n";
+    cout << "\tenvironment, but instead runs in the current system, replacing '{}' with the\n";
+    cout << "\tmount directory of the given snapshot; returns the exit status of the given\n";
+    cout << "\tcommand, but will not delete the snapshot in case of errors\n";
     cout << "close <ID>\n";
     cout << "\tCloses the given transaction and sets the snapshot as the new default snapshot\n";
     cout << "abort <ID>\n";
@@ -123,6 +128,16 @@ int TUKit::processCommand(char *argv[]) {
         }
         transaction.resume(argv[1]);
         int status = transaction.execute(&argv[2]); // All remaining arguments
+        transaction.keep();
+        return status;
+    }
+    else if (arg == "callext") {
+        if (argv[1] == nullptr) {
+            displayHelp();
+            throw invalid_argument{"Missing argument for 'callext'"};
+        }
+        transaction.resume(argv[1]);
+        int status = transaction.callExt(&argv[2]); // All remaining arguments
         transaction.keep();
         return status;
     }

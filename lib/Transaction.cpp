@@ -28,6 +28,7 @@ class Transaction::impl {
 public:
     void addSupplements();
     void mount();
+    int runCommand(char* argv[], bool inChroot);
     std::unique_ptr<Snapshot> snapshot;
     std::string bindDir;
     std::vector<std::unique_ptr<Mount>> dirsToMount;
@@ -185,7 +186,7 @@ void Transaction::resume(std::string id) {
     pImpl->addSupplements();
 }
 
-int Transaction::execute(char* argv[]) {
+int Transaction::impl::runCommand(char* argv[], bool inChroot) {
     std::string opts = "Executing `";
     int i = 0;
     while (argv[i]) {
@@ -203,11 +204,13 @@ int Transaction::execute(char* argv[]) {
     if (pid < 0) {
         throw std::runtime_error{"fork() failed: " + std::string(strerror(errno))};
     } else if (pid == 0) {
-        if (chdir(pImpl->bindDir.c_str()) < 0) {
-            tulog.info("Warning: Couldn't set working directory: ", std::string(strerror(errno)));
-        }
-        if (chroot(pImpl->bindDir.c_str()) < 0) {
-            throw std::runtime_error{"Chrooting to " + pImpl->bindDir + " failed: " + std::string(strerror(errno))};
+        if (inChroot) {
+            if (chdir(bindDir.c_str()) < 0) {
+                tulog.info("Warning: Couldn't set working directory: ", std::string(strerror(errno)));
+            }
+            if (chroot(bindDir.c_str()) < 0) {
+                throw std::runtime_error{"Chrooting to " + bindDir + " failed: " + std::string(strerror(errno))};
+            }
         }
         // Set indicator for RPM pre/post sections to detect whether we run in a
         // transactional update
@@ -218,9 +221,9 @@ int Transaction::execute(char* argv[]) {
             throw std::runtime_error{"Calling " + std::string(argv[0]) + " failed: " + std::string(strerror(errno))};
         }
     } else {
-        this->pImpl->pid = pid;
+        this->pid = pid;
         ret = waitpid(pid, &status, 0);
-        this->pImpl->pid = 0;
+        this->pid = 0;
         if (tulog.level > TULogLevel::ERROR)
             std::cout << "◿" << std::endl;
         if (ret < 0) {
@@ -237,6 +240,20 @@ int Transaction::execute(char* argv[]) {
         }
     }
     return ret;
+}
+
+int Transaction::execute(char* argv[]) {
+    return this->pImpl->runCommand(argv, true);
+}
+
+int Transaction::callExt(char* argv[]) {
+    for (int i=0; argv[i] != nullptr; i++) {
+        if (strcmp(argv[i], "{}") == 0) {
+            char* bindDir = strdup(pImpl->bindDir.c_str());
+            argv[i] = bindDir;
+        }
+    }
+    return this->pImpl->runCommand(argv, false);
 }
 
 void Transaction::sendSignal(int signal) {

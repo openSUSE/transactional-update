@@ -64,14 +64,31 @@ public:
      * @param argv
      * @return application's return code
      *
-     * Execute any given command in the new snapshot. The application's output will not be
-     * modified and printed to the corresponding streams.
+     * Execute any given command within the new snapshot. The application's output will be
+     * printed to the corresponding streams.
      *
      * Note that @param is following the default C style syntax:
      * @example: char *args[] = {(char*)"ls", (char*)"-l", NULL};
                  int status = transaction.execute(args);
      */
     int execute(char* argv[]);
+
+    /**
+     * @brief Replace '{}' in argv with mount directory and execute command
+     * @param argv
+     * @return application's return code
+     *
+     * Replace any standalone occurrence of '{}' in argv with the snapshot's mount directory
+     * and execute the given command *outside* of the snapshot in the running system. This may
+     * be useful if the command needs access to the current environment, e.g. to copy a file
+     * from a directory not accessible from within the chroot environment.
+     * The application's output will be printed to the corresponding streams.
+     *
+     * Note that @param is following the default C style syntax:
+     * @example: char *args[] = {(char*)"zypper", (char*)"-R", (char*)"{}", (char*)"up", NULL};
+                 int status = transaction.execute(args);
+     */
+    int callExt(char* argv[]);
 
     /**
      * @brief Close a transaction and set it as the new default snapshot
