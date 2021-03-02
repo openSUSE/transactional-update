@@ -101,7 +101,6 @@ self_update() {
 	    log_error "ERROR: Couldn't create temporary directory for self-update."
 	    quit 1
 	fi
-	export TA_UPDATE_TMPFILE
 	pushd "${TA_UPDATE_TMPFILE}" >/dev/null
 	zypper --non-interactive --pkg-cache-dir "${TA_UPDATE_TMPFILE}" download transactional-update
 	find . -name transactional-update*.rpm -exec rpm2cpio {} \; | cpio -idmv 2>/dev/null
@@ -111,6 +110,12 @@ self_update() {
 	fi
 	# Reset CWD before restart
 	popd >/dev/null
+	if ! "${TA_UPDATE_TMPFILE}/usr/sbin/transactional-update" --version >/dev/null; then
+	    log_error "Cannot execute updated transactional-update - skipping"
+	    rm -rf "${TA_UPDATE_TMPFILE}"
+	    return
+	fi
+	export TA_UPDATE_TMPFILE
 	exec "${TA_UPDATE_TMPFILE}/usr/sbin/transactional-update" "$@"
     fi
 }
