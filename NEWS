@@ -2,6 +2,18 @@ transactional-update NEWS -- history of user-visible changes.
 
 Copyright (C) 2016-2020 Thorsten Kukuk, Ignaz Forster et al.
 
+Version 3.2.0
+* tukit: Add new command 'callext' to execute an application while the
+  snapshot is mounted. '{}' as a parameter will be replaced with the path
+  of the bind mount.
+* Fix --drop-if-no-change [boo#1182525]
+* Check whether self-updated version is executable (e.g. on noexec /tmp)
+  [bsc#1173842]
+* Fix overlay synchronisation with SELinux (again)
+* Always overwrite supplemental files (e.g. for network configuration)
+  even if they exist in the snapshot already [boo#1182544]
+* Improve logging and error messages
+
 Version 3.1.4
 * SELinux: Fix syncing of SELinux attributes when using overlays
 * SELinux: Tag the overlay directory itself (again)
