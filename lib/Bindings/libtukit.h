@@ -16,7 +16,7 @@ extern "C" {
 #endif
 
 typedef enum {
-    NONE=0, ERROR, INFO, DEBUG
+    None=0, Error, Info, Debug
 } loglevel;
 
 const char* tukit_get_errmsg();
