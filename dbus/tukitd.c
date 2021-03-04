@@ -6,39 +6,6 @@
 #include <systemd/sd-event.h>
 #include <wordexp.h>
 
-int exec(const char *cmd, char **output) {
-    int rc;
-
-    printf ("Executing `%s`.\n", cmd);
-
-    FILE* pipe = popen(cmd, "r");
-    if (!pipe) {
-        fprintf(stderr, "popen() failed!\n");
-        return -1;
-    }
-
-    // Does the caller want to see the output?
-    if (output != NULL) {
-        int buffincr = 1;
-        char buffer[BUFSIZ];
-        while (!feof(pipe)) {
-            if (fgets(buffer, BUFSIZ, pipe) != NULL) {
-                char* newmem = realloc(*output, buffincr * BUFSIZ);
-                if (newmem == NULL) {
-                    fprintf(stderr, "realloc() failed!\n");
-                    return -1;
-                }
-                *output = newmem;
-                *output = strcat(*output, buffer);
-                buffincr++;
-            }
-        }
-    }
-
-    rc = pclose(pipe);
-    return rc;
-}
-
 static int method_open(sd_bus_message *m, [[maybe_unused]] void *userdata, sd_bus_error *ret_error) {
     char *base;
     const char *snapid;
