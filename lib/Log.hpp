@@ -12,24 +12,24 @@
 #include <iostream>
 
 enum class TULogLevel {
-    NONE=0, ERROR, INFO, DEBUG
+    None=0, Error, Info, Debug
 };
 
 // There's no threading in this application, so no locking is implemented
 class TULog {
 public:
-    TULogLevel level = TULogLevel::ERROR;
+    TULogLevel level = TULogLevel::Error;
 
     template<typename... T> void error(const T&... args) {
-        if (level >=TULogLevel::ERROR)
+        if (level >=TULogLevel::Error)
             log(args...);
     }
     template<typename... T> void info(const T&... args) {
-        if (level >= TULogLevel::INFO)
+        if (level >= TULogLevel::Info)
             log(args...);
     }
     template<typename... T> void debug(const T&... args) {
-        if (level >= TULogLevel::DEBUG)
+        if (level >= TULogLevel::Debug)
             log(args...);
     }
 

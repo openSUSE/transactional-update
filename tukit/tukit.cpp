@@ -81,10 +81,10 @@ int TUKit::parseOptions(int argc, char *argv[]) {
             displayHelp();
             return 0;
         case 'q':
-            tulog.level = TULogLevel::ERROR;
+            tulog.level = TULogLevel::Error;
             break;
         case 'v':
-            tulog.level = TULogLevel::DEBUG;
+            tulog.level = TULogLevel::Debug;
             break;
         case 'V':
             cout << VERSION << endl;
@@ -190,7 +190,7 @@ TUKit::TUKit(int argc, char *argv[]) {
     signal(SIGQUIT, interrupt);
     signal(SIGTERM, interrupt);
 
-    tulog.level = TULogLevel::INFO;
+    tulog.level = TULogLevel::Info;
 
     int ret = parseOptions(argc, argv);
     if (ret <= 0) {
