@@ -280,7 +280,7 @@ teardown() {
 	# /etc may do so. Changes in /etc may be applied immediately,
 	# so merge them back into the running system.
 	log_info "Merging overlay directory ${SNAPSHOT_DIR}/etc into /etc..."
-	rsync --archive --inplace --xattrs --acls --exclude 'fstab' --delete --quiet "${SNAPSHOT_DIR}/etc/" /etc
+	tukit ${TUKIT_OPTS} callext ${SNAPSHOT_ID} rsync --archive --inplace --xattrs --acls --exclude 'fstab' --delete --quiet "${SNAPSHOT_DIR}/etc/" /etc
 
 	quit 0
     fi
