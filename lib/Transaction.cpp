@@ -80,6 +80,7 @@ fs::path Transaction::getRoot() {
 void Transaction::impl::mount() {
     dirsToMount.push_back(std::make_unique<PropagatedBindMount>("/dev"));
     dirsToMount.push_back(std::make_unique<BindMount>("/var/log"));
+    dirsToMount.push_back(std::make_unique<BindMount>("/opt"));
 
     Mount mntVar{"/var"};
     if (mntVar.isMount()) {
