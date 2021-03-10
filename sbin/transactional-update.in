@@ -60,6 +60,7 @@ ETC_OVERLAY_PATTERN='^[^[:space:]]\+[[:space:]]\+\/etc[[:space:]]\+overlay[[:spa
 NON_ROOTFS_WHITELIST=("/var/lib/YaST2/cookies" "/var/lib/rpm" "/var/lib/systemd/migrated" "/var/run/zypp.pid")
 DROP_IF_NO_CHANGE=0
 INOTIFY_EXCLUDES=""
+TUKIT_OPTS=""
 
 TMPDIR=${TMPDIR:-/tmp}
 
@@ -225,7 +226,7 @@ rebuild_kdump_initrd() {
     test -f /usr/lib/systemd/system/kdump.service || return
     systemctl is-enabled --quiet kdump.service
     if [ $? = 0 -a -x "/.snapshots/$1/snapshot/usr/sbin/tu-rebuild-kdump-initrd" ]; then
-	tukit call "$1" /usr/sbin/tu-rebuild-kdump-initrd |& tee -a ${LOGFILE}
+	tukit ${TUKIT_OPTS} call "$1" /usr/sbin/tu-rebuild-kdump-initrd |& tee -a ${LOGFILE}
     fi
 }
 
@@ -259,7 +260,7 @@ quit() {
 
     if [ -n "${SNAPSHOT_ID}" ] ; then
 	log_error "Removing snapshot #${SNAPSHOT_ID}..."
-	tukit abort ${SNAPSHOT_ID} |& tee -a ${LOGFILE}
+	tukit ${TUKIT_OPTS} abort ${SNAPSHOT_ID} |& tee -a ${LOGFILE}
     fi
     telem_finish $1
     log_info "transactional-update finished"
@@ -560,6 +561,7 @@ while [ 1 ]; do
 	    ;;
 	--quiet)
 	    VERBOSITY=1
+	    TUKIT_OPTS="${TUKIT_OPTS} -q"
 	    shift
 	    ;;
 	register)
@@ -877,8 +879,8 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	fi
     fi
 
-    output="`tukit -c"${BASE_SNAPSHOT_ID}" open |& tee -a ${LOGFILE}`"
-    echo "$output"
+    output="`tukit ${TUKIT_OPTS} -c"${BASE_SNAPSHOT_ID}" open |& tee -a ${LOGFILE}`"
+    log_info "$output"
     SNAPSHOT_ID=`echo "${output}" | grep -e "^ID:" | cut -d " " -f 2-`
     if [ -z ${SNAPSHOT_ID} ]; then
 	quit 1
@@ -909,12 +911,12 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	if [ ${DO_MIGRATION} -eq 1 ]; then
 	    # transactional-update migration
 	    export DISABLE_RESTART_ON_UPDATE=yes
-	    tukit call "${SNAPSHOT_ID}" zypper ${ZYPPER_ARG} ${ZYPPER_NONINTERACTIVE} "${ZYPPER_ARG_PKGS[@]}" |& tee -a ${LOGFILE}
+	    tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" zypper ${ZYPPER_ARG} ${ZYPPER_NONINTERACTIVE} "${ZYPPER_ARG_PKGS[@]}" |& tee -a ${LOGFILE}
 	    RETVAL=${PIPESTATUS[0]}
 	else
 	    # Check if there are updates at all.
 	    TMPFILE=`mktemp ${TMPDIR}/transactional-update.XXXXXXXXXX`
-	    tukit callext "${SNAPSHOT_ID}" zypper -R {} --xmlout ${ZYPPER_ARG} -y --auto-agree-with-product-licenses --dry-run "${ZYPPER_ARG_PKGS[@]}" > ${TMPFILE}
+	    tukit ${TUKIT_OPTS} callext "${SNAPSHOT_ID}" zypper -R {} --xmlout ${ZYPPER_ARG} -y --auto-agree-with-product-licenses --dry-run "${ZYPPER_ARG_PKGS[@]}" > ${TMPFILE}
 	    PACKAGE_UPDATES=`grep "install-summary download-size" ${TMPFILE} | sed -e 's|.*install-summary download-size=\"\(.*\)\" space-usage-diff.*|\1|g'`
 	    SIZE_OF_UPDATES=`grep "install-summary.*space-usage-diff" ${TMPFILE} | sed -e 's|.*install-summary.*space-usage-diff=\"\([^"]*\)\".*|\1|g'`
 	    NUM_OF_UPDATES=`grep "install-summary.*packages-to-change" ${TMPFILE} | sed -e 's|.*install-summary.*packages-to-change=\"\([^"]*\)\".*|\1|g'`
@@ -926,7 +928,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	    fi
 
 	    export DISABLE_RESTART_ON_UPDATE=yes
-	    tukit callext "${SNAPSHOT_ID}" zypper -R {} ${ZYPPER_ARG} ${ZYPPER_NONINTERACTIVE} "${ZYPPER_ARG_PKGS[@]}" |& tee -a ${LOGFILE}
+	    tukit ${TUKIT_OPTS} callext "${SNAPSHOT_ID}" zypper -R {} ${ZYPPER_ARG} ${ZYPPER_NONINTERACTIVE} "${ZYPPER_ARG_PKGS[@]}" |& tee -a ${LOGFILE}
 	    RETVAL=${PIPESTATUS[0]}
 	fi
 	# in case of migration, we need to do a little bit more:
@@ -976,15 +978,15 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 
 	# Check if we don't have selinux already enabled.
 	grep ^GRUB_CMDLINE_LINUX_DEFAULT /etc/default/grub | grep -q security=selinux || \
-	    tukit call "${SNAPSHOT_ID}" sed -i -e 's|\(^GRUB_CMDLINE_LINUX_DEFAULT=.*\)"|\1 security=selinux selinux=1"|g' "/etc/default/grub"
+	    tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" sed -i -e 's|\(^GRUB_CMDLINE_LINUX_DEFAULT=.*\)"|\1 security=selinux selinux=1"|g' "/etc/default/grub"
 	REWRITE_GRUB_CFG=1
 
-	if tukit call "${SNAPSHOT_ID}" [ ! -e "/etc/selinux/config" ]; then
+	if tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" [ ! -e "/etc/selinux/config" ]; then
 	    log_error "ERROR: /etc/selinux/config does not exist!"
 	    EXITCODE=1
 	fi
 	# Adjust selinux config
-	tukit call "${SNAPSHOT_ID}" sed -i -e 's|^SELINUX=.*|SELINUX=enforcing|g' \
+	tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" sed -i -e 's|^SELINUX=.*|SELINUX=enforcing|g' \
 	    -e 's|^SELINUXTYPE=.*|SELINUXTYPE=targeted|g' \
 	    "/etc/selinux/config"
 
@@ -994,7 +996,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 
     if [ ${REWRITE_INITRD} -eq 1 ]; then
 	log_info "Creating new initrd"
-	tukit call "${SNAPSHOT_ID}" /sbin/mkinitrd
+	tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" /sbin/mkinitrd
 	if [ $? -ne 0 ]; then
 	    log_error "ERROR: mkinitrd failed!"
 	    EXITCODE=1
@@ -1010,7 +1012,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 
     if [ ${REWRITE_GRUB_CFG} -eq 1 ]; then
 	log_info "Creating a new grub2 config"
-	tukit call "${SNAPSHOT_ID}" bash -c "/usr/sbin/grub2-mkconfig > /boot/grub2/grub.cfg"
+	tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" bash -c "/usr/sbin/grub2-mkconfig > /boot/grub2/grub.cfg"
 	if [ $? -ne 0 ]; then
 	    log_error "ERROR: grub2-mkconfig failed!"
 	    EXITCODE=1;
@@ -1023,7 +1025,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 
     if [ ${REWRITE_BOOTLOADER} -eq 1 ]; then
 	log_info "Writing new bootloader"
-	tukit call "${SNAPSHOT_ID}" /sbin/pbl --install
+	tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" /sbin/pbl --install
 	if [ $? -ne 0 ]; then
 	    log_error "ERROR: /sbin/pbl --install failed!"
 	    EXITCODE=1;
@@ -1031,13 +1033,13 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
     fi
 
     if [ ${DO_RUN} -eq 1 ]; then
-	tukit call "${SNAPSHOT_ID}" "${RUN_CMD[@]}"
+	tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" "${RUN_CMD[@]}"
     fi
 
     if [ ${RUN_SHELL} -eq 1 ]; then
 	echo "Opening chroot in snapshot ${SNAPSHOT_ID}, continue with 'exit'"
         export PS1="transactional update # "
-	tukit call "${SNAPSHOT_ID}" bash 2>&4
+	tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" bash 2>&4
     fi
 
     if [ -x /usr/sbin/selinuxenabled ] && /usr/sbin/selinuxenabled ; then
@@ -1057,7 +1059,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	    echo "EXPECTED_SNAPSHOT_ID=${SNAPSHOT_ID}" > "${NEW_SNAPSHOT_FLAG}"
 	    echo "PREV_SNAPSHOT_ID=${CURRENT_SNAPSHOT_ID}" >> "${NEW_SNAPSHOT_FLAG}"
 	fi
-	tukit close "${SNAPSHOT_ID}"
+	tukit ${TUKIT_OPTS} close "${SNAPSHOT_ID}"
     fi
 
     # Check for installation artefacts: Packages may have created files in
