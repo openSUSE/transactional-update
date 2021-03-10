@@ -173,7 +173,7 @@ print_version() {
 }
 
 log_info() {
-    echo `date "+%Y-%m-%d %H:%M"` "$@" >> ${LOGFILE}
+    echo -e `date "+%Y-%m-%d %H:%M"` "$@" >> ${LOGFILE}
     if [ ${VERBOSITY} -ge 2 ]; then
 	echo -e "$@"
     fi
@@ -181,7 +181,7 @@ log_info() {
 
 log_error() {
     TELEM_PAYLOAD="${TELEM_PAYLOAD}\nmessage=$@"
-    echo `date "+%Y-%m-%d %H:%M"` "$@" >> ${LOGFILE}
+    echo -e `date "+%Y-%m-%d %H:%M"` "$@" >> ${LOGFILE}
     echo -e "$@" 1>&4
 }
 
@@ -1091,7 +1091,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
     if [ ${EXITCODE} -ne 0 ]; then
 	quit ${EXITCODE}
     elif [ $REBOOT_AFTERWARDS -eq 0 ]; then
-	log_error "\nPlease reboot your machine to activate the changes and avoid data loss."
+	log_info "\nPlease reboot your machine to activate the changes and avoid data loss."
 	touch "${NEEDS_RESTARTING_FILE}"
     fi
 
