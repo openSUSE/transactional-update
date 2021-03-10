@@ -216,8 +216,6 @@ int Transaction::impl::runCommand(char* argv[], bool inChroot) {
         // Set indicator for RPM pre/post sections to detect whether we run in a
         // transactional update
         setenv("TRANSACTIONAL_UPDATE", "true", 1);
-        if (tulog.level > TULogLevel::Error)
-            std::cout << "◸" << std::flush;
         if (execvp(argv[0], (char* const*)argv) < 0) {
             throw std::runtime_error{"Calling " + std::string(argv[0]) + " failed: " + std::string(strerror(errno))};
         }
@@ -225,8 +223,6 @@ int Transaction::impl::runCommand(char* argv[], bool inChroot) {
         this->pid = pid;
         ret = waitpid(pid, &status, 0);
         this->pid = 0;
-        if (tulog.level > TULogLevel::Error)
-            std::cout << "◿" << std::endl;
         if (ret < 0) {
             throw std::runtime_error{"waitpid() failed: " + std::string(strerror(errno))};
         } else {
