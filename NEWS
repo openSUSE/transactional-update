@@ -2,6 +2,13 @@ transactional-update NEWS -- history of user-visible changes.
 
 Copyright (C) 2016-2020 Thorsten Kukuk, Ignaz Forster et al.
 
+Version 3.2.1
+* t-u: Forward --quiet option to tukit
+* Regression: Add /opt as bind mount into update environment
+* Remove output indicators of the called command to not tamper the result
+  line
+* Fix /etc syncing with --drop-if-no-change
+
 Version 3.2.0
 * tukit: Add new command 'callext' to execute an application while the
   snapshot is mounted. '{}' as a parameter will be replaced with the path
