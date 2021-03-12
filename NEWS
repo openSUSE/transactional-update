@@ -2,6 +2,9 @@ transactional-update NEWS -- history of user-visible changes.
 
 Copyright (C) 2016-2020 Thorsten Kukuk, Ignaz Forster et al.
 
+Version 3.2.2
+* Don't skip patches with rebootSuggested flag
+
 Version 3.2.1
 * t-u: Forward --quiet option to tukit
 * Regression: Add /opt as bind mount into update environment
