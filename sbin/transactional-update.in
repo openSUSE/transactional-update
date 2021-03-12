@@ -404,10 +404,15 @@ while [ 1 ]; do
 	    shift
 	    TELEM_CLASS="upgrade"
 	    ;;
-        up|patch)
-	    ZYPPER_ARG=$1
+        up)
+	    ZYPPER_ARG=up
 	    shift
 	    TELEM_CLASS="update"
+	    ;;
+        patch)
+	    ZYPPER_ARG="--non-interactive-include-reboot-patches patch"
+	    shift
+	    TELEM_CLASS="patch"
 	    ;;
 	ptf|pkg|package)
 	    TELEM_CLASS="package"
