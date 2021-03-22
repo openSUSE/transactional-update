@@ -85,7 +85,8 @@ void Transaction::impl::mount() {
     Mount mntVar{"/var"};
     if (mntVar.isMount()) {
         dirsToMount.push_back(std::make_unique<BindMount>("/var/cache"));
-        dirsToMount.push_back(std::make_unique<BindMount>("/var/lib/zypp"));
+        if (fs::is_directory("/var/lib/zypp"))
+            dirsToMount.push_back(std::make_unique<BindMount>("/var/lib/zypp"));
         dirsToMount.push_back(std::make_unique<BindMount>("/var/lib/ca-certificates"));
         if (fs::is_directory("/var/lib/alternatives"))
             dirsToMount.push_back(std::make_unique<BindMount>("/var/lib/alternatives"));
