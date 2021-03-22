@@ -85,7 +85,8 @@ void Transaction::impl::mount() {
     Mount mntVar{"/var"};
     if (mntVar.isMount()) {
         dirsToMount.push_back(std::make_unique<BindMount>("/var/cache"));
-        dirsToMount.push_back(std::make_unique<BindMount>("/var/lib/zypp"));
+        if (fs::is_directory("/var/lib/zypp"))
+            dirsToMount.push_back(std::make_unique<BindMount>("/var/lib/zypp"));
         dirsToMount.push_back(std::make_unique<BindMount>("/var/lib/ca-certificates"));
         if (fs::is_directory("/var/lib/alternatives"))
             dirsToMount.push_back(std::make_unique<BindMount>("/var/lib/alternatives"));
@@ -146,7 +147,14 @@ void Transaction::impl::addSupplements() {
     supplements.addLink(fs::path{"/usr/lib/sysimage/rpm"}, fs::path{"/var/lib/rpm"});
     supplements.addFile(fs::path{"/run/netconfig"});
     supplements.addFile(fs::path{"/run/systemd/resolve"});
-    supplements.addDir(fs::path{"/var/cache/zypp"});
+    if (fs::is_directory("/var/cache/dnf"))
+        supplements.addDir(fs::path{"/var/cache/dnf"});
+    if (fs::is_directory("/var/cache/yum"))
+        supplements.addDir(fs::path{"/var/cache/yum"});
+    if (fs::is_directory("/var/cache/PackageKit"))
+        supplements.addDir(fs::path{"/var/cache/PackageKit"});
+    if (fs::is_directory("/var/cache/zypp"))
+        supplements.addDir(fs::path{"/var/cache/zypp"});
     supplements.addDir(fs::path{"/var/spool"});
 }
 
