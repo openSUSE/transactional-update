@@ -144,7 +144,7 @@ void Transaction::impl::addSupplements() {
         supplements.addDir(fs::path{"/var/tmp"});
         supplements.addLink(fs::path{"/run"}, fs::path{"/var/run"});
     }
-    supplements.addLink(fs::path{"/usr/lib/sysimage/rpm"}, fs::path{"/var/lib/rpm"});
+    supplements.addLink(fs::path{"../../usr/lib/sysimage/rpm"}, fs::path{"/var/lib/rpm"});
     supplements.addFile(fs::path{"/run/netconfig"});
     supplements.addFile(fs::path{"/run/systemd/resolve"});
     if (fs::is_directory("/var/cache/dnf"))
