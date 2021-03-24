@@ -50,7 +50,9 @@ Overlay::Overlay(string snapshot):
     snap->open(snapshot);
     Mount mntEtc{"/etc"};
     mntEtc.setTabSource(snap->getRoot() / "etc" / "fstab");
+    // Read data from fstab if this is an existing snapshot, just use the defaults otherwise
     try {
+        upperdir = regex_replace(mntEtc.getOption("upperdir"), std::regex("^" + config.get("DRACUT_SYSROOT")), "");
         const string fstabLowerdirs = mntEtc.getOption("lowerdir");
         string lowerdir;
         stringstream ss(fstabLowerdirs);
