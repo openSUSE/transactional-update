@@ -35,7 +35,6 @@ namespace TransactionalUpdate {
  * For new overlays `create` has to be called afterwards with a base.
  */
 Overlay::Overlay(string snapshot):
-        upperdir(fs::path{config.get("OVERLAY_DIR")} / snapshot / "etc"),
         workdir(fs::path{config.get("OVERLAY_DIR")} / snapshot / "work-etc")
 {
     fs::create_directories(fs::path{workdir});
@@ -90,7 +89,7 @@ bool Overlay::references(string snapshot) {
     return false;
 }
 
-void Overlay::sync(string base, string snapshot) {
+void Overlay::sync(string base, fs::path snapRoot) {
     Overlay baseOverlay = Overlay{base};
     auto previousSnapId = baseOverlay.getPreviousSnapshotOvlId();
     if (previousSnapId.empty()) {
@@ -118,7 +117,7 @@ void Overlay::sync(string base, string snapshot) {
     string syncSource = string(previousOvl.upperdir.parent_path() / "sync" / "etc") + "/";
     string rsyncExtraArgs;
     previousEtc->mount(previousOvl.upperdir.parent_path() / "sync");
-    tulog.info("Syncing /etc of previous snapshot ", previousSnapId, " as base into new snapshot ", snapshot);
+    tulog.info("Syncing /etc of previous snapshot ", previousSnapId, " as base into new snapshot ", snapRoot);
     if (is_selinux_enabled()) {
         tulog.info("SELinux is enabled.");
         // Ignore the SELinux attributes when synchronizing pre-SELinux files,
@@ -131,7 +130,7 @@ void Overlay::sync(string base, string snapshot) {
             }
         }
     }
-    Util::exec("rsync --quiet --archive --inplace --xattrs --exclude='/fstab' " + rsyncExtraArgs + " --acls --delete " + syncSource + " " + snapshot + "/etc");
+    Util::exec("rsync --quiet --archive --inplace --xattrs --exclude='/fstab' " + rsyncExtraArgs + " --acls --delete " + syncSource + " " + string(snapRoot) + "/etc");
 }
 
 void Overlay::setMountOptions(unique_ptr<Mount>& mount) {
@@ -182,7 +181,8 @@ void Overlay::setMountOptionsForMount(unique_ptr<Mount>& mount) {
     mount->setOption("workdir", workdir);
 }
 
-void Overlay::create(string base, string snapshot) {
+void Overlay::create(string base, string snapshot, fs::path snapRoot) {
+    upperdir = fs::path{config.get("OVERLAY_DIR")} / snapshot / "etc";
     Overlay parent = Overlay{base};
 
     // Remove overlay directory if it already exists (e.g. after the snapshot was deleted)
@@ -206,7 +206,7 @@ void Overlay::create(string base, string snapshot) {
         }
     } else {
         lowerdirs.push_back(parent.lowerdirs.back());
-        sync(base, snapshot);
+        sync(base, snapRoot);
     }
 }
 

@@ -171,7 +171,7 @@ void Transaction::init(std::string base = "active") {
     std::unique_ptr<Mount> mntEtc{new Mount{"/etc"}};
     if (mntEtc->isMount() && mntEtc->getFilesystem() == "overlay") {
         Overlay overlay = Overlay{pImpl->snapshot->getUid()};
-        overlay.create(base, pImpl->snapshot->getRoot());
+        overlay.create(base, pImpl->snapshot->getUid(), pImpl->snapshot->getRoot());
         overlay.setMountOptions(mntEtc);
         mntEtc->persist(pImpl->snapshot->getRoot() / "etc" / "fstab");
 
