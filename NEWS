@@ -2,6 +2,12 @@ transactional-update NEWS -- history of user-visible changes.
 
 Copyright (C) 2016-2020 Thorsten Kukuk, Ignaz Forster et al.
 
+Version 3.3.0
+* Add support for more package managers by bind mounting their directories
+* Support snapshots without dedicated overlay [boo#1183539], [bsc#1183539]
+* Link RPM database correctly with older zypper versions [boo#1183521]
+* Don't discard manual changes in fstab [boo#1183856]
+
 Version 3.2.2
 * Don't skip patches with rebootSuggested flag
 
