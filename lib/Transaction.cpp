@@ -173,6 +173,11 @@ void Transaction::init(std::string base = "active") {
         Overlay overlay = Overlay{pImpl->snapshot->getUid()};
         overlay.create(base, pImpl->snapshot->getUid(), pImpl->snapshot->getRoot());
         overlay.setMountOptions(mntEtc);
+        // Copy current fstab into root in case the user modified it
+        if (fs::exists(fs::path{overlay.lowerdirs[0] / "fstab"})) {
+            fs::copy(fs::path{overlay.lowerdirs[0] / "fstab"}, fs::path{pImpl->snapshot->getRoot() / "etc"}, fs::copy_options::overwrite_existing);
+        }
+
         mntEtc->persist(pImpl->snapshot->getRoot() / "etc" / "fstab");
 
         // Make sure both the snapshot and the overlay contain all relevant fstab data, i.e.
