@@ -26,7 +26,9 @@ PKG_CHECK_VAR([DRACUTDIR], [dracut], [dracutmodulesdir], [],
 PKG_CHECK_VAR([UDEVDIR], [udev], [udevdir], [],
 	[AC_MSG_ERROR([Could not determine value for 'udevdir' - is the 'udev.pc' file installed?])])
 PKG_CHECK_VAR([DBUSDATADIR], [dbus-1], [datadir], [],
-	[AC_MSG_ERROR([Could not determine value for 'datadir' - is the 'dbus-1.pc' file installed?])])
+	[AC_MSG_ERROR([Could not determine value for dbus 'datadir' - is the 'dbus-1.pc' file installed?])])
+PKG_CHECK_VAR([DBUSSERVICESDIR], [dbus-1], [system_bus_services_dir], [],
+	[AC_MSG_ERROR([Could not determine value for 'system_bus_services_dir' - is the 'dbus-1.pc' file installed?])])
 
 UDEVRULESDIR=${UDEVDIR}/rules.d
 LOGROTATEDDIR=${sysconfdir}/logrotate.d
@@ -38,6 +40,7 @@ AC_SUBST(SYSTEMDDIR)
 AC_SUBST(DRACUTDIR)
 AC_SUBST(LOGROTATEDDIR)
 AC_SUBST(DBUSCONFDIR)
+AC_SUBST(DBUSSERVICESDIR)
 
 AC_PROG_CXX
 AX_CXX_COMPILE_STDCXX_17(, mandatory)

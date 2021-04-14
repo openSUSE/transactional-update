@@ -123,6 +123,7 @@ static int method_call(sd_bus_message *m, [[maybe_unused]] void *userdata, sd_bu
         goto finish_call;
     }
 
+    sd_bus_reply_method_return(m, NULL);
     // Async from here
     pthread_t execute_thread;
     void *res;
@@ -204,11 +205,9 @@ finish_call:
     }
 
     tukit_free_tx(exec_args.tx);
-    if (ret) {
-        //return ret;
-    }
+
     execution_finished = 0;
-    return sd_bus_reply_method_return(m, "");
+    return ret;
 }
 
 static const sd_bus_vtable tukit_vtable[] = {
