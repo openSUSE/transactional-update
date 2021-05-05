@@ -9,6 +9,11 @@
 #include "Util.hpp"
 #include "Exceptions.hpp"
 #include <algorithm>
+#include <cerrno>
+#include <cstring>
+
+#include <selinux/selinux.h>
+#include <selinux/context.h>
 
 namespace TransactionalUpdate {
 
@@ -64,6 +69,33 @@ void Util::stub(string option) {
 void Util::trim(string &s) {
     ltrim(s);
     rtrim(s);
+}
+
+void Util::se_copycontext(const std::filesystem::path ref, const std::filesystem::path dst)
+{
+    char* context = NULL;
+    if (getfilecon(ref.c_str(), &context) <= 0)
+        return;
+    tulog.debug("selinux context on " + ref.string() + ": " + std::string(context));
+    if (setfilecon(dst.c_str(), context) != 0) {
+        freecon(context);
+        throw std::runtime_error{"applying selinux context for " + dst.string() + " failed: " + std::string(strerror(errno))};
+    }
+    freecon(context);
+}
+
+bool Util::se_is_context_type(const std::filesystem::path ref, const std::string type)
+{
+    bool ret = false;
+    char* context_str;
+    if (getfilecon(ref.c_str(), &context_str) <= 0)
+        return ret;
+    context_t context = context_new(context_str);
+    if (strcmp(context_type_get(context), type.c_str()) == 0)
+        ret = true;
+    context_free(context);
+    freecon(context_str);
+    return ret;
 }
 
 } // namespace TransactionalUpdate

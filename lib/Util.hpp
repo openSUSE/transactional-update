@@ -11,6 +11,7 @@
 #include <string>
 #include <array>
 #include <iostream>
+#include <filesystem>
 
 namespace TransactionalUpdate {
 
@@ -20,6 +21,8 @@ struct Util {
     static void rtrim(std::string &s);
     static void stub(std::string option);
     static void trim(std::string &s);
+    static void se_copycontext(const std::filesystem::path ref, const std::filesystem::path dst);
+    static bool se_is_context_type(const std::filesystem::path ref, const std::string type);
 };
 
 struct CString {

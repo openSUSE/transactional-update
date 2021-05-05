@@ -15,8 +15,8 @@
 #include <filesystem>
 #include <regex>
 #include <selinux/selinux.h>
-#include <selinux/context.h>
 #include <sstream>
+#include <fstream>
 #include <unistd.h>
 
 using std::exception;
@@ -121,16 +121,11 @@ void Overlay::sync(string base, fs::path snapRoot) {
     previousEtc->mount(previousOvl.upperdir.parent_path() / "sync");
     tulog.info("Syncing /etc of previous snapshot ", previousSnapId, " as base into new snapshot ", snapRoot);
     if (is_selinux_enabled()) {
+        // IF SELinux is enabled we need to ignore the SELinux attributes when
+        // synchronizing pre-SELinux files, rsync would fail otherwise.
         tulog.info("SELinux is enabled.");
-        // Ignore the SELinux attributes when synchronizing pre-SELinux files,
-        // rsync will fail otherwise
-        char* context;
-        if (getfilecon(syncSource.c_str(), &context) > 0) { // &&
-            auto contextt = context_new(context);
-            if (strcmp(context_type_get(contextt), "unlabeled_t") == 0) {
-                rsyncExtraArgs = "--filter='-x security.selinux'";
-            }
-        }
+        if (Util::se_is_context_type(syncSource, "unlabeled_t"))
+            rsyncExtraArgs = "--filter='-x security.selinux'";
     }
     Util::exec("rsync --quiet --archive --inplace --xattrs --exclude='/fstab' " + rsyncExtraArgs + " --acls --delete " + syncSource + " " + string(snapRoot) + "/etc");
 }
@@ -191,15 +186,7 @@ void Overlay::create(string base, string snapshot, fs::path snapRoot) {
     fs::remove_all(upperdir);
     fs::create_directories(upperdir);
 
-    char* context = NULL;
-    if (getfilecon("/etc", &context) > 0) {
-        tulog.debug("selinux context on /etc: " + std::string(context));
-        if (setfilecon(upperdir.c_str(), context) != 0) {
-            freecon(context);
-            throw std::runtime_error{"applying selinux context failed: " + std::string(strerror(errno))};
-        }
-        freecon(context);
-    }
+    Util::se_copycontext("/etc", upperdir);
 
     // Assemble the new lowerdirs
     lowerdirs.clear();

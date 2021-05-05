@@ -14,6 +14,7 @@
 #include "Overlay.hpp"
 #include "Snapshot.hpp"
 #include "Supplement.hpp"
+#include "Util.hpp"
 #include <cerrno>
 #include <cstdlib>
 #include <cstring>
@@ -179,11 +180,13 @@ void Transaction::init(std::string base = "active") {
         }
 
         mntEtc->persist(pImpl->snapshot->getRoot() / "etc" / "fstab");
+        Util::se_copycontext("/etc/fstab", pImpl->snapshot->getRoot() / "etc/fstab");
 
         // Make sure both the snapshot and the overlay contain all relevant fstab data, i.e.
         // user modifications from the overlay are present in the root fs and the /etc
         // overlay is visible in the overlay
         fs::copy(fs::path{pImpl->snapshot->getRoot() / "etc" / "fstab"}, overlay.upperdir, fs::copy_options::overwrite_existing);
+        Util::se_copycontext("/etc/fstab", overlay.upperdir / "fstab");
     }
 
     pImpl->mount();

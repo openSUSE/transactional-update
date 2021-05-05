@@ -1047,11 +1047,6 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" bash 2>&4
     fi
 
-    if [ -x /usr/sbin/selinuxenabled ] && /usr/sbin/selinuxenabled ; then
-        chcon --reference /etc "${ETC_BASE}/etc"
-        chcon --reference /etc/fstab "${ETC_BASE}/etc/fstab"
-    fi
-
     teardown
 
     # Somersault:
