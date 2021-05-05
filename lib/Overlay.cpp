@@ -189,6 +189,16 @@ void Overlay::create(string base, string snapshot, fs::path snapRoot) {
     fs::remove_all(upperdir);
     fs::create_directories(upperdir);
 
+    char* context = NULL;
+    if (getfilecon("/etc", &context) > 0) {
+        tulog.debug("selinux context on /etc: " + std::string(context));
+        if (setfilecon(upperdir.c_str(), context) != 0) {
+            freecon(context);
+            throw std::runtime_error{"applying selinux context failed: " + std::string(strerror(errno))};
+        }
+        freecon(context);
+    }
+
     // Assemble the new lowerdirs
     lowerdirs.clear();
     lowerdirs.push_back(parent.upperdir);
