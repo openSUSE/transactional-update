@@ -173,13 +173,13 @@ void Mount::setType(std::string type) {
 }
 
 void Mount::mount(std::string prefix) {
-    tulog.debug("Mounting ", mountpoint, "...");
-
     int rc;
     std::string mounttarget = prefix + mountpoint.c_str();
     if ((rc = mnt_fs_set_target(mnt_fs, mounttarget.c_str())) != 0) {
         throw std::runtime_error{"Setting target '" + mounttarget + "' for mountpoint failed: " + std::to_string(rc)};
     }
+
+    tulog.debug("Mounting (", *this, ") on ", mounttarget , "...");
 
     mnt_cxt = mnt_new_context();
     if ((rc = mnt_context_set_fs(mnt_cxt, mnt_fs)) != 0) {
@@ -265,6 +265,11 @@ void Mount::umountRecursive(libmnt_table* umount_table, libmnt_fs* umount_fs) {
             tulog.error("Error unmounting '", mnt_fs_get_target(umount_fs), "': ", buf);
     }
     mnt_free_context(umount_cxt);
+}
+
+std::ostream & operator<<( std::ostream & str, const Mount & obj )
+{
+    return str << "tabsource=" << obj.tabsource << ", mountpoint=" << obj.mountpoint << ", flags=" << obj.flags;
 }
 
 BindMount::BindMount(std::string mountpoint, unsigned long flags)

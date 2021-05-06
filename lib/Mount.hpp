@@ -30,6 +30,8 @@ public:
     void setSource(std::string source);
     void setTabSource(std::string source);
     void setType(std::string type);
+
+    friend std::ostream & operator<<( std::ostream & str, const Mount & obj );
 protected:
     struct libmnt_context* mnt_cxt = nullptr;
     struct libmnt_table* mnt_table = nullptr;
@@ -43,6 +45,8 @@ protected:
     struct libmnt_fs* newFS();
     void umountRecursive(libmnt_table* umount_table, libmnt_fs* umount_fs);
 };
+
+std::ostream & operator<<( std::ostream & str, const Mount & obj );
 
 class BindMount : public Mount
 {

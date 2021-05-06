@@ -114,6 +114,8 @@ void Overlay::sync(string base, fs::path snapRoot) {
     previousEtc->removeOption("upperdir");
     previousEtc->removeOption("workdir");
 
+    tulog.debug("previousOvl", previousOvl);
+
     string syncSource = string(previousOvl.upperdir.parent_path() / "sync" / "etc") + "/";
     string rsyncExtraArgs;
     previousEtc->mount(previousOvl.upperdir.parent_path() / "sync");
@@ -218,6 +220,14 @@ void Overlay::create(string base, string snapshot, fs::path snapRoot) {
         lowerdirs.push_back(parent.lowerdirs.back());
         sync(base, snapRoot);
     }
+}
+
+std::ostream & operator<<( std::ostream & str, const Overlay & obj )
+{
+    for (auto d: obj.lowerdirs) {
+        str << "lowerdir=" << d << ", ";
+    }
+    return str << "upperdir=" << obj.upperdir << ", workdir=" << obj.workdir;
 }
 
 } // namespace TransactionalUpdate

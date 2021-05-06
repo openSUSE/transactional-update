@@ -26,12 +26,16 @@ public:
     void setMountOptions(std::unique_ptr<Mount>& mount);
     void setMountOptionsForMount(std::unique_ptr<Mount>& mount);
 
+    friend std::ostream & operator<<( std::ostream & str, const Overlay & obj );
+
     std::vector<std::filesystem::path> lowerdirs;
     std::filesystem::path upperdir;
     std::filesystem::path workdir;
 private:
     static std::string getIdOfOverlayDir(const std::string dir);
 };
+
+std::ostream & operator<<( std::ostream & str, const Overlay & obj );
 
 } // namespace TransactionalUpdate
 
