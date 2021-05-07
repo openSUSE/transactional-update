@@ -123,8 +123,11 @@ void Overlay::sync(string base, fs::path snapRoot) {
     if (is_selinux_enabled()) {
         // IF SELinux is enabled we need to ignore the SELinux attributes when
         // synchronizing pre-SELinux files, rsync would fail otherwise.
+	// Also, if the previous snapshot as the .autorelabel marker in place,
+	// it means it was never booted with SElinux enabled, so might contain
+	// unlabelled files
         tulog.info("SELinux is enabled.");
-        if (Util::se_is_context_type(syncSource, "unlabeled_t"))
+        if (Util::se_is_context_type(syncSource, "unlabeled_t") || fs::exists(syncSource + "/selinux/.autorelabel"))
             rsyncExtraArgs = "--filter='-x security.selinux'";
     }
     Util::exec("rsync --quiet --archive --inplace --xattrs --exclude='/fstab' " + rsyncExtraArgs + " --acls --delete " + syncSource + " " + string(snapRoot) + "/etc");
