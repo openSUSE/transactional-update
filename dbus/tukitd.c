@@ -8,6 +8,35 @@
 #include <unistd.h>
 #include <wordexp.h>
 
+typedef struct t_entry {
+    char* id;
+    struct t_entry *next;
+} TransactionEntry;
+
+int lockSnapshot(void* userdata, char* transaction, sd_bus_error *ret_error) {
+    TransactionEntry* activeTransaction = userdata;
+    TransactionEntry* newTransaction;
+    while (activeTransaction->id != NULL) {
+        if (strcmp(activeTransaction->id, transaction) == 0) {
+            sd_bus_error_set_const(ret_error, "org.opensuse.tukit.error.in_use", "The transaction is currently in use by another thread.");
+            return -EBUSY;
+        }
+        activeTransaction = activeTransaction->next;
+    }
+    if ((newTransaction = malloc(sizeof(TransactionEntry))) == NULL) {
+        sd_bus_error_set_const(ret_error, "org.opensuse.tukit.error.out_of_memory", "Error while allocating space for transaction.");
+        return -ENOMEM;
+    }
+    newTransaction->id = NULL;
+    activeTransaction->id = strdup(transaction);
+    if (activeTransaction->id == NULL) {
+        free(newTransaction);
+        return -ENOMEM;
+    }
+    activeTransaction->next = newTransaction;
+    return 0;
+}
+
 static int method_open(sd_bus_message *m, [[maybe_unused]] void *userdata, sd_bus_error *ret_error) {
     char *base;
     const char *snapid;
@@ -48,7 +77,7 @@ static int method_open(sd_bus_message *m, [[maybe_unused]] void *userdata, sd_bu
     return sd_bus_reply_method_return(m, "");
 }
 
-static int method_call(sd_bus_message *m, [[maybe_unused]] void *userdata, sd_bus_error *ret_error) {
+static int method_call(sd_bus_message *m, void *userdata, sd_bus_error *ret_error) {
     char *transaction;
     char *command;
     int ret;
@@ -61,6 +90,12 @@ static int method_call(sd_bus_message *m, [[maybe_unused]] void *userdata, sd_bu
         sd_bus_error_set_const(ret_error, "org.opensuse.tukit.error", "Could not read D-Bus parameters.");
         return -1;
     }
+
+    ret = lockSnapshot(userdata, transaction, ret_error);
+    if (ret != 0) {
+        return ret;
+    }
+
     struct tukit_tx* tx = tukit_new_tx();
     if (tx == NULL) {
         sd_bus_error_set_const(ret_error, "org.opensuse.tukit.error", tukit_get_errmsg());
@@ -169,6 +204,12 @@ int main() {
     sd_event *event = NULL;
     int ret;
 
+    TransactionEntry* activeTransactions = (TransactionEntry*) malloc(sizeof(TransactionEntry));
+    if (activeTransactions == NULL) {
+        goto finish;
+    }
+    activeTransactions->id = NULL;
+
     ret = sd_bus_open_system(&bus);
     if (ret < 0) {
         fprintf(stderr, "Failed to connect to system bus: %s\n", strerror(-ret));
@@ -180,7 +221,7 @@ int main() {
                                    "/org/opensuse/tukit",
                                    "org.opensuse.tukit",
                                    tukit_vtable,
-                                   NULL);
+                                   activeTransactions);
     if (ret < 0) {
         fprintf(stderr, "Failed to issue method call: %s\n", strerror(-ret));
         goto finish;
@@ -232,6 +273,13 @@ int main() {
     }
 
 finish:
+    while (activeTransactions->id != NULL) {
+        TransactionEntry* nextTransaction = activeTransactions->next;
+        free(activeTransactions->id);
+        free(activeTransactions);
+        activeTransactions = nextTransaction;
+    }
+    free(activeTransactions);
     sd_event_unref(event);
     sd_bus_slot_unref(slot);
     sd_bus_unref(bus);
