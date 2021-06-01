@@ -441,6 +441,59 @@ for more information.
       </para>
     </listitem>
   </varlistentry>
+  <varlistentry>
+    <term><option>status</option></term>
+    <listitem>
+      <warning>
+	This command is under development and will change in the
+	future. The status command is currently using a non-stable
+	feature of MicroOS, the control.xml file, that will change the
+	scope and location in future releases.
+      </warning>
+      <para>
+	Shows the status of current and older snapshots. The status
+	try to represent how the system diverges from an ideal base
+	image, and the list of patterns and packages added and removed
+	from it.
+      </para>
+      <para>
+	The status is represented via a hash (currently sha256) of a
+	manifest file that contains the list of expected packages and
+	the build time of those packages. The list of expected
+	packages are calculated using the <command>libsolv</command>
+	library, and resolving it for the list of default patterns
+	associated with the role used during the installation.
+      </para>
+      <para>
+	Two manifest files are created. One will use the information
+	from the repositories used for the installation. The list of
+	packages (including the full version and architecture) and the
+	build time will be extracted from the repository information.
+	The other one will use the same list of packages, but using
+	the build time from the current system (if the package is
+	present).
+      </para>
+      <para>
+	Both manifest files will be the same if we have a fresh
+	installed system. But in distributions like MicroOS, that are
+	released based on a rolling model, the subsequent updates will
+	make compromises that will result in a diverged state. In that
+	way, if two systems have the same BASE_MANIFEST_DIGEST (the
+	digest calculated from the repository information), we can
+	assume that are in the same state even if the
+	SYSTEM_MANIFEST_DIGEST is different.
+      </para>
+      <para>
+	We can require of two system to be in the exact same status,
+	and for that we can compare both digests.
+      </para>
+      <para>
+	The status also shows the differences in patterns and packages
+	from the expected situation, and will save a copy of both
+	manifest for further audit of the system.
+      </para>
+    </listitem>
+  </varlistentry>
 </variablelist>
 </refsect2>
 </refsect1>
