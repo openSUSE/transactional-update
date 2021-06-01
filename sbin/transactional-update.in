@@ -81,6 +81,7 @@ SNAPSHOT_DIR=""
 BASE_SNAPSHOT_ID=""
 TMPFILE=""
 INOTIFY_PID=""
+DO_CALLEXT=0
 
 # Create stderr alias for things that shouldn't be logged into logfile
 if [ ! -e /proc/$$/fd/4 ]; then
@@ -442,6 +443,7 @@ while [ 1 ]; do
 		    usage 1;
 		    ;;
 	    esac
+	    DO_CALLEXT=1
 
 	    if [ $# -eq 0 ]; then
 		usage 1
@@ -919,9 +921,14 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	    tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" zypper ${ZYPPER_ARG} ${ZYPPER_NONINTERACTIVE} "${ZYPPER_ARG_PKGS[@]}" |& tee -a ${LOGFILE}
 	    RETVAL=${PIPESTATUS[0]}
 	else
+	    if [ ${DO_CALLEXT} -eq 1 ]; then
+		zypper_cmd="tukit ${TUKIT_OPTS} callext ${SNAPSHOT_ID} zypper -R {}"
+	    else
+		zypper_cmd="tukit ${TUKIT_OPTS} call ${SNAPSHOT_ID} zypper"
+	    fi
 	    # Check if there are updates at all.
 	    TMPFILE=`mktemp ${TMPDIR}/transactional-update.XXXXXXXXXX`
-	    tukit ${TUKIT_OPTS} callext "${SNAPSHOT_ID}" zypper -R {} --xmlout ${ZYPPER_ARG} -y --auto-agree-with-product-licenses --dry-run "${ZYPPER_ARG_PKGS[@]}" > ${TMPFILE}
+	    ${zypper_cmd} --xmlout ${ZYPPER_ARG} -y --auto-agree-with-product-licenses --dry-run "${ZYPPER_ARG_PKGS[@]}" > ${TMPFILE}
 	    PACKAGE_UPDATES=`grep "install-summary download-size" ${TMPFILE} | sed -e 's|.*install-summary download-size=\"\(.*\)\" space-usage-diff.*|\1|g'`
 	    SIZE_OF_UPDATES=`grep "install-summary.*space-usage-diff" ${TMPFILE} | sed -e 's|.*install-summary.*space-usage-diff=\"\([^"]*\)\".*|\1|g'`
 	    NUM_OF_UPDATES=`grep "install-summary.*packages-to-change" ${TMPFILE} | sed -e 's|.*install-summary.*packages-to-change=\"\([^"]*\)\".*|\1|g'`
@@ -933,7 +940,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	    fi
 
 	    export DISABLE_RESTART_ON_UPDATE=yes
-	    tukit ${TUKIT_OPTS} callext "${SNAPSHOT_ID}" zypper -R {} ${ZYPPER_ARG} ${ZYPPER_NONINTERACTIVE} "${ZYPPER_ARG_PKGS[@]}" |& tee -a ${LOGFILE}
+	    ${zypper_cmd} ${ZYPPER_ARG} ${ZYPPER_NONINTERACTIVE} "${ZYPPER_ARG_PKGS[@]}" |& tee -a ${LOGFILE}
 	    RETVAL=${PIPESTATUS[0]}
 	fi
 	# in case of migration, we need to do a little bit more:
