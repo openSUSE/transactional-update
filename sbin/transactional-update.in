@@ -877,7 +877,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
     -o ${RUN_SHELL} -eq 1 -o ${DO_RUN} -eq 1 \
     -o ${REWRITE_BOOTLOADER} -eq 1 -o ${DO_REGISTRATION} -eq 1 ]; then
 
-    if [ "${DEFAULT_SNAPSHOT_ID}" -ne "${BASE_SNAPSHOT_ID}" ]; then
+    if [ -z "${ZYPPER_NONINTERACTIVE}" -a "${DEFAULT_SNAPSHOT_ID}" -ne "${BASE_SNAPSHOT_ID}" ]; then
 	log_info "WARNING: You are creating a snapshot from a different base (${BASE_SNAPSHOT_ID}) than the"
 	log_info "         current default snapshot (${DEFAULT_SNAPSHOT_ID})."
 	if [ "${BASE_SNAPSHOT_ID}" -eq "${CURRENT_SNAPSHOT_ID}" ]; then
@@ -1105,6 +1105,12 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
     elif [ $REBOOT_AFTERWARDS -eq 0 ]; then
 	log_info "\nPlease reboot your machine to activate the changes and avoid data loss."
 	touch "${NEEDS_RESTARTING_FILE}"
+    fi
+
+    if [ "${DEFAULT_SNAPSHOT_ID}" -ne "${BASE_SNAPSHOT_ID}" ]; then
+	log_info "\nWARNING: This snapshot has been created from a different base (${BASE_SNAPSHOT_ID})"
+	log_info "         than the previous default snapshot (${DEFAULT_SNAPSHOT_ID}) and does not"
+	log_info "         contain the changes from the later.\n"
     fi
 
     log_info "New default snapshot is #${SNAPSHOT_ID} (${SNAPSHOT_DIR})."
