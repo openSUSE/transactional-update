@@ -20,6 +20,7 @@ public:
     int processCommand(char *argv[]);
 private:
     std::string baseSnapshot = "active";
+    bool discardSnapshot = false;
 };
 
 #endif /* TRANSACTIONALUPDATE_H */

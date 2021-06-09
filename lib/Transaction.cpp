@@ -14,26 +14,40 @@
 #include "Overlay.hpp"
 #include "Snapshot.hpp"
 #include "Supplement.hpp"
+#include "Util.hpp"
 #include <cerrno>
+#include <chrono>
 #include <cstdlib>
 #include <cstring>
+#include <fstream>
+#include <future>
+#include <ftw.h>
+#include <limits.h>
+#include <poll.h>
 #include <signal.h>
+#include <sys/inotify.h>
 #include <sys/wait.h>
 #include <unistd.h>
 #include <utime.h>
 using namespace TransactionalUpdate;
 namespace fs = std::filesystem;
 
+static int inotifyFd;
+
 class Transaction::impl {
 public:
     void addSupplements();
     void mount();
     int runCommand(char* argv[], bool inChroot);
+    static int inotifyAdd(const char *pathname, const struct stat *sbuf, int type, struct FTW *ftwb);
+    static void inotifyRead();
     std::unique_ptr<Snapshot> snapshot;
     std::string bindDir;
     std::vector<std::unique_ptr<Mount>> dirsToMount;
     Supplements supplements;
-    pid_t pid;
+    pid_t pidCmd;
+    std::future<void> inotifyListener;
+    bool discardIfNoChange = false;
 };
 
 Transaction::Transaction() : pImpl{std::make_unique<impl>()} {
@@ -46,6 +60,9 @@ Transaction::Transaction() : pImpl{std::make_unique<impl>()} {
 
 Transaction::~Transaction() {
     tulog.debug("Destructor Transaction");
+
+    if (inotifyFd != 0)
+        close(inotifyFd);
 
     pImpl->dirsToMount.clear();
     if (!pImpl->bindDir.empty()) {
@@ -158,6 +175,17 @@ void Transaction::impl::addSupplements() {
     supplements.addDir(fs::path{"/var/spool"});
 }
 
+// Callback function for nftw to register all directories for inotify
+int Transaction::impl::inotifyAdd(const char *pathname, const struct stat *sbuf, int type, struct FTW *ftwb) {
+    if (!(type == FTW_D))
+        return 0;
+    if (inotify_add_watch(inotifyFd, pathname, IN_MODIFY | IN_MOVE | IN_CREATE | IN_DELETE | IN_ATTRIB | IN_ONESHOT | IN_ONLYDIR | IN_DONT_FOLLOW) == -1)
+        tulog.info("WARNING: Cannot register inotify watch for ", pathname);
+    else
+        tulog.debug("Watching ", pathname);
+    return 0;
+}
+
 void Transaction::init(std::string base = "active") {
     if (base == "active")
         base = pImpl->snapshot->getCurrent();
@@ -188,6 +216,10 @@ void Transaction::init(std::string base = "active") {
 
     pImpl->mount();
     pImpl->addSupplements();
+    if (pImpl->discardIfNoChange) {
+        // Flag file to indicate this snapshot was initialized with discard flag
+        std::ofstream output(pImpl->snapshot->getRoot() / "discardIfNoChange");
+    }
 }
 
 void Transaction::resume(std::string id) {
@@ -198,9 +230,47 @@ void Transaction::resume(std::string id) {
     }
     pImpl->mount();
     pImpl->addSupplements();
+    if (fs::exists(pImpl->snapshot->getRoot() / "discardIfNoChange")) {
+        pImpl->discardIfNoChange = true;
+    }
+}
+
+void Transaction::setDiscard(bool discard) {
+    pImpl->discardIfNoChange = discard;
+}
+
+void Transaction::impl::inotifyRead() {
+    size_t bufLen = sizeof(struct inotify_event) + NAME_MAX + 1;
+    char buf[bufLen] __attribute__((aligned(8)));
+    ssize_t numRead;
+    int ret;
+
+    struct pollfd pfd = {inotifyFd, POLLIN, 0};
+    while ((ret = (poll(&pfd, 1, 500))) == 0) {}
+    if (ret == -1) {
+        throw std::runtime_error{"Polling inotify file descriptior failed: " + std::string(strerror(errno))};
+    } else if (ret > 0) {
+        numRead = read(inotifyFd, buf, bufLen);
+        if (numRead == 0)
+            throw std::runtime_error{"Read() from inotify fd returned 0!"};
+        if (numRead == -1)
+            throw  std::runtime_error{"read"};
+        tulog.debug("inotify: Exiting after event on ", ((struct inotify_event *)buf)->name);
+    }
 }
 
 int Transaction::impl::runCommand(char* argv[], bool inChroot) {
+    if (discardIfNoChange) {
+        inotifyFd = inotify_init();
+        if (inotifyFd == -1)
+            throw std::runtime_error{"Couldn't initialize inotify."};
+
+        // Recursively register all directories of the root file system
+        nftw(snapshot->getRoot().c_str(), inotifyAdd, 20, FTW_MOUNT | FTW_PHYS);
+
+        inotifyListener = std::async(inotifyRead);
+    }
+
     std::string opts = "Executing `";
     int i = 0;
     while (argv[i]) {
@@ -233,9 +303,9 @@ int Transaction::impl::runCommand(char* argv[], bool inChroot) {
             throw std::runtime_error{"Calling " + std::string(argv[0]) + " failed: " + std::string(strerror(errno))};
         }
     } else {
-        this->pid = pid;
+        this->pidCmd = pid;
         ret = waitpid(pid, &status, 0);
-        this->pid = 0;
+        this->pidCmd = 0;
         if (ret < 0) {
             throw std::runtime_error{"waitpid() failed: " + std::string(strerror(errno))};
         } else {
@@ -267,14 +337,32 @@ int Transaction::callExt(char* argv[]) {
 }
 
 void Transaction::sendSignal(int signal) {
-    if (pImpl->pid != 0) {
-        if (kill(pImpl->pid, signal) < 0) {
-            throw std::runtime_error{"Could not send signal " + std::to_string(signal) + " to process " + std::to_string(pImpl->pid) + ": " + std::string(strerror(errno))};
+    if (pImpl->pidCmd != 0) {
+        if (kill(pImpl->pidCmd, signal) < 0) {
+            throw std::runtime_error{"Could not send signal " + std::to_string(signal) + " to process " + std::to_string(pImpl->pidCmd) + ": " + std::string(strerror(errno))};
         }
     }
 }
 
 void Transaction::finalize() {
+    sync();
+    if (pImpl->discardIfNoChange &&
+            ((inotifyFd != 0 && pImpl->inotifyListener.wait_for(std::chrono::milliseconds(0)) != std::future_status::ready) ||
+            (inotifyFd == 0 && fs::exists(pImpl->snapshot->getRoot() / "discardIfNoChange")))) {
+        tulog.info("No changes to the root file system - discarding snapshot.");
+
+        // Even if the snapshot itself did not contain any changes, /etc may do so. Changes
+        // in /etc may be applied immediately, so merge them back into the running system.
+        std::unique_ptr<Mount> mntEtc{new Mount{"/etc"}};
+        if (mntEtc->isMount() && mntEtc->getFilesystem() == "overlay") {
+            Util::exec("rsync --archive --inplace --xattrs --acls --exclude 'fstab' --delete --quiet '" + std::string(pImpl->snapshot->getRoot()) + "/etc/' /etc");
+        }
+        return;
+    }
+    if (fs::exists(pImpl->snapshot->getRoot() / "discardIfNoChange")) {
+        fs::remove(pImpl->snapshot->getRoot() / "discardIfNoChange");
+    }
+
     // Update /usr timestamp to support system offline update mechanism
     if (utime((pImpl->snapshot->getRoot() / "usr").c_str(), nullptr) != 0)
         throw std::runtime_error{"Updating /usr timestamp failed: " + std::string(strerror(errno))};
@@ -294,6 +382,11 @@ void Transaction::finalize() {
 }
 
 void Transaction::keep() {
+    sync();
+    if (fs::exists(pImpl->snapshot->getRoot() / "discardIfNoChange") && (inotifyFd != 0 && pImpl->inotifyListener.wait_for(std::chrono::milliseconds(0)) == std::future_status::ready)) {
+        tulog.debug("Snapshot was changed, removing discard flagfile.");
+        fs::remove(pImpl->snapshot->getRoot() / "discardIfNoChange");
+    }
     pImpl->supplements.cleanup();
     pImpl->snapshot.reset();
 }

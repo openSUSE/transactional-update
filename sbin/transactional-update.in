@@ -58,8 +58,6 @@ LOCKFILE="/var/run/transactional-update.pid"
 ZYPPER_AUTO_IMPORT_KEYS=0
 ETC_OVERLAY_PATTERN='^[^[:space:]]\+[[:space:]]\+\/etc[[:space:]]\+overlay[[:space:]]\+\([^[:space:]]*,\|\)workdir=\/sysroot\/var\/lib\/overlay\/work-etc[,[:space:]]'
 NON_ROOTFS_WHITELIST=("/var/lib/YaST2/cookies" "/var/lib/rpm" "/var/lib/systemd/migrated" "/var/run/zypp.pid")
-DROP_IF_NO_CHANGE=0
-INOTIFY_EXCLUDES=""
 TUKIT_OPTS=""
 
 TMPDIR=${TMPDIR:-/tmp}
@@ -80,7 +78,6 @@ SNAPSHOT_ID=""
 SNAPSHOT_DIR=""
 BASE_SNAPSHOT_ID=""
 TMPFILE=""
-INOTIFY_PID=""
 DO_CALLEXT=0
 
 # Create stderr alias for things that shouldn't be logged into logfile
@@ -271,21 +268,6 @@ quit() {
 # Called on exit (both on success and failure); cleans up temporary files,
 # mount points and variables
 teardown() {
-    # Roll back snapshot if no changes were performed
-    if [ -n "${INOTIFY_PID}" ] && sync "${SNAPSHOT_DIR}" && ps -q ${INOTIFY_PID} 2>&1 >/dev/null; then
-	kill ${INOTIFY_PID}
-	log_info "The snapshot does not contain any changed files."
-	INOTIFY_PID=""
-
-	# Even if the snapshot itself did not contain any changes,
-	# /etc may do so. Changes in /etc may be applied immediately,
-	# so merge them back into the running system.
-	log_info "Merging overlay directory ${SNAPSHOT_DIR}/etc into /etc..."
-	tukit ${TUKIT_OPTS} callext ${SNAPSHOT_ID} rsync --archive --inplace --xattrs --acls --exclude 'fstab' --delete --quiet "${SNAPSHOT_DIR}/etc/" /etc
-
-	quit 0
-    fi
-
     # Cleanup temporary files
     rm -f ${TMPFILE}
 
@@ -365,17 +347,6 @@ check_registration_on_next_reboot() {
     fi
     test -d "${VARDIR}" || mkdir -p "${VARDIR}"
     touch "${VARDIR}/check-registration"
-}
-
-# Return the optimized list of mount points
-root_mount_points() {
-    local prev=0
-    for mount in $(findmnt --noheadings --submounts --target / --output TARGET --raw | sort | tail -n +2); do
-	if [ "${prev}/" != "${mount:0:$((${#prev}+1))}" ]; then
-	    echo "${mount}"
-	    prev="${mount}"
-	fi
-    done
 }
 
 ORIG_ARGS=("$@")
@@ -563,7 +534,7 @@ while [ 1 ]; do
 	    shift
 	    ;;
 	-d|--drop-if-no-change)
-	    DROP_IF_NO_CHANGE=1
+	    TUKIT_OPTS="${TUKIT_OPTS} --discard"
 	    shift
 	    ;;
 	--quiet)
@@ -691,12 +662,6 @@ if [ -n "${BASE_SNAPSHOT_ID}" -a $(zypper --terse versioncmp $SNAPPER_VERSION 0.
     log_error "ERROR: snapper >= 0.8.4 required for --continue option!"
     log_info "transactional-update finished"
     telem_finish 1
-    exit 1
-fi
-
-if [ $DROP_IF_NO_CHANGE -eq 1 ] && ! command -v inotifywait &> /dev/null; then
-    log_error "ERROR: 'inotifywait' is required for --drop-if-no-change option!"
-    log_info "transactional-update finished"
     exit 1
 fi
 
@@ -899,14 +864,6 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
     # snapshots, otherwise we would have a big disk space leak. But don't store
     # it on disk yet, in error case we would delete the snapshot again.
     UNUSED_SNAPSHOTS="${SNAPSHOT_ID} ${UNUSED_SNAPSHOTS}"
-
-    if [ $DROP_IF_NO_CHANGE -eq 1 ]; then
-	#TODO: Handle directories with special characters (space, newline, apostrophe etc)
-	for snapmount in $(root_mount_points); do
-	    INOTIFY_EXCLUDES="${INOTIFY_EXCLUDES} @${SNAPSHOT_DIR}${snapmount}"
-	done
-	INOTIFY_PID=$( ( inotifywait -r -e modify -e move -e create -e delete -e attrib "${SNAPSHOT_DIR}" ${INOTIFY_EXCLUDES} 2>&1 & echo "PID: $!" ) | ( grep -m1 '^PID: ' | cut -d ' ' -f 2 && grep -q "Watches established" ) )
-    fi
 
     if [ ${DO_REGISTRATION} -eq 1 ]; then
         SUSEConnect --root ${SNAPSHOT_DIR} ${REGISTRATION_ARGS}

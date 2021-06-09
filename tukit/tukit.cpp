@@ -49,6 +49,7 @@ void TUKit::displayHelp() {
     cout << "\tDeletes the given snapshot again\n";
     cout << "Options:\n";
     cout << "--continue[=<ID>], -c[<ID>]  Use latest or given snapshot as base\n";
+    cout << "--discard, -d                Discard snapshot if no files were changed in root\n";
     cout << "--help, -h                   Display this help and exit\n";
     cout << "--quiet, -q                  Decrease verbosity\n";
     cout << "--verbose, -v                Increase verbosity\n";
@@ -59,6 +60,7 @@ int TUKit::parseOptions(int argc, char *argv[]) {
     static const char optstring[] = "+c::hqv";
     static const struct option longopts[] = {
         { "continue", optional_argument, nullptr, 'c' },
+        { "discard", no_argument, nullptr, 'd' },
         { "help", no_argument, nullptr, 'h' },
         { "quiet", no_argument, nullptr, 'q' },
         { "verbose", no_argument, nullptr, 'v' },
@@ -76,6 +78,9 @@ int TUKit::parseOptions(int argc, char *argv[]) {
                 baseSnapshot = optarg;
             else
                 baseSnapshot = "default";
+            break;
+        case 'd':
+            discardSnapshot = true;
             break;
         case 'h':
             displayHelp();
@@ -106,6 +111,9 @@ int TUKit::processCommand(char *argv[]) {
     }
     string arg = argv[0];
     if (arg == "execute") {
+        if (discardSnapshot) {
+            transaction.setDiscard(true);
+        }
         transaction.init(baseSnapshot);
         int status = transaction.execute(&argv[1]); // All remaining arguments
         if (status == 0) {
@@ -116,6 +124,9 @@ int TUKit::processCommand(char *argv[]) {
         return 0;
     }
     else if (arg == "open") {
+        if (discardSnapshot) {
+            transaction.setDiscard(true);
+        }
         transaction.init(baseSnapshot);
         cout << "ID: " << transaction.getSnapshot() << endl;
         transaction.keep();

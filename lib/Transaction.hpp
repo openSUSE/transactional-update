@@ -52,6 +52,25 @@ public:
     void init(std::string base);
 
     /**
+     * @brief Set flag to discard snapshots if no changes are detected
+     * @param discard true or false
+     *
+     * If discard is true, then an inotify watcher will be registered to listen for changes
+     * in the root file system during execute() and callExt() calls. In case no change is
+     * detected the snapshot will be discarded when calling finalize().
+     * If the snapshot will be discarded and if /etc is an overlay file system, then potentially
+     * changed files in /etc will be synchronized into the running system.
+     *
+     * This method has to be called before init(), otherwise setting the mode has no effect. The
+     * mode is stored until the snapshot is finalized, i.e. resuming a snapshot will remember
+     * whether the snapshot may be a candidate for discarding.
+     *
+     * Be aware that inotify registration may fail, e.g. if a system has a lot of open inotify
+     * listeners already. Changes may not be detected correctly in this case.
+     */
+    void setDiscard(bool discard);
+
+    /**
      * @brief Resume an existing transaction
      * @param id Snapshot ID
      *
