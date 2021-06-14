@@ -2,6 +2,16 @@ transactional-update NEWS -- history of user-visible changes.
 
 Copyright (C) 2016-2020 Thorsten Kukuk, Ignaz Forster et al.
 
+Version 3.4.0
+* Apply SElinux context on /etc in transaction [boo#1185625], [boo#1185766]
+  [bsc#1186842], [boo#1186775]
+* Implement inotify handling in C instead of Bash; this makes the
+  --drop-if-no-change option work on SLE Micro [bsc#1184529]
+* Use `tukit call` for up, dup and patch to allow resuming an update after
+  zypper updated itself in the snapshot [bsc#1185226]
+* Fix obsolete output type messages in initrd [boo#1177149]
+* Make different base snapshot warning more visible [bsc#1185224]
+
 Version 3.3.0
 * Add support for more package managers by bind mounting their directories
 * Support snapshots without dedicated overlay [boo#1183539], [bsc#1183539]
