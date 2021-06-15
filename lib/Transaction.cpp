@@ -302,6 +302,7 @@ int Transaction::impl::runCommand(char* argv[], bool inChroot) {
         if (execvp(argv[0], (char* const*)argv) < 0) {
             throw std::runtime_error{"Calling " + std::string(argv[0]) + " failed: " + std::string(strerror(errno))};
         }
+        ret = -1;
     } else {
         this->pidCmd = pid;
         ret = waitpid(pid, &status, 0);
