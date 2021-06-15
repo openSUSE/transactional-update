@@ -20,7 +20,6 @@
 #include <cstdlib>
 #include <cstring>
 #include <fstream>
-#include <future>
 #include <ftw.h>
 #include <limits.h>
 #include <poll.h>
@@ -40,13 +39,12 @@ public:
     void mount();
     int runCommand(char* argv[], bool inChroot);
     static int inotifyAdd(const char *pathname, const struct stat *sbuf, int type, struct FTW *ftwb);
-    static void inotifyRead();
+    int inotifyRead();
     std::unique_ptr<Snapshot> snapshot;
     std::string bindDir;
     std::vector<std::unique_ptr<Mount>> dirsToMount;
     Supplements supplements;
     pid_t pidCmd;
-    std::future<void> inotifyListener;
     bool discardIfNoChange = false;
 };
 
@@ -242,14 +240,14 @@ void Transaction::setDiscard(bool discard) {
     setDiscardIfUnchanged(discard);
 }
 
-void Transaction::impl::inotifyRead() {
+int Transaction::impl::inotifyRead() {
     size_t bufLen = sizeof(struct inotify_event) + NAME_MAX + 1;
     char buf[bufLen] __attribute__((aligned(8)));
     ssize_t numRead;
     int ret;
 
     struct pollfd pfd = {inotifyFd, POLLIN, 0};
-    while ((ret = (poll(&pfd, 1, 500))) == 0) {}
+    ret = (poll(&pfd, 1, 500));
     if (ret == -1) {
         throw std::runtime_error{"Polling inotify file descriptior failed: " + std::string(strerror(errno))};
     } else if (ret > 0) {
@@ -257,9 +255,10 @@ void Transaction::impl::inotifyRead() {
         if (numRead == 0)
             throw std::runtime_error{"Read() from inotify fd returned 0!"};
         if (numRead == -1)
-            throw  std::runtime_error{"read"};
+            throw std::runtime_error{"Reading from inotify fd failed: " + std::string(strerror(errno))};
         tulog.debug("inotify: Exiting after event on ", ((struct inotify_event *)buf)->name);
     }
+    return ret;
 }
 
 int Transaction::impl::runCommand(char* argv[], bool inChroot) {
@@ -270,8 +269,6 @@ int Transaction::impl::runCommand(char* argv[], bool inChroot) {
 
         // Recursively register all directories of the root file system
         nftw(snapshot->getRoot().c_str(), inotifyAdd, 20, FTW_MOUNT | FTW_PHYS);
-
-        inotifyListener = std::async(inotifyRead);
     }
 
     std::string opts = "Executing `";
@@ -351,7 +348,7 @@ void Transaction::sendSignal(int signal) {
 void Transaction::finalize() {
     sync();
     if (pImpl->discardIfNoChange &&
-            ((inotifyFd != 0 && pImpl->inotifyListener.wait_for(std::chrono::milliseconds(0)) != std::future_status::ready) ||
+            ((inotifyFd != 0 && pImpl->inotifyRead() == 0) ||
             (inotifyFd == 0 && fs::exists(pImpl->snapshot->getRoot() / "discardIfNoChange")))) {
         tulog.info("No changes to the root file system - discarding snapshot.");
 
@@ -387,7 +384,7 @@ void Transaction::finalize() {
 
 void Transaction::keep() {
     sync();
-    if (fs::exists(pImpl->snapshot->getRoot() / "discardIfNoChange") && (inotifyFd != 0 && pImpl->inotifyListener.wait_for(std::chrono::milliseconds(0)) == std::future_status::ready)) {
+    if (fs::exists(pImpl->snapshot->getRoot() / "discardIfNoChange") && (inotifyFd != 0 && pImpl->inotifyRead() > 0)) {
         tulog.debug("Snapshot was changed, removing discard flagfile.");
         fs::remove(pImpl->snapshot->getRoot() / "discardIfNoChange");
     }
