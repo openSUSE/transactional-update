@@ -112,7 +112,7 @@ int TUKit::processCommand(char *argv[]) {
     string arg = argv[0];
     if (arg == "execute") {
         if (discardSnapshot) {
-            transaction.setDiscard(true);
+            transaction.setDiscardIfUnchanged(true);
         }
         transaction.init(baseSnapshot);
         int status = transaction.execute(&argv[1]); // All remaining arguments
@@ -125,7 +125,7 @@ int TUKit::processCommand(char *argv[]) {
     }
     else if (arg == "open") {
         if (discardSnapshot) {
-            transaction.setDiscard(true);
+            transaction.setDiscardIfUnchanged(true);
         }
         transaction.init(baseSnapshot);
         cout << "ID: " << transaction.getSnapshot() << endl;

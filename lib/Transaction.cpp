@@ -235,8 +235,11 @@ void Transaction::resume(std::string id) {
     }
 }
 
-void Transaction::setDiscard(bool discard) {
+void Transaction::setDiscardIfUnchanged(bool discard) {
     pImpl->discardIfNoChange = discard;
+}
+void Transaction::setDiscard(bool discard) {
+    setDiscardIfUnchanged(discard);
 }
 
 void Transaction::impl::inotifyRead() {

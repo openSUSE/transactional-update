@@ -68,6 +68,8 @@ public:
      * Be aware that inotify registration may fail, e.g. if a system has a lot of open inotify
      * listeners already. Changes may not be detected correctly in this case.
      */
+    void setDiscardIfUnchanged(bool discard);
+    /** Temporary legacy name - remove on the next incompatible interface change. **/
     void setDiscard(bool discard);
 
     /**
