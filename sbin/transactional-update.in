@@ -965,9 +965,9 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 
     if [ ${REWRITE_INITRD} -eq 1 ]; then
 	log_info "Creating new initrd"
-	tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" /sbin/mkinitrd
+	tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" dracut --force --regenerate-all
 	if [ $? -ne 0 ]; then
-	    log_error "ERROR: mkinitrd failed!"
+	    log_error "ERROR: initrd creation failed!"
 	    EXITCODE=1
 	else
 	    REBUILD_KDUMP_INITRD=1
