@@ -37,7 +37,30 @@ int lockSnapshot(void* userdata, char* transaction, sd_bus_error *ret_error) {
     return 0;
 }
 
-static int method_open(sd_bus_message *m, [[maybe_unused]] void *userdata, sd_bus_error *ret_error) {
+void unlockSnapshot(void* userdata, char* transaction) {
+    TransactionEntry* activeTransaction = userdata;
+    TransactionEntry* foundTransaction;
+    /* first entry */
+    if (activeTransaction->id != NULL &&
+	strcmp(activeTransaction->id, transaction) == 0) {
+	free(activeTransaction->id);
+	activeTransaction->id = "";
+    }
+
+    /* check the rest of the entries */
+    while (activeTransaction->id != NULL) {
+        if (activeTransaction->next->id != NULL &&
+	    strcmp(activeTransaction->next->id, transaction) == 0) {
+            foundTransaction = activeTransaction->next;
+            activeTransaction->next = foundTransaction->next;
+            free(foundTransaction->id);
+            free(foundTransaction);
+        }
+	activeTransaction = activeTransaction->next;
+    }
+}
+
+static int method_open(sd_bus_message *m, void *userdata, sd_bus_error *ret_error) {
     char *base;
     const char *snapid;
     int rc = 0;
@@ -74,22 +97,44 @@ static int method_open(sd_bus_message *m, [[maybe_unused]] void *userdata, sd_bu
         sd_bus_error_set_const(ret_error, "org.opensuse.tukit.error", "Sending signal 'TransactionOpened' failed.");
         return -1;
     }
-    return sd_bus_reply_method_return(m, "");
+    return sd_bus_reply_method_return(m, "s", snapid);
 }
 
 static int method_call(sd_bus_message *m, void *userdata, sd_bus_error *ret_error) {
     char *transaction;
     char *command;
-    int ret;
+    char *kind;
+    int ret = 0;
 
     int pipefd[2];
     int stdout_orig = 0, stderr_orig = 0;
     wordexp_t p;
 
-    if (sd_bus_message_read(m, "ss", &transaction, &command) < 0) {
+    if (sd_bus_message_read(m, "sss", &transaction, &command, &kind) < 0) {
         sd_bus_error_set_const(ret_error, "org.opensuse.tukit.error", "Could not read D-Bus parameters.");
         return -1;
     }
+    if (strcmp(kind, "syncron") != 0 &&
+	strcmp(kind, "asyncron")  != 0) {
+        sd_bus_error_set_const(ret_error, "org.opensuse.tukit.error.in_use", "Wrong kind: syncron or asyncron");
+        return -1;
+    }
+    int asynchron = (strcmp(kind, "asyncron")  == 0 ? 1 : 0);
+
+    if (asynchron) {
+        pid_t child = fork();
+        if (child == -1) {
+            sd_bus_error_set_const(ret_error, "org.opensuse.tukit.error", "Forking failed.");
+            return -1;
+        }
+        if (child != 0) {
+            /* main process */
+	    /* Return to main loop and process command asynchronously */
+            return sd_bus_reply_method_return(m, "is", ret, "Results will be sent via signal." );
+        }
+    }
+
+    // Asynchron from here (if selected)
 
     ret = lockSnapshot(userdata, transaction, ret_error);
     if (ret != 0) {
@@ -99,7 +144,7 @@ static int method_call(sd_bus_message *m, void *userdata, sd_bus_error *ret_erro
     struct tukit_tx* tx = tukit_new_tx();
     if (tx == NULL) {
         sd_bus_error_set_const(ret_error, "org.opensuse.tukit.error", tukit_get_errmsg());
-        return -1;
+	goto finish_call;
     }
     if (tukit_tx_resume(tx, transaction) != 0) {
         sd_bus_error_set_const(ret_error, "org.opensuse.tukit.error", tukit_get_errmsg());
@@ -138,15 +183,7 @@ static int method_call(sd_bus_message *m, void *userdata, sd_bus_error *ret_erro
         sd_bus_error_set_const(ret_error, "org.opensuse.tukit.error", "Command could not be processed.");
         goto finish_call;
     }
-    /*
-    if (sd_bus_reply_method_return(m, "") < 0) {
-        sd_bus_error_set_const(ret_error, "org.opensuse.tukit.error", "Error sending D-Bus reply.");
-        wordfree(&p);
-        goto finish_call;
-    }
-    */
 
-    // Async from here
     ret = tukit_tx_execute(tx, p.we_wordv);
     wordfree(&p);
 
@@ -169,7 +206,34 @@ static int method_call(sd_bus_message *m, void *userdata, sd_bus_error *ret_erro
 
     ret = tukit_tx_keep(tx);
 
-    sd_bus_emit_signal(sd_bus_message_get_bus(m), "/org/opensuse/tukit", "org.opensuse.tukit", "CommandExecuted", "sis", transaction, ret, output);
+    if (asynchron) {
+      /* The bus connection has been allocated in a parent process and is being now reused in the child process after fork().               */
+      /* So we have to create a new dbus connection.                                                                                        */
+      /* In order to monitor the signal on the client side you can use:                                                                     */
+      /* busctl --system --match "interface='org.opensuse.tukit',member='CommandExecuted',path='/org/opensuse/tukit',type='signal'" monitor */
+
+      sd_bus *bus = NULL;
+      ret = sd_bus_default_system(&bus);
+      if (ret < 0) {
+	 sd_bus_error_setf(ret_error, "org.opensuse.tukit.error", "Failed to connect to system bus: %s\n", strerror(-ret));
+         goto finish_call;
+      }
+      ret = sd_bus_emit_signal(bus, "/org/opensuse/tukit", "org.opensuse.tukit", "CommandExecuted", "sis", transaction, ret, output);
+      if (ret < 0) {
+	 sd_bus_error_setf(ret_error, "org.opensuse.tukit.error", "Cannot send signal 'CommandExecuted': %s\n", strerror(-ret));
+         goto finish_call;
+      }
+      ret = sd_bus_flush(bus);
+      if (ret < 0) {
+         sd_bus_error_setf(ret_error, "org.opensuse.tukit.error", "sd_bus_flush: %s\n", strerror(-ret));
+         goto finish_call;
+      }
+      sd_bus_close(bus);
+      sd_bus_unref(bus);
+    } else {
+      ret = sd_bus_reply_method_return(m, "is", ret, output);
+    }
+
     free(output);
 
 finish_call:
@@ -183,16 +247,22 @@ finish_call:
     }
 
     tukit_free_tx(tx);
-    if (ret) {
-        //return ret;
+
+    unlockSnapshot(userdata, transaction);
+
+    if (asynchron) {
+      /* terminating child */
+      _exit(EXIT_SUCCESS);
     }
-    return sd_bus_reply_method_return(m, "");
+
+    return ret;
 }
 
 static const sd_bus_vtable tukit_vtable[] = {
     SD_BUS_VTABLE_START(0),
-    SD_BUS_METHOD_WITH_ARGS("open", SD_BUS_ARGS("s", base), SD_BUS_NO_RESULT, method_open, 0),
-    SD_BUS_METHOD_WITH_ARGS("call", SD_BUS_ARGS("s", transaction, "s", command), SD_BUS_NO_RESULT, method_call, 0),
+    SD_BUS_METHOD_WITH_ARGS("open", SD_BUS_ARGS("s", base), SD_BUS_RESULT("s", snapshot), method_open, 0),
+    SD_BUS_METHOD_WITH_ARGS("call", SD_BUS_ARGS("s", transaction, "s", command, "s", kind),
+			    SD_BUS_RESULT("i", ret, "s", output), method_call, 0),
     SD_BUS_SIGNAL_WITH_ARGS("TransactionOpened", SD_BUS_ARGS("s", snapshot), 0),
     SD_BUS_SIGNAL_WITH_ARGS("CommandExecuted", SD_BUS_ARGS("s", snapshot, "i", returncode, "s", output), 0),
     SD_BUS_VTABLE_END
