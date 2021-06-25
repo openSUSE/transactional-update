@@ -19,6 +19,8 @@ AC_SUBST(LIBTOOL_AGE)
 
 PKG_CHECK_VAR([SYSTEMDDIR], [systemd], [systemdsystemunitdir], [],
 	[AC_MSG_ERROR([Could not determine value for 'systemdsystemunitdir' - is the 'systemd.pc' file installed?])])
+PKG_CHECK_VAR([SYSTEMDSYSTEMCONFDIR], [systemd], [systemdsystemconfdir], [],
+	[AC_MSG_ERROR([Could not determine value for 'systemdsystemconfdir' - is the 'systemd.pc' file installed?])])
 PKG_CHECK_VAR([TMPFILESDIR], [systemd], [tmpfilesdir], [],
 	[AC_MSG_ERROR([Could not determine value for 'tmpfilesdir' - is the 'systemd.pc' file installed?])])
 PKG_CHECK_VAR([DRACUTDIR], [dracut], [dracutmodulesdir], [],
@@ -27,6 +29,8 @@ PKG_CHECK_VAR([UDEVDIR], [udev], [udevdir], [],
 	[AC_MSG_ERROR([Could not determine value for 'udevdir' - is the 'udev.pc' file installed?])])
 PKG_CHECK_VAR([DBUSDATADIR], [dbus-1], [datadir], [],
 	[AC_MSG_ERROR([Could not determine value for 'datadir' - is the 'dbus-1.pc' file installed?])])
+PKG_CHECK_VAR([DBUSSYSTEMBUSSERVICEDIR], [dbus-1], [system_bus_services_dir], [],
+	[AC_MSG_ERROR([Could not determine value for 'system_bus_services_dir' - is the 'dbus-1.pc' file installed?])])
 
 UDEVRULESDIR=${UDEVDIR}/rules.d
 LOGROTATEDDIR=${sysconfdir}/logrotate.d
@@ -35,9 +39,11 @@ DBUSCONFDIR=${DBUSDATADIR}/dbus-1/system.d
 AC_SUBST(TMPFILESDIR)
 AC_SUBST(UDEVRULESDIR)
 AC_SUBST(SYSTEMDDIR)
+AC_SUBST(SYSTEMDSYSTEMCONFDIR)
 AC_SUBST(DRACUTDIR)
 AC_SUBST(LOGROTATEDDIR)
 AC_SUBST(DBUSCONFDIR)
+AC_SUBST(DBUSSYSTEMBUSSERVICEDIR)
 
 AC_PROG_CXX
 AX_CXX_COMPILE_STDCXX_17(, mandatory)

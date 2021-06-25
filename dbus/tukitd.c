@@ -44,7 +44,7 @@ void unlockSnapshot(void* userdata, char* transaction) {
     if (activeTransaction->id != NULL &&
 	strcmp(activeTransaction->id, transaction) == 0) {
 	free(activeTransaction->id);
-	activeTransaction->id = "";
+	activeTransaction->id = strdup("");
     }
 
     /* check the rest of the entries */
