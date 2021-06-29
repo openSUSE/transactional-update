@@ -114,12 +114,12 @@ static int method_call(sd_bus_message *m, void *userdata, sd_bus_error *ret_erro
         sd_bus_error_set_const(ret_error, "org.opensuse.tukit.error", "Could not read D-Bus parameters.");
         return -1;
     }
-    if (strcmp(kind, "syncron") != 0 &&
-	strcmp(kind, "asyncron")  != 0) {
-        sd_bus_error_set_const(ret_error, "org.opensuse.tukit.error.in_use", "Wrong kind: syncron or asyncron");
+    if (strcmp(kind, "synchron") != 0 &&
+	strcmp(kind, "asynchron")  != 0) {
+        sd_bus_error_set_const(ret_error, "org.opensuse.tukit.error.in_use", "Wrong kind: synchron or asynchron");
         return -1;
     }
-    int asynchron = (strcmp(kind, "asyncron")  == 0 ? 1 : 0);
+    int asynchron = (strcmp(kind, "asynchron")  == 0 ? 1 : 0);
 
     if (asynchron) {
         pid_t child = fork();
@@ -258,11 +258,77 @@ finish_call:
     return ret;
 }
 
+static int method_close(sd_bus_message *m, void *userdata, sd_bus_error *ret_error) {
+    char *transaction;
+    int ret = 0;
+
+    if (sd_bus_message_read(m, "s", &transaction) < 0) {
+        sd_bus_error_set_const(ret_error, "org.opensuse.tukit.error", "Could not read D-Bus parameters.");
+        return -1;
+    }
+    ret = lockSnapshot(userdata, transaction, ret_error);
+    if (ret != 0) {
+        return ret;
+    }
+    struct tukit_tx* tx = tukit_new_tx();
+    if (tx == NULL) {
+        sd_bus_error_set_const(ret_error, "org.opensuse.tukit.error", tukit_get_errmsg());
+	goto finish_close;
+    }
+    if ((ret = tukit_tx_resume(tx, transaction)) != 0) {
+        sd_bus_error_set_const(ret_error, "org.opensuse.tukit.error", tukit_get_errmsg());
+        goto finish_close;
+    }
+    if ((ret = tukit_tx_finalize(tx)) != 0) {
+        sd_bus_error_set_const(ret_error, "org.opensuse.tukit.error", tukit_get_errmsg());
+        goto finish_close;
+    }
+    sd_bus_reply_method_return(m, "i", ret);
+
+finish_close:
+    tukit_free_tx(tx);
+    unlockSnapshot(userdata, transaction);
+
+    return ret;
+}
+
+static int method_abort(sd_bus_message *m, void *userdata, sd_bus_error *ret_error) {
+    char *transaction;
+    int ret = 0;
+
+    if (sd_bus_message_read(m, "s", &transaction) < 0) {
+        sd_bus_error_set_const(ret_error, "org.opensuse.tukit.error", "Could not read D-Bus parameters.");
+        return -1;
+    }
+    ret = lockSnapshot(userdata, transaction, ret_error);
+    if (ret != 0) {
+        return ret;
+    }
+    struct tukit_tx* tx = tukit_new_tx();
+    if (tx == NULL) {
+        sd_bus_error_set_const(ret_error, "org.opensuse.tukit.error", tukit_get_errmsg());
+	goto finish_abort;
+    }
+    if ((ret = tukit_tx_resume(tx, transaction)) != 0) {
+        sd_bus_error_set_const(ret_error, "org.opensuse.tukit.error", tukit_get_errmsg());
+        goto finish_abort;
+    }
+    sd_bus_reply_method_return(m, "i", ret);
+
+finish_abort:
+    tukit_free_tx(tx);
+    unlockSnapshot(userdata, transaction);
+
+    return ret;
+}
+
 static const sd_bus_vtable tukit_vtable[] = {
     SD_BUS_VTABLE_START(0),
     SD_BUS_METHOD_WITH_ARGS("open", SD_BUS_ARGS("s", base), SD_BUS_RESULT("s", snapshot), method_open, 0),
     SD_BUS_METHOD_WITH_ARGS("call", SD_BUS_ARGS("s", transaction, "s", command, "s", kind),
 			    SD_BUS_RESULT("i", ret, "s", output), method_call, 0),
+    SD_BUS_METHOD_WITH_ARGS("close", SD_BUS_ARGS("s", transaction), SD_BUS_RESULT("i", ret), method_close, 0),
+    SD_BUS_METHOD_WITH_ARGS("abort", SD_BUS_ARGS("s", transaction), SD_BUS_RESULT("i", ret), method_abort, 0),
     SD_BUS_SIGNAL_WITH_ARGS("TransactionOpened", SD_BUS_ARGS("s", snapshot), 0),
     SD_BUS_SIGNAL_WITH_ARGS("CommandExecuted", SD_BUS_ARGS("s", snapshot, "i", returncode, "s", output), 0),
     SD_BUS_VTABLE_END
