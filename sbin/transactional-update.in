@@ -154,6 +154,7 @@ usage() {
     echo "up                         Call 'zypper up' (n)"
     echo "patch                      Call 'zypper patch' (n)"
     echo "migration                  Updates systems registered via SCC / SMT (i)"
+    echo "register ...               Call 'SUSEConnect ...' (n)"
     echo "pkg install ...            Install individual packages (i)"
     echo "pkg remove ...             Remove individual packages (i)"
     echo "pkg update ...             Updates individual packages (i)"
