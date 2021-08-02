@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: LGPL-2.1-or-later */
-/* SPDX-FileCopyrightText: 2020 SUSE LLC */
+/* SPDX-FileCopyrightText: 2020-2021 SUSE LLC */
 
 /*
   Retrieves configuration values, set via configuration file or using
@@ -15,7 +15,8 @@
 namespace TransactionalUpdate {
 
 Configuration::Configuration() {
-    econf_err error = econf_newIniFile(&key_file);
+    econf_file *kf_defaults;
+    econf_err error = econf_newIniFile(&kf_defaults);
     if (error)
         throw std::runtime_error{"Could not create default configuration."};
     std::map<const char*, const char*> defaults = {
@@ -24,9 +25,31 @@ Configuration::Configuration() {
         {"OVERLAY_DIR", "/var/lib/overlay"}
     };
     for(auto &[key, value] : defaults) {
-        error = econf_setStringValue(key_file, "", key, value);
-        if (error)
+        error = econf_setStringValue(kf_defaults, "", key, value);
+        if (error) {
+            econf_freeFile(kf_defaults);
             throw std::runtime_error{"Could not set default value for '" + std::string(key) + "'."};
+        }
+    }
+
+    econf_file *kf_conffiles;
+    error = econf_readDirs(&kf_conffiles, (std::string(PREFIX) + CONFDIR).c_str(), CONFDIR, "tukit", ".conf", "=", "#");
+    if (error && error != ECONF_NOFILE) {
+        econf_freeFile(kf_defaults);
+        econf_freeFile(kf_conffiles);
+        throw std::runtime_error{"Couldn't read configuration file: " + std::string(econf_errString(error))};
+    }
+
+    if (error == ECONF_SUCCESS) {
+        error = econf_mergeFiles(&key_file, kf_defaults, kf_conffiles);
+        econf_freeFile(kf_defaults);
+        econf_freeFile(kf_conffiles);
+        if (error) {
+            throw std::runtime_error{"Couldn't merge configuration: " + std::string(econf_errString(error))};
+        }
+    } else {
+        econf_freeFile(key_file);
+        key_file = std::move(kf_defaults);
     }
 }
 
