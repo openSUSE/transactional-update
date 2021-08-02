@@ -1,12 +1,6 @@
-#
-# Copyright (c) 2018 Ignaz Forster <iforster@suse.com>
-#
+# SPDX-License-Identifier: LGPL-2.1-or-later
+# SPDX-FileCopyrightText: 2018-2021 SUSE LLC
 
-EXTRA_DIST = transactional-update.conf
-
-install-data-local:
-	$(mkinstalldirs) $(DESTDIR)$(prefix)$(sysconfdir)
-	$(INSTALL_DATA) $(srcdir)/$(EXTRA_DIST) $(DESTDIR)$(prefix)$(sysconfdir)
-
-uninstall-local:
-	-rm $(DESTDIR)$(prefix)$(sysconfdir)/$(EXTRA_DIST)
+EXTRA_DIST = transactional-update.conf tukit.conf
+configdir = $(prefix)$(sysconfdir)
+config_DATA = $(EXTRA_DIST)

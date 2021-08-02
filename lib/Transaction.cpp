@@ -95,7 +95,11 @@ fs::path Transaction::getRoot() {
 void Transaction::impl::mount() {
     dirsToMount.push_back(std::make_unique<PropagatedBindMount>("/dev"));
     dirsToMount.push_back(std::make_unique<BindMount>("/var/log"));
-    dirsToMount.push_back(std::make_unique<BindMount>("/opt"));
+
+    std::vector<std::string> customDirs = config.getArray("BINDDIRS");
+    for (auto it = customDirs.begin(); it != customDirs.end(); ++it) {
+        dirsToMount.push_back(std::make_unique<BindMount>(*it));
+    }
 
     Mount mntVar{"/var"};
     if (mntVar.isMount()) {
