@@ -9,6 +9,7 @@
 #include "Configuration.hpp"
 #include "Util.hpp"
 #include <map>
+#include <regex>
 #include <stdexcept>
 #include <libeconf.h>
 
@@ -63,6 +64,34 @@ std::string Configuration::get(const std::string &key) {
     if (error)
         throw std::runtime_error{"Could not read configuration setting '" + key + "'."};
     return std::string(val);
+}
+
+std::vector<std::string> Configuration::getArray(const std::string &key) {
+    std::vector<std::string> ret;
+    econf_err error;
+
+    size_t len = 0;
+    char** confkeys;
+    error = econf_getKeys(key_file, "", &len, &confkeys);
+    if (error)
+        throw std::runtime_error{"Could not read keys."};
+
+    std::regex exp(key + "\\[.*\\]");
+    for (size_t i = 0; i < len; i++) {
+        if (std::regex_match(confkeys[i], exp)) {
+            CString val;
+            error = econf_getStringValue(key_file, "", confkeys[i], &val.ptr);
+            if (error) {
+                econf_freeArray(confkeys);
+                throw std::runtime_error{"Could not read key '" + std::string(confkeys[i]) + "'."};
+            }
+            if (val != nullptr)
+                ret.push_back(std::string(val));
+        }
+    }
+    econf_freeArray(confkeys);
+
+    return ret;
 }
 
 } // namespace TransactionalUpdate

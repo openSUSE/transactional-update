@@ -10,6 +10,7 @@
 #define T_U_CONFIGURATION_H
 
 #include <string>
+#include <vector>
 
 typedef struct econf_file econf_file;
 
@@ -22,6 +23,7 @@ public:
     Configuration(const Configuration&) = delete;
     void operator=(const Configuration&) = delete;
     std::string get(const std::string &key);
+    std::vector<std::string> getArray(const std::string &key);
 private:
     econf_file *key_file;
 };
