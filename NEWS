@@ -2,6 +2,19 @@ transactional-update NEWS -- history of user-visible changes.
 
 Copyright (C) 2016-2020 Thorsten Kukuk, Ignaz Forster et al.
 
+Version 3.5.0
+* Add alias setDiscardIfUnchanged for setDiscard. The old method name
+  wasn't really clear and will be removed if we should have an API break
+  in the future
+* Replace mkinitrd with direct dracut call [boo#1186213]
+* tukit: Add configuration file support (/etc/tukit.conf)
+* Allow users to configure additional bind mounts (see /usr/etc/tukit.conf
+  for an example and limitations) [bsc#1188322]
+* Add 'transactional-update status' call. This is a POC for obtaining a
+  hash of a system to verify its integrity. The functionality is still
+  experimental!
+* Internal bugfixes / optimizations
+
 Version 3.4.0
 * Apply SElinux context on /etc in transaction [boo#1185625], [boo#1185766]
   [bsc#1186842], [boo#1186775]
