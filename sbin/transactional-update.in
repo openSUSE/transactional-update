@@ -58,6 +58,7 @@ NEW_SNAPSHOT_FLAG="/var/lib/overlay/transactional-update.newsnapshot"
 NEEDS_RESTARTING_FILE="/var/run/reboot-needed"
 LOCKFILE="/var/run/transactional-update.pid"
 STATUS_FILE="@libdir@/sysimage/tu/transactional-update.status"
+EXPERIMENTAL_STATUS=0
 BASE_MANIFEST_FILE="@libdir@/sysimage/tu/base.manifest"
 SYSTEM_MANIFEST_FILE="@libdir@/sysimage/tu/system.manifest"
 ZYPPER_AUTO_IMPORT_KEYS=0
@@ -161,7 +162,7 @@ usage() {
     echo "Standalone Commands:"
     echo "rollback [<number>]        Set the current or given snapshot as default snapshot"
     echo "rollback last              Set the last working snapshot as default snapshot"
-    echo "status                     Status and history report"
+    echo "status                     Status and history report [experimental - enabled: ${EXPERIMENTAL_STATUS}]"
     echo ""
     echo "Options:"
     echo "--interactive, -i          Use interactive mode for package command"
@@ -1347,7 +1348,9 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	fi
 
 	# Create the status for the new snapshot, before closing it
-	create_status_file
+	if [ "${EXPERIMENTAL_STATUS}" -eq 1 ]; then
+	    create_status_file
+	fi
 
 	if [ $RETVAL -eq 0 -o $RETVAL -eq 102 -o $RETVAL -eq 103 -o \( $DO_DUP -eq 0 -a $RETVAL -eq 106 \) ]; then
 	    REBUILD_KDUMP_INITRD=1

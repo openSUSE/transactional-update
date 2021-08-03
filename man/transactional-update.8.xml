@@ -492,6 +492,11 @@ for more information.
 	from the expected situation, and will save a copy of both
 	manifest for further audit of the system.
       </para>
+      <para>
+	To write the necessary state file
+	<option>EXPERIMENTAL_STATUS=1</option>has to be set in
+	<filename>transactional-update.conf</filename>.
+      </para>
     </listitem>
   </varlistentry>
 </variablelist>
