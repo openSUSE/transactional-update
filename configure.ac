@@ -1,9 +1,9 @@
 dnl Process this file with autoconf to produce a configure script.
-AC_INIT(transactional-update, 3.5.0)
+AC_INIT(transactional-update, 3.5.1)
 # Increase on any interface change and reset revision
 LIBTOOL_CURRENT=3
 # Increase or reset on any VERSION update
-LIBTOOL_REVISION=0
+LIBTOOL_REVISION=1
 # Increase if interface change is backwards compatible, reset otherwise
 LIBTOOL_AGE=3
 AC_CANONICAL_SYSTEM
