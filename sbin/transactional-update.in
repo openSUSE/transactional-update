@@ -181,20 +181,24 @@ print_version() {
     exit 0
 }
 
-log_info() {
+log_to_file() {
     echo -e `date "+%Y-%m-%d %H:%M"` "$@" >> ${LOGFILE}
+}
+
+log_to_stdout() {
     if [ ${VERBOSITY} -ge 2 ]; then
 	echo -e "$@"
     fi
 }
 
-log_to_file() {
-    echo -e `date "+%Y-%m-%d %H:%M"` "$@" >> ${LOGFILE}
+log_info() {
+    log_to_stdout "$@"
+    log_to_file "$@"
 }
 
 log_error() {
     TELEM_PAYLOAD="${TELEM_PAYLOAD}\nmessage=$@"
-    echo -e `date "+%Y-%m-%d %H:%M"` "$@" >> ${LOGFILE}
+    log_to_file "$@"
     echo -e "$@" 1>&4
 }
 
