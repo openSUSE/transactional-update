@@ -35,9 +35,8 @@ string Util::exec(const string cmd) {
 
     int rc = pclose(pipe);
 
-    if (rc == EXIT_SUCCESS) {
-        tulog.debug("◸", result, "◿");
-    } else {
+    tulog.debug("◸", result, "◿");
+    if (rc != EXIT_SUCCESS) {
         throw ExecutionException{"`" + cmd + "` returned with error code " + to_string(rc%255) + ".", rc};
     }
 
