@@ -2,6 +2,10 @@ transactional-update NEWS -- history of user-visible changes.
 
 Copyright (C) 2016-2020 Thorsten Kukuk, Ignaz Forster et al.
 
+Version 3.5.3
+* t-u: Purge kernels as part of package operations
+  Required for live patching support [bsc#1189728]
+
 Version 3.5.2
 * tukit: Fix overlay syncing errors with SELinux [bsc#1188648]
   "Transactional update fails with SELinux enabled: rsync: rsync_xal_set:
