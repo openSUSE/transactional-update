@@ -1328,6 +1328,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	    PACKAGE_UPDATES=`grep "install-summary download-size" ${TMPFILE} | sed -e 's|.*install-summary download-size=\"\(.*\)\" space-usage-diff.*|\1|g'`
 	    SIZE_OF_UPDATES=`grep "install-summary.*space-usage-diff" ${TMPFILE} | sed -e 's|.*install-summary.*space-usage-diff=\"\([^"]*\)\".*|\1|g'`
 	    NUM_OF_UPDATES=`grep "install-summary.*packages-to-change" ${TMPFILE} | sed -e 's|.*install-summary.*packages-to-change=\"\([^"]*\)\".*|\1|g'`
+	    INCLUDES_KERNEL_PACKAGES=`grep 'solvable.*type="package"' ${TMPFILE} | grep 'name="kernel-'`
 	    rm -f ${TMPFILE}
 	    TELEM_PAYLOAD="${TELEM_PAYLOAD}\npackages=${NUM_OF_UPDATES}\ndownload_size=${PACKAGE_UPDATES}\nspace-usage=${SIZE_OF_UPDATES}"
 	    if [ "${NUM_OF_UPDATES}" = "0" ] || [ -z "${NUM_OF_UPDATES}" -a "${PACKAGE_UPDATES}" = "0" -a "${SIZE_OF_UPDATES}" = "0" ]; then
@@ -1338,6 +1339,9 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	    export DISABLE_RESTART_ON_UPDATE=yes
 	    ${zypper_cmd} ${ZYPPER_ARG} ${ZYPPER_NONINTERACTIVE} "${ZYPPER_ARG_PKGS[@]}" |& tee -a ${LOGFILE}
 	    RETVAL=${PIPESTATUS[0]}
+	    if [ $RETVAL -eq 0 -a -n "${INCLUDES_KERNEL_PACKAGES}" ]; then
+		${zypper_cmd} -n purge-kernels |& tee -a ${LOGFILE}
+	    fi
 	fi
 	# in case of migration, we need to do a little bit more:
 	if [ ${DO_MIGRATION} -eq 1 ]; then
