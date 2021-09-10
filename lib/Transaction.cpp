@@ -165,7 +165,8 @@ void Transaction::impl::addSupplements() {
     }
     supplements.addLink(fs::path{"../../usr/lib/sysimage/rpm"}, fs::path{"/var/lib/rpm"});
     supplements.addFile(fs::path{"/run/netconfig"});
-    supplements.addFile(fs::path{"/run/systemd/resolve"});
+    supplements.addFile(fs::path{"/run/systemd/resolve/resolv.conf"});
+    supplements.addFile(fs::path{"/run/systemd/resolve/stub-resolv.conf"});
     if (fs::is_directory("/var/cache/dnf"))
         supplements.addDir(fs::path{"/var/cache/dnf"});
     if (fs::is_directory("/var/cache/yum"))
