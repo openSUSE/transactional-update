@@ -1305,7 +1305,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
     UNUSED_SNAPSHOTS="${SNAPSHOT_ID} ${UNUSED_SNAPSHOTS}"
 
     if [ ${DO_REGISTRATION} -eq 1 ]; then
-        SUSEConnect --root ${SNAPSHOT_DIR} ${REGISTRATION_ARGS}
+	tukit ${TUKIT_OPTS} callext ${SNAPSHOT_ID} SUSEConnect --root {} ${REGISTRATION_ARGS}
     fi
 
     if [ -n "${ZYPPER_ARG}" ]; then
