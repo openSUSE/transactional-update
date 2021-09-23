@@ -128,6 +128,8 @@ void Transaction::impl::mount() {
     }
     if (BindMount{"/boot/efi"}.isMount())
         dirsToMount.push_back(std::make_unique<BindMount>("/boot/efi"));
+    if (BindMount{"/boot/zipl"}.isMount())
+        dirsToMount.push_back(std::make_unique<BindMount>("/boot/zipl"));
 
     dirsToMount.push_back(std::make_unique<PropagatedBindMount>("/proc"));
     dirsToMount.push_back(std::make_unique<PropagatedBindMount>("/sys"));
