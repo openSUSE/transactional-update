@@ -1339,7 +1339,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	    export DISABLE_RESTART_ON_UPDATE=yes
 	    ${zypper_cmd} ${ZYPPER_ARG} ${ZYPPER_NONINTERACTIVE} "${ZYPPER_ARG_PKGS[@]}" |& tee -a ${LOGFILE}
 	    RETVAL=${PIPESTATUS[0]}
-	    if [ $RETVAL -eq 0 -a -n "${INCLUDES_KERNEL_PACKAGES}" ]; then
+	    if [ \( $RETVAL -eq 0 -o $RETVAL -eq 102 -o $RETVAL -eq 103 \) -a -n "${INCLUDES_KERNEL_PACKAGES}" ]; then
 		${zypper_cmd} -n purge-kernels |& tee -a ${LOGFILE}
 	    fi
 	fi
