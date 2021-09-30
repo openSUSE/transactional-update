@@ -65,6 +65,17 @@ JH_CHECK_XML_CATALOG([-//OASIS//DTD DocBook XML V4.3//EN],
                 [DocBook XML DTD V4.3], [], enable_man=no)
 JH_CHECK_XML_CATALOG([http://docbook.sourceforge.net/release/xsl/current/manpages/docbook.xsl],
                 [DocBook XSL Stylesheets], [], enable_man=no)
+AC_PATH_PROG([BROWSER], [w3m])
+if test ! -z "$BROWSER"; then
+	BROWSER="$BROWSER -T text/html -dump"
+else
+	AC_PATH_PROG([BROWSER], [elinks])
+	if test ! -z "$BROWSER"; then
+		BROWSER="$BROWSER -no-numbering -no-references -dump"
+	else
+		enable_man=no
+	fi
+fi
 
 m4_ifdef([AX_PYTHON_MODULE],
 	[AX_PYTHON_MODULE([lxml])],
@@ -79,16 +90,6 @@ AS_IF([test "x$enable_man" = "xno" -a "x$with_doc" != "xno"],
 
 AM_CONDITIONAL(ENABLE_REGENERATE_MAN,
 	test "x$enable_man" != "xno" -a "x$with_doc" != "xno")
-
-AC_PATH_PROG([BROWSER], [w3m])
-if test ! -z "$BROWSER"; then
-     BROWSER="$BROWSER -T text/html -dump"
-else
-     AC_PATH_PROG([BROWSER], [links])
-     if test ! -z "$BROWSER"; then
-          BROWSER="$BROWSER -no-numbering -no-references -dump"
-     fi
-fi
 
 AC_OUTPUT([Makefile lib/Makefile tukit/Makefile sbin/Makefile man/Makefile \
 	systemd/Makefile logrotate/Makefile dracut/Makefile doc/Makefile \
