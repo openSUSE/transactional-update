@@ -69,8 +69,6 @@ public:
      * listeners already. Changes may not be detected correctly in this case.
      */
     void setDiscardIfUnchanged(bool discard);
-    /** Temporary legacy name - remove on the next incompatible interface change. **/
-    void setDiscard(bool discard);
 
     /**
      * @brief Resume an existing transaction

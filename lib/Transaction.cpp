@@ -251,9 +251,6 @@ void Transaction::resume(std::string id) {
 void Transaction::setDiscardIfUnchanged(bool discard) {
     pImpl->discardIfNoChange = discard;
 }
-void Transaction::setDiscard(bool discard) {
-    setDiscardIfUnchanged(discard);
-}
 
 int Transaction::impl::inotifyRead() {
     size_t bufLen = sizeof(struct inotify_event) + NAME_MAX + 1;
