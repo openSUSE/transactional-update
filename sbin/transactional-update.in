@@ -95,7 +95,7 @@ if [ ! -e /proc/$$/fd/4 ]; then
 	exec 4>&2
 fi
 # Log stderr to log file
-exec 2> >(exec tee -a "${LOGFILE}")
+exec 2> >(exec tee -a "${LOGFILE}" >&2)
 
 self_update() {
     if [ ${DO_SELF_UPDATE} == 0 ]; then
