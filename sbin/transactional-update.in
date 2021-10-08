@@ -1525,14 +1525,17 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
     if [ ${EXITCODE} -ne 0 ]; then
 	quit ${EXITCODE}
     elif [ $REBOOT_AFTERWARDS -eq 0 ]; then
-	log_info "\nPlease reboot your machine to activate the changes and avoid data loss."
+	log_info ""
+	log_info "Please reboot your machine to activate the changes and avoid data loss."
 	touch "${NEEDS_RESTARTING_FILE}"
     fi
 
     if [ "${DEFAULT_SNAPSHOT_ID}" -ne "${BASE_SNAPSHOT_ID}" ]; then
-	log_info "\nWARNING: This snapshot has been created from a different base (${BASE_SNAPSHOT_ID})"
+	log_info ""
+	log_info "WARNING: This snapshot has been created from a different base (${BASE_SNAPSHOT_ID})"
 	log_info "         than the previous default snapshot (${DEFAULT_SNAPSHOT_ID}) and does not"
-	log_info "         contain the changes from the later.\n"
+	log_info "         contain the changes from the later."
+	log_info ""
     fi
 
     log_info "New default snapshot is #${SNAPSHOT_ID} (${SNAPSHOT_DIR})."
