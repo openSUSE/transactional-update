@@ -64,6 +64,7 @@ SYSTEM_MANIFEST_FILE="@libdir@/sysimage/tu/system.manifest"
 ZYPPER_AUTO_IMPORT_KEYS=0
 ETC_OVERLAY_PATTERN='^[^[:space:]]\+[[:space:]]\+\/etc[[:space:]]\+overlay[[:space:]]\+\([^[:space:]]*,\|\)workdir=\/sysroot\/var\/lib\/overlay\/work-etc[,[:space:]]'
 NON_ROOTFS_WHITELIST=("/var/lib/YaST2/cookies" "/var/lib/rpm" "/var/lib/systemd/migrated" "/var/run/zypp.pid")
+DRACUT_OPTS=""
 TUKIT_OPTS=""
 
 TMPDIR=${TMPDIR:-/tmp}
@@ -89,13 +90,6 @@ DO_CALLEXT=0
 declare -A ROLES=()
 REPOS=()
 declare -A BUILDTIME=()
-
-# Create stderr alias for things that shouldn't be logged into logfile
-if [ ! -e /proc/$$/fd/4 ]; then
-	exec 4>&2
-fi
-# Log stderr to log file
-exec 2> >(exec tee -a "${LOGFILE}" >&2)
 
 self_update() {
     if [ ${DO_SELF_UPDATE} == 0 ]; then
@@ -199,7 +193,7 @@ log_info() {
 log_error() {
     TELEM_PAYLOAD="${TELEM_PAYLOAD}\nmessage=$@"
     log_to_file "$@"
-    echo -e "$@" 1>&4
+    echo -e "$@" 1>&2
 }
 
 bashlock() {
@@ -970,7 +964,9 @@ while [ 1 ]; do
 	    ;;
 	--quiet)
 	    VERBOSITY=1
-	    TUKIT_OPTS="${TUKIT_OPTS} -q"
+	    TUKIT_OPTS="${TUKIT_OPTS} --quiet"
+	    DRACUT_OPTS="${DRACUT_OPTS} --quiet"
+	    # ZYPPER_ARG handled below
 	    shift
 	    ;;
 	register)
@@ -1004,6 +1000,20 @@ while [ 1 ]; do
 	    ;;
     esac
 done
+
+# Duplicate stdout and stderr before creating custom handlers
+if [ ! -e /proc/$$/fd/4 ]; then
+    exec 4>&1
+fi
+
+# Log stderr to log file in case anything goes wrong within transactional-update
+exec 2> >(exec tee -a "${LOGFILE}" >&2)
+if [ "${VERBOSITY}" -eq 1 ]; then
+    exec 1>/dev/null
+    if [ -n "${ZYPPER_ARG}" ]; then
+	ZYPPER_ARG="--quiet ${ZYPPER_ARG}"
+    fi
+fi
 
 # Setup SELinux
 if [ "${SETUP_SELINUX}" -eq 1 ]; then
@@ -1305,7 +1315,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
     UNUSED_SNAPSHOTS="${SNAPSHOT_ID} ${UNUSED_SNAPSHOTS}"
 
     if [ ${DO_REGISTRATION} -eq 1 ]; then
-	tukit ${TUKIT_OPTS} callext ${SNAPSHOT_ID} SUSEConnect --root {} ${REGISTRATION_ARGS}
+	tukit ${TUKIT_OPTS} callext ${SNAPSHOT_ID} SUSEConnect --root {} ${REGISTRATION_ARGS} 1>&4
     fi
 
     if [ -n "${ZYPPER_ARG}" ]; then
@@ -1314,7 +1324,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	if [ ${DO_MIGRATION} -eq 1 ]; then
 	    # transactional-update migration
 	    export DISABLE_RESTART_ON_UPDATE=yes
-	    tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" zypper ${ZYPPER_ARG} ${ZYPPER_NONINTERACTIVE} "${ZYPPER_ARG_PKGS[@]}" |& tee -a ${LOGFILE}
+	    tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" zypper ${ZYPPER_ARG} ${ZYPPER_NONINTERACTIVE} "${ZYPPER_ARG_PKGS[@]}" |& tee -a ${LOGFILE} 1>&4
 	    RETVAL=${PIPESTATUS[0]}
 	else
 	    if [ ${DO_CALLEXT} -eq 1 ]; then
@@ -1337,7 +1347,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	    fi
 
 	    export DISABLE_RESTART_ON_UPDATE=yes
-	    ${zypper_cmd} ${ZYPPER_ARG} ${ZYPPER_NONINTERACTIVE} "${ZYPPER_ARG_PKGS[@]}" |& tee -a ${LOGFILE}
+	    ${zypper_cmd} ${ZYPPER_ARG} ${ZYPPER_NONINTERACTIVE} "${ZYPPER_ARG_PKGS[@]}" |& tee -a ${LOGFILE} 1>&4
 	    RETVAL=${PIPESTATUS[0]}
 	    if [ \( $RETVAL -eq 0 -o $RETVAL -eq 102 -o $RETVAL -eq 103 \) -a -n "${INCLUDES_KERNEL_PACKAGES}" ]; then
 		${zypper_cmd} -n purge-kernels |& tee -a ${LOGFILE}
@@ -1413,7 +1423,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 
     if [ ${REWRITE_INITRD} -eq 1 ]; then
 	log_info "Creating new initrd"
-	tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" dracut --force --regenerate-all
+	tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" dracut ${DRACUT_OPTS} --force --regenerate-all 1>&4
 	if [ $? -ne 0 ]; then
 	    log_error "ERROR: initrd creation failed!"
 	    EXITCODE=1
@@ -1429,7 +1439,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 
     if [ ${REWRITE_GRUB_CFG} -eq 1 ]; then
 	log_info "Creating a new grub2 config"
-	tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" bash -c "/usr/sbin/grub2-mkconfig > /boot/grub2/grub.cfg"
+	tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" bash -c "/usr/sbin/grub2-mkconfig > /boot/grub2/grub.cfg" 1>&4
 	if [ $? -ne 0 ]; then
 	    log_error "ERROR: grub2-mkconfig failed!"
 	    EXITCODE=1;
@@ -1442,7 +1452,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 
     if [ ${REWRITE_BOOTLOADER} -eq 1 ]; then
 	log_info "Writing new bootloader"
-	tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" /sbin/pbl --install
+	tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" /sbin/pbl --install 1>&4
 	if [ $? -ne 0 ]; then
 	    log_error "ERROR: /sbin/pbl --install failed!"
 	    EXITCODE=1;
@@ -1450,13 +1460,13 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
     fi
 
     if [ ${DO_RUN} -eq 1 ]; then
-	tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" "${RUN_CMD[@]}"
+	tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" "${RUN_CMD[@]}" 1>&4
     fi
 
     if [ ${RUN_SHELL} -eq 1 ]; then
 	log_to_stdout "Opening chroot in snapshot ${SNAPSHOT_ID}, continue with 'exit'"
         export PS1="transactional update # "
-	tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" bash 2>&4
+	tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" bash 1>&4
     fi
 
     if [ -x /usr/sbin/selinuxenabled ] && /usr/sbin/selinuxenabled ; then
