@@ -32,6 +32,7 @@ using namespace TransactionalUpdate;
 namespace fs = std::filesystem;
 
 static int inotifyFd;
+std::vector<std::filesystem::path> inotifyExcludes;
 
 class Transaction::impl {
 public:
@@ -103,7 +104,6 @@ void Transaction::impl::mount() {
 
     Mount mntVar{"/var"};
     if (mntVar.isMount()) {
-        dirsToMount.push_back(std::make_unique<BindMount>("/var/cache"));
         if (fs::is_directory("/var/lib/zypp"))
             dirsToMount.push_back(std::make_unique<BindMount>("/var/lib/zypp"));
         dirsToMount.push_back(std::make_unique<BindMount>("/var/lib/ca-certificates"));
@@ -118,6 +118,21 @@ void Transaction::impl::mount() {
         overlay.setMountOptionsForMount(mntEtc);
         dirsToMount.push_back(std::move(mntEtc));
     }
+
+    // Set up temporary directories, so changes will be discarded automatically
+    dirsToMount.push_back(std::make_unique<BindMount>("/var/cache"));
+    std::unique_ptr<Mount> mntTmp{new Mount{"/tmp"}};
+    mntTmp->setType("tmpfs");
+    mntTmp->setSource("tmpfs");
+    dirsToMount.push_back(std::move(mntTmp));
+    std::unique_ptr<Mount> mntRun{new Mount{"/run"}};
+    mntRun->setType("tmpfs");
+    mntRun->setSource("tmpfs");
+    dirsToMount.push_back(std::move(mntRun));
+    std::unique_ptr<Mount> mntVarTmp{new Mount{"/var/tmp"}};
+    mntVarTmp->setType("tmpfs");
+    mntVarTmp->setSource("tmpfs");
+    dirsToMount.push_back(std::move(mntVarTmp));
 
     // Mount platform specific GRUB directories for GRUB updates
     for (auto& path: fs::directory_iterator("/boot/grub2")) {
@@ -169,14 +184,6 @@ void Transaction::impl::addSupplements() {
     supplements.addFile(fs::path{"/run/netconfig"});
     supplements.addFile(fs::path{"/run/systemd/resolve/resolv.conf"});
     supplements.addFile(fs::path{"/run/systemd/resolve/stub-resolv.conf"});
-    if (fs::is_directory("/var/cache/dnf"))
-        supplements.addDir(fs::path{"/var/cache/dnf"});
-    if (fs::is_directory("/var/cache/yum"))
-        supplements.addDir(fs::path{"/var/cache/yum"});
-    if (fs::is_directory("/var/cache/PackageKit"))
-        supplements.addDir(fs::path{"/var/cache/PackageKit"});
-    if (fs::is_directory("/var/cache/zypp"))
-        supplements.addDir(fs::path{"/var/cache/zypp"});
     supplements.addDir(fs::path{"/var/spool"});
 }
 
@@ -184,6 +191,11 @@ void Transaction::impl::addSupplements() {
 int Transaction::impl::inotifyAdd(const char *pathname, const struct stat *sbuf, int type, struct FTW *ftwb) {
     if (!(type == FTW_D))
         return 0;
+    std::vector<std::filesystem::path>::iterator it;
+    for (it = inotifyExcludes.begin(); it != inotifyExcludes.end(); it++) {
+        if (std::string(pathname).find(*it) == 0)
+            return 0;
+    }
     int num;
     if ((num = inotify_add_watch(inotifyFd, pathname, IN_MODIFY | IN_MOVE | IN_CREATE | IN_DELETE | IN_ATTRIB | IN_ONESHOT | IN_ONLYDIR | IN_DONT_FOLLOW)) == -1)
         tulog.info("WARNING: Cannot register inotify watch for ", pathname);
@@ -276,6 +288,7 @@ int Transaction::impl::runCommand(char* argv[], bool inChroot) {
             throw std::runtime_error{"Couldn't initialize inotify."};
 
         // Recursively register all directories of the root file system
+        inotifyExcludes = MountList::getList(snapshot->getRoot());
         nftw(snapshot->getRoot().c_str(), inotifyAdd, 20, FTW_MOUNT | FTW_PHYS);
     }
 

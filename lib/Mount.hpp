@@ -11,6 +11,7 @@
 #include <filesystem>
 #include <libmount/libmount.h>
 #include <string>
+#include <vector>
 
 namespace TransactionalUpdate {
 
@@ -55,6 +56,13 @@ class PropagatedBindMount : public BindMount
 {
 public:
     PropagatedBindMount(std::string mountpoint, unsigned long flags = 0);
+};
+
+class MountList
+{
+public:
+    MountList() = delete;
+    static std::vector<std::filesystem::path> getList(std::filesystem::path prefix = "/");
 };
 
 } // namespace TransactionalUpdate

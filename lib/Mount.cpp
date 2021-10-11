@@ -279,10 +279,45 @@ void BindMount::mount(std::string prefix) {
     Mount::mount(prefix);
 }
 
-
 PropagatedBindMount::PropagatedBindMount(std::string mountpoint, unsigned long flags)
     : BindMount(mountpoint, flags | MS_REC | MS_SLAVE)
 {
+}
+
+std::vector<std::filesystem::path> MountList::getList(std::filesystem::path prefix) {
+    int rc = 0;
+    std::string err;
+
+    std::vector<std::filesystem::path> list;
+    struct libmnt_table* mount_table = mnt_new_table();
+    struct libmnt_iter* mount_iter = mnt_new_iter(MNT_ITER_FORWARD);
+    struct libmnt_fs* mount_fs;
+
+    if ((rc = mnt_table_parse_mtab(mount_table, NULL)) != 0)
+        err = "Couldn't read fstab for reading mount points: " + std::to_string(rc);
+    while (rc == 0) {
+        if ((rc = mnt_table_next_fs(mount_table, mount_iter, &mount_fs)) == 0) {
+            std::filesystem::path target;
+            if ((target = mnt_fs_get_target(mount_fs)) == "") {
+                err = "Could't read target for mount point list.";
+                break;
+            }
+            if (target == "/")
+                continue;
+            list.push_back(prefix / target.relative_path());
+        } else if (rc < 0) {
+            err = "Error iterating fstab: " + std::to_string(rc);
+            break;
+        }
+    }
+
+    mnt_free_iter(mount_iter);
+    mnt_free_table(mount_table);
+
+    if (!err.empty()) {
+        throw std::runtime_error{err};
+    }
+    return list;
 }
 
 } // namespace TransactionalUpdate
