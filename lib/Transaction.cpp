@@ -184,10 +184,11 @@ void Transaction::impl::addSupplements() {
 int Transaction::impl::inotifyAdd(const char *pathname, const struct stat *sbuf, int type, struct FTW *ftwb) {
     if (!(type == FTW_D))
         return 0;
-    if (inotify_add_watch(inotifyFd, pathname, IN_MODIFY | IN_MOVE | IN_CREATE | IN_DELETE | IN_ATTRIB | IN_ONESHOT | IN_ONLYDIR | IN_DONT_FOLLOW) == -1)
+    int num;
+    if ((num = inotify_add_watch(inotifyFd, pathname, IN_MODIFY | IN_MOVE | IN_CREATE | IN_DELETE | IN_ATTRIB | IN_ONESHOT | IN_ONLYDIR | IN_DONT_FOLLOW)) == -1)
         tulog.info("WARNING: Cannot register inotify watch for ", pathname);
     else
-        tulog.debug("Watching ", pathname);
+        tulog.debug("Watching ", pathname, " with descriptor number ", num);
     return 0;
 }
 
@@ -263,7 +264,7 @@ int Transaction::impl::inotifyRead() {
             throw std::runtime_error{"Read() from inotify fd returned 0!"};
         if (numRead == -1)
             throw std::runtime_error{"Reading from inotify fd failed: " + std::string(strerror(errno))};
-        tulog.debug("inotify: Exiting after event on ", ((struct inotify_event *)buf)->name);
+        tulog.debug("inotify: Exiting after event on descriptor number ", ((struct inotify_event *)buf)->wd, " in ", ((struct inotify_event *)buf)->name);
     }
     return ret;
 }
