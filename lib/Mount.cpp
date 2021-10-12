@@ -101,8 +101,9 @@ void Mount::removeOption(std::string option) {
         throw std::runtime_error{"File system option " + option + "could not be removed: " + std::to_string(rc)};
     }
     if ((rc = mnt_fs_set_options(mnt_fs, new_opts)) != 0) {
+        std::string snew_opts = std::string(new_opts);
         free(new_opts);
-        throw std::runtime_error{"Could not set new options " + std::string(new_opts) + " for file system " + mountpoint + ": " + std::to_string(rc)};
+        throw std::runtime_error{"Could not set new options " + snew_opts + " for file system " + mountpoint + ": " + std::to_string(rc)};
     }
     free(new_opts);
 }
@@ -136,8 +137,9 @@ void Mount::setOption(std::string option, std::string value) {
         throw std::runtime_error{"File system option " + option + "could not be set to " + value + ": " + std::to_string(rc)};
     }
     if ((rc = mnt_fs_set_options(mnt_fs, new_opts)) != 0) {
+        std::string snew_opts = std::string(new_opts);
         free(new_opts);
-        throw std::runtime_error{"Could not set new options " + std::string(new_opts) + " for file system " + mountpoint + ": " + std::to_string(rc)};
+        throw std::runtime_error{"Could not set new options " + std::string(snew_opts) + " for file system " + mountpoint + ": " + std::to_string(rc)};
     }
     free(new_opts);
 }
@@ -260,7 +262,7 @@ void Mount::umountRecursive(libmnt_table* umount_table, libmnt_fs* umount_fs) {
         }
         int rc = mnt_context_umount(umount_cxt);
         char buf[BUFSIZ] = { 0 };
-        rc = mnt_context_get_excode(umount_cxt, rc, buf, sizeof(buf));
+        mnt_context_get_excode(umount_cxt, rc, buf, sizeof(buf));
         if (*buf)
             tulog.error("Error unmounting '", mnt_fs_get_target(umount_fs), "': ", buf);
     }
