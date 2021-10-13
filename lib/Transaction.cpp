@@ -94,6 +94,14 @@ fs::path Transaction::getRoot() {
 }
 
 void Transaction::impl::mount() {
+    // GRUB needs to have an actual mount point for the root partition, so
+    // mount the snapshot directory on a temporary mount point
+    char bindTemplate[] = "/tmp/transactional-update-XXXXXX";
+    bindDir = mkdtemp(bindTemplate);
+    std::unique_ptr<BindMount> mntBind{new BindMount{bindDir, MS_UNBINDABLE}};
+    mntBind->setSource(snapshot->getRoot());
+    mntBind->mount();
+
     dirsToMount.push_back(std::make_unique<PropagatedBindMount>("/dev"));
     dirsToMount.push_back(std::make_unique<BindMount>("/var/log"));
 
@@ -158,22 +166,14 @@ void Transaction::impl::mount() {
     dirsToMount.push_back(std::make_unique<BindMount>("/.snapshots"));
 
     for (auto it = dirsToMount.begin(); it != dirsToMount.end(); ++it) {
-        it->get()->mount(snapshot->getRoot());
+        it->get()->mount(bindDir);
     }
 
-    // When all mounts are set up, then bind mount everything into a temporary
-    // directory - GRUB needs to have an actual mount point for the root
-    // partition
-    char bindTemplate[] = "/tmp/transactional-update-XXXXXX";
-    bindDir = mkdtemp(bindTemplate);
-    std::unique_ptr<BindMount> mntBind{new BindMount{bindDir, MS_REC}};
-    mntBind->setSource(snapshot->getRoot());
-    mntBind->mount();
     dirsToMount.push_back(std::move(mntBind));
 }
 
 void Transaction::impl::addSupplements() {
-    supplements = Supplements(snapshot->getRoot());
+    supplements = Supplements(bindDir);
 
     Mount mntVar{"/var"};
     if (mntVar.isMount()) {
