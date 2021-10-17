@@ -2,18 +2,17 @@
 /* SPDX-FileCopyrightText: 2020 SUSE LLC */
 
 /*
-  Factory / interface class for snapshot generation implementations;
+  Factory / interface class for snapshot management;
   implementations can be found in the "Snapshot" directory
  */
 
-#include "Snapshot.hpp"
 #include "Snapshot/Snapper.hpp"
 using namespace std;
 
 namespace TransactionalUpdate {
 
 // TODO: Make configurable to be able to force a certain implementation
-unique_ptr<Snapshot> SnapshotFactory::get() {
+unique_ptr<SnapshotManager> SnapshotFactory::get() {
     if (filesystem::exists("/usr/bin/snapper")) {
         return make_unique<Snapper>();
     } else {

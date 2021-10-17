@@ -9,6 +9,7 @@
 #define T_U_OVERLAY_H
 
 #include "Mount.hpp"
+#include "SnapshotManager.hpp"
 #include <memory>
 #include <string>
 #include <vector>
@@ -31,6 +32,7 @@ public:
     std::filesystem::path workdir;
 private:
     static std::string getIdOfOverlayDir(const std::string dir);
+    std::unique_ptr<SnapshotManager> snapMgr;
 };
 
 } // namespace TransactionalUpdate

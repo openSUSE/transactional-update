@@ -10,7 +10,6 @@
 #include "Configuration.hpp"
 #include "Log.hpp"
 #include "Mount.hpp"
-#include "Snapshot.hpp"
 #include "Util.hpp"
 #include <filesystem>
 #include <regex>
@@ -45,8 +44,7 @@ Overlay::Overlay(string snapshot):
     // Note: Due to this for new overlays (i.e. when "create" will be called later) the lowerdirs
     // will be initialized with outdated data of the base snapshot - it will be initalized
     // correctly during "create".
-    unique_ptr<Snapshot> snap = SnapshotFactory::get();
-    snap->open(snapshot);
+    unique_ptr<Snapshot> snap = snapMgr->open(snapshot);
     Mount mntEtc{"/etc"};
     mntEtc.setTabSource(snap->getRoot() / "etc" / "fstab");
     // Read data from fstab if this is an existing snapshot, just use the defaults otherwise
@@ -97,9 +95,9 @@ void Overlay::sync(string base, fs::path snapRoot) {
         return;
     }
 
-    unique_ptr<Snapshot> previousSnapshot = SnapshotFactory::get();
+    unique_ptr<Snapshot> previousSnapshot;
     try {
-        previousSnapshot->open(previousSnapId);
+        previousSnapshot = snapMgr->open(previousSnapId);
     } catch (std::invalid_argument &e) {
         tulog.info("Parent snapshot ", previousSnapId, " does not exist any more - skipping rsync");
         return;
@@ -169,8 +167,7 @@ void Overlay::setMountOptionsForMount(unique_ptr<Mount>& mount) {
         }
         // Replace /etc in lowerdir with /etc of overlay base
         if (lowerdir == "/etc") {
-            std::unique_ptr<Snapshot> snap = SnapshotFactory::get();
-            snap->open(getIdOfOverlayDir(upperdir));
+            std::unique_ptr<Snapshot> snap = snapMgr->open(getIdOfOverlayDir(upperdir));
             lower.append(snap->getRoot() / "etc");
         } else {
             lower.append(lowerdir);

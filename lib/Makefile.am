@@ -1,12 +1,13 @@
 AUTOMAKE_OPTIONS = subdir-objects
 lib_LTLIBRARIES = libtukit.la
 libtukit_la_SOURCES=Transaction.cpp \
-        Snapshot.cpp Snapshot/Snapper.cpp \
+        SnapshotManager.cpp Snapshot/Snapper.cpp \
         Mount.cpp Overlay.cpp Configuration.cpp \
         Util.cpp Supplement.cpp
 publicheadersdir=$(includedir)/tukit
-publicheaders_HEADERS=Transaction.hpp
-noinst_HEADERS=Snapshot.hpp Snapshot/Snapper.hpp \
+publicheaders_HEADERS=Transaction.hpp \
+	Snapshot.hpp SnapshotManager.hpp
+noinst_HEADERS=Snapshot/Snapper.hpp \
         Mount.hpp Overlay.hpp Log.hpp Configuration.hpp \
         Util.hpp Supplement.hpp Exceptions.hpp
 libtukit_la_CPPFLAGS=-DPREFIX=\"$(prefix)\" -DCONFDIR=\"$(sysconfdir)\" $(ECONF_CFLAGS) $(LIBMOUNT_CFLAGS) $(SELINUX_CFLAGS)

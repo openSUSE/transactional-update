@@ -8,32 +8,35 @@
 #ifndef T_U_SNAPPER_H
 #define T_U_SNAPPER_H
 
-#include "Snapshot.hpp"
+#include "SnapshotManager.hpp"
 #include <filesystem>
 #include <string>
 
 namespace TransactionalUpdate {
 
-class Snapper: public Snapshot {
+class Snapper: public SnapshotManager, public Snapshot {
 public:
-    Snapper() = default;
     ~Snapper() = default;
-    void create(std::string base);
-    void open(std::string id);
-    void close();
-    void abort();
-    std::filesystem::path getRoot();
-    std::string getUid();
-    std::string getCurrent();
-    std::string getDefault();
-    bool isInProgress();
-    bool isReadOnly();
-    void setDefault();
-    void setReadOnly(bool readonly);
 
+    // Snapshot
+    Snapper(std::string snap): Snapshot(snap) {};
+    void close() override;
+    void abort() override;
+    std::filesystem::path getRoot() override;
+    bool isInProgress() override;
+    bool isReadOnly() override;
+    void setDefault() override;
+    void setReadOnly(bool readonly) override;
+
+    // SnapshotManager
+    Snapper(): Snapshot("") {};
+    std::unique_ptr<Snapshot> create(std::string base) override;
+    virtual std::unique_ptr<Snapshot> open(std::string id) override;
+    std::string getCurrent() override;
+    std::string getDefault() override;
 private:
     std::string callSnapper(std::string);
-    bool snapperNoDbus = false;
+    inline static bool snapperNoDbus;
 };
 
 } // namespace TransactionalUpdate

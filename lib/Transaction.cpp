@@ -12,7 +12,7 @@
 #include "Log.hpp"
 #include "Mount.hpp"
 #include "Overlay.hpp"
-#include "Snapshot.hpp"
+#include "SnapshotManager.hpp"
 #include "Supplement.hpp"
 #include "Util.hpp"
 #include <cerrno>
@@ -42,6 +42,7 @@ public:
     int runCommand(char* argv[], bool inChroot, std::string* buffer);
     static int inotifyAdd(const char *pathname, const struct stat *sbuf, int type, struct FTW *ftwb);
     int inotifyRead();
+    std::unique_ptr<SnapshotManager> snapshotMgr;
     std::unique_ptr<Snapshot> snapshot;
     std::vector<std::unique_ptr<Mount>> dirsToMount;
     Supplements supplements;
@@ -54,7 +55,7 @@ Transaction::Transaction() : pImpl{std::make_unique<impl>()} {
     if (getenv("TRANSACTIONAL_UPDATE") != NULL) {
         throw std::runtime_error{"Cannot open a new transaction from within a running transaction."};
     }
-    pImpl->snapshot = SnapshotFactory::get();
+    pImpl->snapshotMgr = SnapshotFactory::get();
 }
 
 Transaction::~Transaction() {
@@ -201,10 +202,10 @@ int Transaction::impl::inotifyAdd(const char *pathname, const struct stat *sbuf,
 
 void Transaction::init(std::string base = "active") {
     if (base == "active")
-        base = pImpl->snapshot->getCurrent();
+        base = pImpl->snapshotMgr->getCurrent();
     else if (base == "default")
-        base = pImpl->snapshot->getDefault();
-    pImpl->snapshot->create(base);
+        base = pImpl->snapshotMgr->getDefault();
+    pImpl->snapshot = pImpl->snapshotMgr->create(base);
 
     tulog.info("Using snapshot " + base + " as base for new snapshot " + pImpl->snapshot->getUid() + ".");
 
@@ -236,7 +237,7 @@ void Transaction::init(std::string base = "active") {
 }
 
 void Transaction::resume(std::string id) {
-    pImpl->snapshot->open(id);
+    pImpl->snapshot = pImpl->snapshotMgr->open(id);
     if (! pImpl->snapshot->isInProgress()) {
         pImpl->snapshot.reset();
         throw std::invalid_argument{"Snapshot " + id + " is not an open transaction."};
@@ -424,8 +425,7 @@ void Transaction::finalize() {
     pImpl->supplements.cleanup();
     pImpl->dirsToMount.clear();
 
-    std::unique_ptr<Snapshot> defaultSnap = SnapshotFactory::get();
-    defaultSnap->open(pImpl->snapshot->getDefault());
+    std::unique_ptr<Snapshot> defaultSnap = pImpl->snapshotMgr->open(pImpl->snapshotMgr->getDefault());
     if (defaultSnap->isReadOnly())
         pImpl->snapshot->setReadOnly(true);
     pImpl->snapshot->setDefault();
