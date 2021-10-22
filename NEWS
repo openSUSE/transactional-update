@@ -2,6 +2,11 @@ transactional-update NEWS -- history of user-visible changes.
 
 Copyright (C) 2016-2021 Thorsten Kukuk, Ignaz Forster et al.
 
+Version 3.6
+* Simplify mount hierarchy by just using a single slave bind mount as
+  the root of the update environment; this may avoid the error
+  messages of failed unmounts
+
 Version 3.5.7
 Various fixes affecting Salt support:
 * t-u: Don't squash stderr messages into stdout
