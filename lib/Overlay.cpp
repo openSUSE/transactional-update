@@ -166,7 +166,7 @@ void Overlay::setMountOptionsForMount(unique_ptr<Mount>& mount) {
         if (getIdOfOverlayDir(lowerdir) == getIdOfOverlayDir(currentUpper)) {
             lower.append("/etc");
             break;
-        } else
+        }
         // Replace /etc in lowerdir with /etc of overlay base
         if (lowerdir == "/etc") {
             std::unique_ptr<Snapshot> snap = SnapshotFactory::get();
