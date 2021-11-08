@@ -377,7 +377,7 @@ void Transaction::finalize() {
         // in /etc may be applied immediately, so merge them back into the running system.
         std::unique_ptr<Mount> mntEtc{new Mount{"/etc"}};
         if (mntEtc->isMount() && mntEtc->getFilesystem() == "overlay") {
-            Util::exec("rsync --archive --inplace --xattrs --acls --exclude 'fstab' --delete --quiet '" + std::string(pImpl->snapshot->getRoot()) + "/etc/' /etc");
+            Util::exec("rsync --archive --inplace --xattrs --acls --exclude 'fstab' --delete --quiet '" + pImpl->bindDir + "/etc/' /etc");
         }
         return;
     }
