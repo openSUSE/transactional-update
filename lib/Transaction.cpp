@@ -23,6 +23,7 @@
 #include <ftw.h>
 #include <limits.h>
 #include <poll.h>
+#include <sched.h>
 #include <signal.h>
 #include <sys/inotify.h>
 #include <sys/wait.h>
@@ -86,6 +87,10 @@ fs::path Transaction::getRoot() {
 }
 
 void Transaction::impl::mount() {
+    if (unshare(CLONE_NEWNS) < 0) {
+        throw std::runtime_error{"Creating new mount namespace failed: " + std::string(strerror(errno))};
+    }
+
     // GRUB needs to have an actual mount point for the root partition, so
     // mount the snapshot directory on a temporary mount point
     std::unique_ptr<BindMount> mntBind{new BindMount{snapshot->getRoot(), MS_UNBINDABLE}};
