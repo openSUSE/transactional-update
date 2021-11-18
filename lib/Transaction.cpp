@@ -42,7 +42,6 @@ public:
     static int inotifyAdd(const char *pathname, const struct stat *sbuf, int type, struct FTW *ftwb);
     int inotifyRead();
     std::unique_ptr<Snapshot> snapshot;
-    std::string bindDir;
     std::vector<std::unique_ptr<Mount>> dirsToMount;
     Supplements supplements;
     pid_t pidCmd;
@@ -64,13 +63,6 @@ Transaction::~Transaction() {
         close(inotifyFd);
 
     pImpl->dirsToMount.clear();
-    if (!pImpl->bindDir.empty()) {
-        try {
-            fs::remove(fs::path{pImpl->bindDir});
-        }  catch (const std::exception &e) {
-            tulog.error("ERROR: ", e.what());
-        }
-    }
     try {
         if (isInitialized() && !getSnapshot().empty() && fs::exists(getRoot())) {
             tulog.info("Discarding snapshot ", pImpl->snapshot->getUid(), ".");
@@ -96,9 +88,7 @@ fs::path Transaction::getRoot() {
 void Transaction::impl::mount() {
     // GRUB needs to have an actual mount point for the root partition, so
     // mount the snapshot directory on a temporary mount point
-    char bindTemplate[] = "/tmp/transactional-update-XXXXXX";
-    bindDir = mkdtemp(bindTemplate);
-    std::unique_ptr<BindMount> mntBind{new BindMount{bindDir, MS_UNBINDABLE}};
+    std::unique_ptr<BindMount> mntBind{new BindMount{snapshot->getRoot(), MS_UNBINDABLE}};
     mntBind->setSource(snapshot->getRoot());
     mntBind->mount();
 
@@ -166,14 +156,14 @@ void Transaction::impl::mount() {
     dirsToMount.push_back(std::make_unique<BindMount>("/.snapshots"));
 
     for (auto it = dirsToMount.begin(); it != dirsToMount.end(); ++it) {
-        it->get()->mount(bindDir);
+        it->get()->mount(snapshot->getRoot());
     }
 
     dirsToMount.push_back(std::move(mntBind));
 }
 
 void Transaction::impl::addSupplements() {
-    supplements = Supplements(bindDir);
+    supplements = Supplements(snapshot->getRoot());
 
     Mount mntVar{"/var"};
     if (mntVar.isMount()) {
@@ -217,26 +207,26 @@ void Transaction::init(std::string base = "active") {
     std::unique_ptr<Mount> mntEtc{new Mount{"/etc"}};
     if (mntEtc->isMount() && mntEtc->getFilesystem() == "overlay") {
         Overlay overlay = Overlay{pImpl->snapshot->getUid()};
-        overlay.create(base, pImpl->snapshot->getUid(), pImpl->snapshot->getRoot());
+        overlay.create(base, pImpl->snapshot->getUid(), getRoot());
         overlay.setMountOptions(mntEtc);
         // Copy current fstab into root in case the user modified it
         if (fs::exists(fs::path{overlay.lowerdirs[0] / "fstab"})) {
-            fs::copy(fs::path{overlay.lowerdirs[0] / "fstab"}, fs::path{pImpl->snapshot->getRoot() / "etc"}, fs::copy_options::overwrite_existing);
+            fs::copy(fs::path{overlay.lowerdirs[0] / "fstab"}, fs::path{getRoot() / "etc"}, fs::copy_options::overwrite_existing);
         }
 
-        mntEtc->persist(pImpl->snapshot->getRoot() / "etc" / "fstab");
+        mntEtc->persist(getRoot() / "etc" / "fstab");
 
         // Make sure both the snapshot and the overlay contain all relevant fstab data, i.e.
         // user modifications from the overlay are present in the root fs and the /etc
         // overlay is visible in the overlay
-        fs::copy(fs::path{pImpl->snapshot->getRoot() / "etc" / "fstab"}, overlay.upperdir, fs::copy_options::overwrite_existing);
+        fs::copy(fs::path{getRoot() / "etc" / "fstab"}, overlay.upperdir, fs::copy_options::overwrite_existing);
     }
 
     pImpl->mount();
     pImpl->addSupplements();
     if (pImpl->discardIfNoChange) {
         // Flag file to indicate this snapshot was initialized with discard flag
-        std::ofstream output(pImpl->snapshot->getRoot() / "discardIfNoChange");
+        std::ofstream output(getRoot() / "discardIfNoChange");
     }
 }
 
@@ -248,7 +238,7 @@ void Transaction::resume(std::string id) {
     }
     pImpl->mount();
     pImpl->addSupplements();
-    if (fs::exists(pImpl->snapshot->getRoot() / "discardIfNoChange")) {
+    if (fs::exists(getRoot() / "discardIfNoChange")) {
         pImpl->discardIfNoChange = true;
     }
 }
@@ -310,11 +300,11 @@ int Transaction::impl::runCommand(char* argv[], bool inChroot) {
         throw std::runtime_error{"fork() failed: " + std::string(strerror(errno))};
     } else if (pid == 0) {
         if (inChroot) {
-            if (chdir(bindDir.c_str()) < 0) {
+            if (chdir(snapshot->getRoot().c_str()) < 0) {
                 tulog.info("Warning: Couldn't set working directory: ", std::string(strerror(errno)));
             }
-            if (chroot(bindDir.c_str()) < 0) {
-                throw std::runtime_error{"Chrooting to " + bindDir + " failed: " + std::string(strerror(errno))};
+            if (chroot(snapshot->getRoot().c_str()) < 0) {
+                throw std::runtime_error{"Chrooting to " + std::string(snapshot->getRoot()) + " failed: " + std::string(strerror(errno))};
             }
         }
         // Set indicator for RPM pre/post sections to detect whether we run in a
@@ -351,7 +341,7 @@ int Transaction::execute(char* argv[]) {
 int Transaction::callExt(char* argv[]) {
     for (int i=0; argv[i] != nullptr; i++) {
         if (strcmp(argv[i], "{}") == 0) {
-            char* bindDir = strdup(pImpl->bindDir.c_str());
+            char* bindDir = strdup(getRoot().c_str());
             argv[i] = bindDir;
         }
     }
@@ -370,19 +360,19 @@ void Transaction::finalize() {
     sync();
     if (pImpl->discardIfNoChange &&
             ((inotifyFd != 0 && pImpl->inotifyRead() == 0) ||
-            (inotifyFd == 0 && fs::exists(pImpl->snapshot->getRoot() / "discardIfNoChange")))) {
+            (inotifyFd == 0 && fs::exists(getRoot() / "discardIfNoChange")))) {
         tulog.info("No changes to the root file system - discarding snapshot.");
 
         // Even if the snapshot itself did not contain any changes, /etc may do so. Changes
         // in /etc may be applied immediately, so merge them back into the running system.
         std::unique_ptr<Mount> mntEtc{new Mount{"/etc"}};
         if (mntEtc->isMount() && mntEtc->getFilesystem() == "overlay") {
-            Util::exec("rsync --archive --inplace --xattrs --acls --exclude 'fstab' --delete --quiet '" + pImpl->bindDir + "/etc/' /etc");
+            Util::exec("rsync --archive --inplace --xattrs --acls --exclude 'fstab' --delete --quiet '" + std::string(getRoot()) + "/etc/' /etc");
         }
         return;
     }
-    if (fs::exists(pImpl->snapshot->getRoot() / "discardIfNoChange")) {
-        fs::remove(pImpl->snapshot->getRoot() / "discardIfNoChange");
+    if (fs::exists(getRoot() / "discardIfNoChange")) {
+        fs::remove(getRoot() / "discardIfNoChange");
     }
 
     // Update /usr timestamp to support system offline update mechanism
