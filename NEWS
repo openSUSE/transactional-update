@@ -2,6 +2,14 @@ transactional-update NEWS -- history of user-visible changes.
 
 Copyright (C) 2016-2021 Thorsten Kukuk, Ignaz Forster et al.
 
+Version 3.6.2
+* Bind mount root file system snapshot on itself, this makes the
+  temporary directory in /tmp unnecessary; also fixes [boo#1188110]
+  to return the correct snapshot's working directory via API call.
+* Use separate mount namespace for transactional-update; this should
+  fix several applications that fail to run if a mount point has the
+  'unbindable' mount flag set
+
 Version 3.6.1
 * Fix rsyncing /etc into the running system with --drop-if-no-change
   [bsc#1192242]
