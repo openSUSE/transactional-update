@@ -5,8 +5,10 @@
 systemddir = @SYSTEMDDIR@
 
 systemd_DATA = transactional-update.timer transactional-update.service \
+	transactional-update-cleanup.timer transactional-update-cleanup.service \
 	create-dirs-from-rpmdb.service
-EXTRA_DIST = transactional-update.timer transactional-update.service.in \
+EXTRA_DIST = transactional-update.timer transactional-update-cleanup.timer \
+	transactional-update.service.in transactional-update-cleanup.service \
 	create-dirs-from-rpmdb.service
 CLEANFILES = transactional-update.service
 

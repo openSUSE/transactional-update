@@ -1,0 +1,7 @@
+[Unit]
+Description=Mark old snapshots for deletion
+Documentation=man:transactional-update(8)
+
+[Service]
+Type=oneshot
+ExecStart=@sbindir@/transactional-update cleanup
