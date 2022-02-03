@@ -15,6 +15,8 @@
 extern "C" {
 #endif
 
+#include "stdio.h"
+
 typedef enum {
     None=0, Error, Info, Debug
 } loglevel;
@@ -35,6 +37,10 @@ int tukit_tx_send_signal(tukit_tx tx, int signal);
 int tukit_tx_is_initialized(tukit_tx tx);
 const char* tukit_tx_get_snapshot(tukit_tx tx);
 const char* tukit_tx_get_root(tukit_tx tx);
+typedef void* tukit_sm_list;
+tukit_sm_list tukit_sm_get_list(size_t* len, const char* columns);
+const char* tukit_sm_get_list_value(tukit_sm_list list, size_t row, size_t columns);
+void tukit_free_sm_list(tukit_sm_list list);
 
 #ifdef __cplusplus
 }

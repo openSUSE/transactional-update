@@ -13,6 +13,8 @@
 
 namespace TransactionalUpdate {
 
+/* SnapshotManager methods */
+
 std::unique_ptr<Snapshot> Snapper::create(std::string base) {
     if (! std::filesystem::exists("/.snapshots/" + base + "/snapshot"))
         throw std::invalid_argument{"Base snapshot '" + base + "' does not exist."};
@@ -27,6 +29,64 @@ std::unique_ptr<Snapshot> Snapper::open(std::string id) {
         throw std::invalid_argument{"Snapshot " + id + " does not exist."};
     return std::make_unique<Snapper>(snapshotId);
 }
+
+std::deque<std::map<std::string, std::string>> Snapper::getList(std::string columns) {
+    std::deque<std::map<std::string, std::string>> snapshotList;
+
+    // Sanitize user input
+    if (! std::all_of(columns.begin(), columns.end(), [](char c) {
+           return (std::isalpha(c) || c == ',');
+        })) {
+        throw std::invalid_argument{"Column list contains invalid characters."};
+    }
+
+    if (columns.empty())
+        columns="number,date,description";
+    std::string snapshots = callSnapper("--utc --iso --csvout list --columns " + columns);
+    std::stringstream snapshotsStream(snapshots);
+
+    // Headers
+    std::vector<std::string> headers;
+    std::string line;
+    std::getline(snapshotsStream, line);
+    std::stringstream fieldsStream(line);
+    for (std::string field; std::getline(fieldsStream, field, ','); ) {
+        headers.push_back(field);
+    }
+
+    // Lines
+    for (std::string line; std::getline(snapshotsStream, line); ) {
+        std::map<std::string, std::string> snapshot;
+        auto header = headers.begin();
+        std::stringstream fieldsStream(line, std::stringstream::out | std::stringstream::in | std::stringstream::app);
+        // This is a simple CSV parser
+        for (std::string field; std::getline(fieldsStream, field, ','); ) {
+            if (field[0] == '"') {
+                while (field[field.length() - 1] != '"') {
+                    std::string continuation;
+                    if (fieldsStream.eof()) { // newline character
+                        fieldsStream.clear();
+                        std::getline(snapshotsStream, line);
+                        fieldsStream << line;
+                        std::getline(fieldsStream, continuation, ',');
+                        field += "\n" + continuation;
+                    } else {
+                        std::getline(fieldsStream, continuation, ',');
+                        field += "," + continuation;
+                    }
+                }
+                field = field.substr(1, field.length() - 2);
+                field = std::regex_replace(field, std::regex("\"\""), "\"");
+            }
+            snapshot.emplace(*header, field);
+            header++;
+        }
+        snapshotList.push_back(snapshot);
+    }
+    return snapshotList;
+}
+
+/* Snapshot methods */
 
 void Snapper::close() {
     callSnapper("modify -u 'transactional-update-in-progress=' " + snapshotId);
@@ -83,6 +143,8 @@ void Snapper::setReadOnly(bool readonly) {
         boolstr = "false";
     Util::exec("btrfs property set " + std::string(getRoot()) + " ro " + boolstr);
 }
+
+/* Helper methods */
 
 std::string Snapper::callSnapper(std::string opts) {
     if (snapperNoDbus == false) {

@@ -29,6 +29,7 @@ public:
     std::string getUid() { return snapshotId; };
 protected:
     std::string snapshotId;
+    std::string snapshotDate;
 };
 
 } // namespace TransactionalUpdate

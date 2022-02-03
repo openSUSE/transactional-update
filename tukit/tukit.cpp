@@ -7,6 +7,7 @@
 
 #include "tukit.hpp"
 #include "Configuration.hpp"
+#include "SnapshotManager.hpp"
 #include "Transaction.hpp"
 #include "Log.hpp"
 #include <fcntl.h>
@@ -24,9 +25,9 @@ bool cancel;
 void TUKit::displayHelp() {
     cout << "Syntax: tukit [option...] command\n";
     cout << "\n";
-    cout << "Manage transactions ...\n";
+    cout << "Transaction and snapshot management utility\n";
     cout << "\n";
-    cout << "Commands:\n";
+    cout << "Transaction Commands:\n";
     cout << "execute <command>\n";
     cout << "\tOpens a new snapshot and executes the given command; on success the snapshot\n";
     cout << "\twill be set as the new default snapshot, any non-zero return value will\n";
@@ -47,9 +48,20 @@ void TUKit::displayHelp() {
     cout << "\tCloses the given transaction and sets the snapshot as the new default snapshot\n";
     cout << "abort <ID>\n";
     cout << "\tDeletes the given snapshot again\n";
-    cout << "Options:\n";
+    cout << "\n";
+    cout << "Transaction Options:\n";
     cout << "--continue[=<ID>], -c[<ID>]  Use latest or given snapshot as base\n";
     cout << "--discard, -d                Discard snapshot if no files were changed in root\n";
+    cout << "\n";
+    cout << "Snapshot Commands:\n";
+    cout << "snapshots\n";
+    cout << "\tPrints a list of all available transactions\n";
+    cout << "\n";
+    cout << "Snapshot Options:\n";
+    cout << "--fields=<id,date,comment,default,current>, -f<...>\n";
+    cout << "                             List of fields to print\n";
+    cout << "\n";
+    cout << "Generic Options:\n";
     cout << "--help, -h                   Display this help and exit\n";
     cout << "--quiet, -q                  Decrease verbosity\n";
     cout << "--verbose, -v                Increase verbosity\n";
@@ -57,10 +69,11 @@ void TUKit::displayHelp() {
 }
 
 int TUKit::parseOptions(int argc, char *argv[]) {
-    static const char optstring[] = "+c::hqv";
+    static const char optstring[] = "+c::df:hqvV";
     static const struct option longopts[] = {
         { "continue", optional_argument, nullptr, 'c' },
         { "discard", no_argument, nullptr, 'd' },
+        { "fields", required_argument, nullptr, 'f' },
         { "help", no_argument, nullptr, 'h' },
         { "quiet", no_argument, nullptr, 'q' },
         { "verbose", no_argument, nullptr, 'v' },
@@ -81,6 +94,9 @@ int TUKit::parseOptions(int argc, char *argv[]) {
             break;
         case 'd':
             discardSnapshot = true;
+            break;
+        case 'f':
+            fields = optarg;
             break;
         case 'h':
             displayHelp();
@@ -104,13 +120,12 @@ int TUKit::parseOptions(int argc, char *argv[]) {
 }
 
 int TUKit::processCommand(char *argv[]) {
-    TransactionalUpdate::Transaction transaction{};
-
     if (argv[0] == nullptr) {
         throw invalid_argument{"Missing command. See --help for usage information."};
     }
     string arg = argv[0];
     if (arg == "execute") {
+        TransactionalUpdate::Transaction transaction{};
         if (discardSnapshot) {
             transaction.setDiscardIfUnchanged(true);
         }
@@ -124,6 +139,7 @@ int TUKit::processCommand(char *argv[]) {
         return 0;
     }
     else if (arg == "open") {
+        TransactionalUpdate::Transaction transaction{};
         if (discardSnapshot) {
             transaction.setDiscardIfUnchanged(true);
         }
@@ -137,6 +153,7 @@ int TUKit::processCommand(char *argv[]) {
             displayHelp();
             throw invalid_argument{"Missing argument for 'call'"};
         }
+        TransactionalUpdate::Transaction transaction{};
         transaction.resume(argv[1]);
         int status = transaction.execute(&argv[2]); // All remaining arguments
         transaction.keep();
@@ -147,18 +164,35 @@ int TUKit::processCommand(char *argv[]) {
             displayHelp();
             throw invalid_argument{"Missing argument for 'callext'"};
         }
+        TransactionalUpdate::Transaction transaction{};
         transaction.resume(argv[1]);
         int status = transaction.callExt(&argv[2]); // All remaining arguments
         transaction.keep();
         return status;
     }
     else if (arg == "close") {
+        TransactionalUpdate::Transaction transaction{};
         transaction.resume(argv[1]);
         transaction.finalize();
         return 0;
     }
     else if (arg == "abort") {
+        TransactionalUpdate::Transaction transaction{};
         transaction.resume(argv[1]);
+        return 0;
+    }
+    else if (arg == "snapshots") {
+        unique_ptr<TransactionalUpdate::SnapshotManager> snapshotMgr = TransactionalUpdate::SnapshotFactory::get();
+        if (fields.empty()) {
+            fields = "number";
+        }
+        for(auto value: snapshotMgr->getList(fields)) {
+            stringstream fieldsStream(fields);
+            for (string field; getline(fieldsStream, field, ','); ) {
+                cout << value[field] << "\t";
+            }
+            cout << endl;
+        }
         return 0;
     }
     else {

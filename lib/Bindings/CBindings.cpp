@@ -5,6 +5,8 @@
 #include "libtukit.h"
 #include "Log.hpp"
 #include "Transaction.hpp"
+#include "SnapshotManager.hpp"
+#include <algorithm>
 #include <exception>
 #include <thread>
 #include <string.h>
@@ -156,4 +158,37 @@ const char* tukit_tx_get_root(tukit_tx tx) {
         errmsg = e.what();
         return nullptr;
     }
+}
+
+tukit_sm_list tukit_sm_get_list(size_t* len, const char* columns) {
+    std::unique_ptr<TransactionalUpdate::SnapshotManager> snapshotMgr = TransactionalUpdate::SnapshotFactory::get();
+    auto list = snapshotMgr->getList(columns);
+    *len = list.size();
+    std::string cols(columns);
+    const size_t numColumns = std::count(cols.begin(), cols.end(), ',') + 1;
+
+    auto result = new std::vector<std::vector<std::string>>();
+    for (size_t i=0; i<*len; i++) {
+        std::vector<std::string> row;
+        std::stringstream columnStream(columns);
+        for (size_t j=0; j<numColumns; j++) {
+            std::string column;
+            getline(columnStream, column, ',');
+            //auto row = new std::vector<const char*>();
+            row.push_back(list[i][column].c_str());
+        }
+        result->push_back(row);
+    }
+
+    return reinterpret_cast<tukit_sm_list>(result);
+}
+
+const char* tukit_sm_get_list_value(tukit_sm_list list, size_t row, size_t column) {
+    auto result = reinterpret_cast<std::vector<std::vector<std::string>>*>(list);
+    return result->at(row).at(column).c_str();
+}
+
+void tukit_free_sm_list(tukit_sm_list list) {
+    auto result = reinterpret_cast<std::vector<std::vector<std::string>>*>(list);
+    delete result;
 }

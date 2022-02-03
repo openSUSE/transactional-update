@@ -21,6 +21,7 @@ public:
 private:
     std::string baseSnapshot = "active";
     bool discardSnapshot = false;
+    std::string fields;
 };
 
 #endif /* TRANSACTIONALUPDATE_H */
