@@ -13,10 +13,7 @@
 #ifndef T_U_TRANSACTION_H
 #define T_U_TRANSACTION_H
 
-#include <algorithm>
 #include <filesystem>
-#include <memory>
-#include <vector>
 
 namespace TransactionalUpdate {
 
@@ -106,7 +103,7 @@ public:
      *
      * Note that @param is following the default C style syntax:
      * @example: char *args[] = {(char*)"zypper", (char*)"-R", (char*)"{}", (char*)"up", NULL};
-                 int status = transaction.execute(args);
+                 int status = transaction.callExt(args);
      */
     int callExt(char* argv[], std::string *output=nullptr);
 

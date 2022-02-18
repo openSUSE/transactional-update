@@ -200,7 +200,7 @@ int Transaction::impl::inotifyAdd(const char *pathname, const struct stat *sbuf,
     return 0;
 }
 
-void Transaction::init(std::string base = "active") {
+void Transaction::init(std::string base) {
     if (base == "active")
         base = pImpl->snapshotMgr->getCurrent();
     else if (base == "default")
