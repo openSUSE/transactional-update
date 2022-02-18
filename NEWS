@@ -2,7 +2,7 @@ transactional-update NEWS -- history of user-visible changes.
 
 Copyright (C) 2016-2021 Thorsten Kukuk, Ignaz Forster et al.
 
-Version 4.0.0
+Version 4.0.0~rc1
 This release is API, but not ABI compatible with previous releases;
 existing applications will have to be recompiled against this new
 version.
@@ -16,7 +16,7 @@ Other changes:
   [gh#openSUSE/transactional-update#73]
 * tukit: Allow storing command output into variable by introducing a new
   optional parameter for "execute" and "callExt".
-* Replace multiple and non-standalone  occurenses of {} in "callExt"
+* Replace multiple and non-standalone occurenses of {} in "callExt"
   argument.
 * Split transactional-update.timer into transactional-update.timer
   and transactional-update-cleanup.timer; the later will clean up
