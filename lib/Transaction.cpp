@@ -39,7 +39,7 @@ class Transaction::impl {
 public:
     void addSupplements();
     void mount();
-    int runCommand(char* argv[], bool inChroot);
+    int runCommand(char* argv[], bool inChroot, std::string* buffer);
     static int inotifyAdd(const char *pathname, const struct stat *sbuf, int type, struct FTW *ftwb);
     int inotifyRead();
     std::unique_ptr<Snapshot> snapshot;
@@ -276,7 +276,7 @@ int Transaction::impl::inotifyRead() {
     return ret;
 }
 
-int Transaction::impl::runCommand(char* argv[], bool inChroot) {
+int Transaction::impl::runCommand(char* argv[], bool inChroot, std::string* output) {
     if (discardIfNoChange) {
         inotifyFd = inotify_init();
         if (inotifyFd == -1)
@@ -300,10 +300,32 @@ int Transaction::impl::runCommand(char* argv[], bool inChroot) {
 
     int status = 1;
     int ret;
+    int pipefd[2];
+
+    ret = pipe(pipefd);
+    if (ret < 0) {
+        throw std::runtime_error{"Error opening pipe for command output: " + std::string(strerror(errno))};
+    }
+
     pid_t pid = fork();
     if (pid < 0) {
         throw std::runtime_error{"fork() failed: " + std::string(strerror(errno))};
     } else if (pid == 0) {
+        if (output != nullptr) {
+            ret = dup2(pipefd[1], STDOUT_FILENO);
+            if (ret < 0) {
+                throw std::runtime_error{"Redirecting stdout failed: " + std::string(strerror(errno))};
+            }
+            ret = dup2(pipefd[1], STDERR_FILENO);
+            if (ret < 0) {
+                throw std::runtime_error{"Redirecting stderr failed: " + std::string(strerror(errno))};
+            }
+            ret = close(pipefd[0]);
+            if (ret < 0) {
+                throw std::runtime_error{"Closing pipefd failed: " + std::string(strerror(errno))};
+            }
+        }
+
         if (inChroot) {
             if (chdir(snapshot->getRoot().c_str()) < 0) {
                 tulog.info("Warning: Couldn't set working directory: ", std::string(strerror(errno)));
@@ -312,6 +334,7 @@ int Transaction::impl::runCommand(char* argv[], bool inChroot) {
                 throw std::runtime_error{"Chrooting to " + std::string(snapshot->getRoot()) + " failed: " + std::string(strerror(errno))};
             }
         }
+
         // Set indicator for RPM pre/post sections to detect whether we run in a
         // transactional update
         setenv("TRANSACTIONAL_UPDATE", "true", 1);
@@ -320,6 +343,18 @@ int Transaction::impl::runCommand(char* argv[], bool inChroot) {
         }
         ret = -1;
     } else {
+        ret = close(pipefd[1]);
+        if (ret < 0) {
+            throw std::runtime_error{"Closing pipefd failed: " + std::string(strerror(errno))};
+        }
+        if (output != nullptr) {
+            char buffer[2048];
+            ssize_t len;
+            while((len = read(pipefd[0], buffer, 2048)) > 0) {
+                output->append(buffer, len);
+            }
+        }
+
         this->pidCmd = pid;
         ret = waitpid(pid, &status, 0);
         this->pidCmd = 0;
@@ -339,11 +374,11 @@ int Transaction::impl::runCommand(char* argv[], bool inChroot) {
     return ret;
 }
 
-int Transaction::execute(char* argv[]) {
-    return this->pImpl->runCommand(argv, true);
+int Transaction::execute(char* argv[], std::string* output) {
+    return this->pImpl->runCommand(argv, true, output);
 }
 
-int Transaction::callExt(char* argv[]) {
+int Transaction::callExt(char* argv[], std::string* output) {
     for (int i=0; argv[i] != nullptr; i++) {
         std::string s = std::string(argv[i]);
         std::string from = "{}";
@@ -354,7 +389,7 @@ int Transaction::callExt(char* argv[]) {
             s.replace(pos, from.size(), getRoot());
         argv[i] = strdup(s.c_str());
     }
-    return this->pImpl->runCommand(argv, false);
+    return this->pImpl->runCommand(argv, false, output);
 }
 
 void Transaction::sendSignal(int signal) {
