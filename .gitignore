@@ -38,6 +38,7 @@ tukitd
 sbin/transactional-update
 src/transactional-update
 systemd/transactional-update.service
+systemd/transactional-update-cleanup.service
 man/transactional-update.8
 man/transactional-update.service.8
 man/transactional-update.timer.8
