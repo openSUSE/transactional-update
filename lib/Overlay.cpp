@@ -44,6 +44,7 @@ Overlay::Overlay(string snapshot):
     // Note: Due to this for new overlays (i.e. when "create" will be called later) the lowerdirs
     // will be initialized with outdated data of the base snapshot - it will be initalized
     // correctly during "create".
+    snapMgr = SnapshotFactory::get();
     unique_ptr<Snapshot> snap = snapMgr->open(snapshot);
     Mount mntEtc{"/etc"};
     mntEtc.setTabSource(snap->getRoot() / "etc" / "fstab");
