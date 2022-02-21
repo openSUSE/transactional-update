@@ -2,6 +2,18 @@ transactional-update NEWS -- history of user-visible changes.
 
 Copyright (C) 2016-2021 Thorsten Kukuk, Ignaz Forster et al.
 
+Version 4.0.0~rc3
+* Add Snapshot interface
+* Reworked signal handling: All public signals are sent from the
+  main thread now, keeping the same sender for everything
+* Implement D-Bus call "Execute" for Transactions
+* Implement interface for listing Snapshots
+* Implement Reboot interface
+* Fix bug when using --continue on old snapshots
+* Fix hypothetical integer overflow in snapshot list [bsc#1196826]
+* Fix wrong sort order in status command
+  [gh#openSUSE/transactional-update#80]
+
 Version 4.0.0~rc2
 * Fix missing prompt in "shell" command [bsc#1196580]
 * Add output of tukit commands to log file
