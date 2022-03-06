@@ -474,7 +474,7 @@ int main() {
     }
 
 finish:
-    while (activeTransactions->id != NULL) {
+    while (activeTransactions && activeTransactions->id != NULL) {
         TransactionEntry* nextTransaction = activeTransactions->next;
         free(activeTransactions->id);
         free(activeTransactions);
