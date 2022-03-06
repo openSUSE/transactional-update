@@ -11,6 +11,7 @@
 #include "Log.hpp"
 #include "Mount.hpp"
 #include "Util.hpp"
+#include <cstring>
 #include <filesystem>
 #include <regex>
 #include <selinux/selinux.h>
