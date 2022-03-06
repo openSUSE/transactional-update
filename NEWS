@@ -2,6 +2,12 @@ transactional-update NEWS -- history of user-visible changes.
 
 Copyright (C) 2016-2021 Thorsten Kukuk, Ignaz Forster et al.
 
+Version 4.0.0~rc2
+* Fix missing prompt in "shell" command [bsc#1196580]
+* Add output of tukit commands to log file
+* Fix compilation error with GCC12 [boo#1194876]
+* Fixed (non-critical) security review comments [boo#1196149]
+
 Version 4.0.0~rc1
 This release is API, but not ABI compatible with previous releases;
 existing applications will have to be recompiled against this new
