@@ -99,7 +99,7 @@ int send_error_signal(sd_bus *bus, const char *transaction, const char *message,
 static int transaction_open(sd_bus_message *m, void *userdata, sd_bus_error *ret_error) {
     char *base;
     const char *snapid;
-    int rc = 0;
+    int ret = 0;
 
     if (sd_bus_message_read(m, "s", &base) < 0) {
         sd_bus_error_set_const(ret_error, "org.opensuse.tukit.Error", "Could not read base snapshot identifier.");
@@ -110,23 +110,23 @@ static int transaction_open(sd_bus_message *m, void *userdata, sd_bus_error *ret
         sd_bus_error_set_const(ret_error, "org.opensuse.tukit.Error", tukit_get_errmsg());
         return -1;
     }
-    if ((rc = tukit_tx_init(tx, base)) != 0) {
+    if ((ret = tukit_tx_init(tx, base)) != 0) {
         sd_bus_error_set_const(ret_error, "org.opensuse.tukit.Error", tukit_get_errmsg());
     }
-    if (!rc) {
+    if (!ret) {
         snapid = tukit_tx_get_snapshot(tx);
         if (snapid == NULL) {
             sd_bus_error_set_const(ret_error, "org.opensuse.tukit.Error", tukit_get_errmsg());
-            rc = -1;
+            ret = -1;
         }
     }
-    if (!rc && (rc = tukit_tx_keep(tx)) != 0) {
+    if (!ret && (ret = tukit_tx_keep(tx)) != 0) {
         sd_bus_error_set_const(ret_error, "org.opensuse.tukit.Error", tukit_get_errmsg());
     }
 
     tukit_free_tx(tx);
-    if (rc) {
-        return rc;
+    if (ret) {
+        return ret;
     }
 
     if (sd_bus_emit_signal(sd_bus_message_get_bus(m), "/org/opensuse/tukit", "org.opensuse.tukit.Transaction", "TransactionOpened", "s", snapid) < 0) {
@@ -136,9 +136,9 @@ static int transaction_open(sd_bus_message *m, void *userdata, sd_bus_error *ret
 
     fprintf(stdout, "Snapshot %s created.\n", snapid);
 
-    rc = sd_bus_reply_method_return(m, "s", snapid);
+    ret = sd_bus_reply_method_return(m, "s", snapid);
     free((void*)snapid);
-    return rc;
+    return ret;
 }
 
 struct execution_args {
