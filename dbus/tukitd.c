@@ -87,7 +87,7 @@ int send_error_signal(sd_bus *bus, const char *transaction, const char *message,
     if (bus == NULL) {
         bus = get_bus();
     }
-    int ret = sd_bus_emit_signal(bus, "/org/opensuse/tukit", "org.opensuse.tukit", "Error", "ssi", transaction, message, -error);
+    int ret = sd_bus_emit_signal(bus, "/org/opensuse/tukit", "org.opensuse.tukit", "Error", "ssi", transaction, message, error);
     if (ret < 0) {
         // Something is seriously broken when even an error message can't be sent any more...
         fprintf(stderr, "Cannot reach D-Bus any more: %s\n", strerror(ret));
@@ -210,19 +210,15 @@ static void *execution_func(void *args) {
     bus = get_bus();
     ret = sd_bus_emit_signal(bus, "/org/opensuse/tukit", "org.opensuse.tukit.Transaction", "CommandExecuted", "sis", transaction, exec_ret, output);
     if (ret < 0) {
-        send_error_signal(bus, transaction, "Cannot send signal 'CommandExecuted': %s\n", ret);
+        send_error_signal(bus, transaction, "Cannot send signal 'CommandExecuted'.", ret);
     }
 
     free((void*)output);
 
 finish_execute:
-    ret = sd_bus_flush(bus);
-    if (ret < 0) {
-        send_error_signal(bus, transaction, "sd_bus_flush: %s\n", ret);
-    }
     sd_bus_flush_close_unref(bus);
-
     tukit_free_tx(tx);
+
     return (void*)(intptr_t) ret;
 }
 
