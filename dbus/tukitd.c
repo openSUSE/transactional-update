@@ -22,7 +22,7 @@ typedef struct t_entry {
 // starting the new thread, and unlockSnapshot is triggered by the signal when a
 // thread has finished.
 // Any method which does write the variable must do so from the main event loop.
-int lockSnapshot(void* userdata, char* transaction, sd_bus_error *ret_error) {
+int lockSnapshot(void* userdata, const char* transaction, sd_bus_error *ret_error) {
     fprintf(stdout, "Locking further invocations for snapshot %s...\n", transaction);
     TransactionEntry* activeTransaction = userdata;
     TransactionEntry* newTransaction;
@@ -49,7 +49,7 @@ int lockSnapshot(void* userdata, char* transaction, sd_bus_error *ret_error) {
     return 0;
 }
 
-void unlockSnapshot(void* userdata, char* transaction) {
+void unlockSnapshot(void* userdata, const char* transaction) {
     TransactionEntry* activeTransaction = userdata;
     TransactionEntry* prevNext = NULL;
 
