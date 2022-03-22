@@ -1067,7 +1067,7 @@ if [ -z "${TA_UPDATE_TMPFILE}" ]; then
 else # Set exit handler to clean up artifacts of the self-update
     trap 'rm -f "$LOCKFILE" && rm -rf "${TA_UPDATE_TMPFILE}" && unset TA_UPDATE_TMPFILE' EXIT
     pushd "${TA_UPDATE_TMPFILE}" >/dev/null
-    zypper --non-interactive --pkg-cache-dir "${TA_UPDATE_TMPFILE}" download libtukit0 tukit
+    zypper --non-interactive --pkg-cache-dir "${TA_UPDATE_TMPFILE}" download libtukit4 tukit
     find . -name *.rpm -exec sh -c 'rpm2cpio {} | cpio -idmv 2>/dev/null' \;
     popd >/dev/null
     export LD_LIBRARY_PATH="${TA_UPDATE_TMPFILE}/usr/lib64:${TA_UPDATE_TMPFILE}/usr/lib"
