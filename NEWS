@@ -7,6 +7,8 @@ Version 4.0.0~rc2
 * Add output of tukit commands to log file
 * Fix compilation error with GCC12 [boo#1194876]
 * Fixed (non-critical) security review comments [boo#1196149]
+* Fixed selfupdate
+* Code cleanup
 
 Version 4.0.0~rc1
 This release is API, but not ABI compatible with previous releases;
