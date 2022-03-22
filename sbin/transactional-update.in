@@ -1522,7 +1522,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
     if [ "${DEFAULT_SNAPSHOT_ID}" -ne "${BASE_SNAPSHOT_ID}" ]; then
 	log_info "\nWARNING: This snapshot has been created from a different base (${BASE_SNAPSHOT_ID})"
 	log_info "         than the previous default snapshot (${DEFAULT_SNAPSHOT_ID}) and does not"
-	log_info "         contain the changes from the later.\n"
+	log_info "         contain the changes from the latter.\n"
     fi
 
     log_info "New default snapshot is #${SNAPSHOT_ID} (${SNAPSHOT_DIR})."
