@@ -1,0 +1,9 @@
+[Unit]
+Description=Daily cleanup of the system
+Documentation=man:transactional-update(8)
+
+[Timer]
+OnCalendar=*-*-* 23:00:00
+
+[Install]
+WantedBy=timers.target

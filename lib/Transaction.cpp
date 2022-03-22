@@ -12,7 +12,7 @@
 #include "Log.hpp"
 #include "Mount.hpp"
 #include "Overlay.hpp"
-#include "Snapshot.hpp"
+#include "SnapshotManager.hpp"
 #include "Supplement.hpp"
 #include "Util.hpp"
 #include <cerrno>
@@ -39,9 +39,10 @@ class Transaction::impl {
 public:
     void addSupplements();
     void mount();
-    int runCommand(char* argv[], bool inChroot);
+    int runCommand(char* argv[], bool inChroot, std::string* buffer);
     static int inotifyAdd(const char *pathname, const struct stat *sbuf, int type, struct FTW *ftwb);
     int inotifyRead();
+    std::unique_ptr<SnapshotManager> snapshotMgr;
     std::unique_ptr<Snapshot> snapshot;
     std::vector<std::unique_ptr<Mount>> dirsToMount;
     Supplements supplements;
@@ -54,7 +55,7 @@ Transaction::Transaction() : pImpl{std::make_unique<impl>()} {
     if (getenv("TRANSACTIONAL_UPDATE") != NULL) {
         throw std::runtime_error{"Cannot open a new transaction from within a running transaction."};
     }
-    pImpl->snapshot = SnapshotFactory::get();
+    pImpl->snapshotMgr = SnapshotFactory::get();
 }
 
 Transaction::~Transaction() {
@@ -199,12 +200,12 @@ int Transaction::impl::inotifyAdd(const char *pathname, const struct stat *sbuf,
     return 0;
 }
 
-void Transaction::init(std::string base = "active") {
+void Transaction::init(std::string base) {
     if (base == "active")
-        base = pImpl->snapshot->getCurrent();
+        base = pImpl->snapshotMgr->getCurrent();
     else if (base == "default")
-        base = pImpl->snapshot->getDefault();
-    pImpl->snapshot->create(base);
+        base = pImpl->snapshotMgr->getDefault();
+    pImpl->snapshot = pImpl->snapshotMgr->create(base);
 
     tulog.info("Using snapshot " + base + " as base for new snapshot " + pImpl->snapshot->getUid() + ".");
 
@@ -236,7 +237,7 @@ void Transaction::init(std::string base = "active") {
 }
 
 void Transaction::resume(std::string id) {
-    pImpl->snapshot->open(id);
+    pImpl->snapshot = pImpl->snapshotMgr->open(id);
     if (! pImpl->snapshot->isInProgress()) {
         pImpl->snapshot.reset();
         throw std::invalid_argument{"Snapshot " + id + " is not an open transaction."};
@@ -250,9 +251,6 @@ void Transaction::resume(std::string id) {
 
 void Transaction::setDiscardIfUnchanged(bool discard) {
     pImpl->discardIfNoChange = discard;
-}
-void Transaction::setDiscard(bool discard) {
-    setDiscardIfUnchanged(discard);
 }
 
 int Transaction::impl::inotifyRead() {
@@ -276,7 +274,7 @@ int Transaction::impl::inotifyRead() {
     return ret;
 }
 
-int Transaction::impl::runCommand(char* argv[], bool inChroot) {
+int Transaction::impl::runCommand(char* argv[], bool inChroot, std::string* output) {
     if (discardIfNoChange) {
         inotifyFd = inotify_init();
         if (inotifyFd == -1)
@@ -300,10 +298,32 @@ int Transaction::impl::runCommand(char* argv[], bool inChroot) {
 
     int status = 1;
     int ret;
+    int pipefd[2];
+
+    ret = pipe(pipefd);
+    if (ret < 0) {
+        throw std::runtime_error{"Error opening pipe for command output: " + std::string(strerror(errno))};
+    }
+
     pid_t pid = fork();
     if (pid < 0) {
         throw std::runtime_error{"fork() failed: " + std::string(strerror(errno))};
     } else if (pid == 0) {
+        if (output != nullptr) {
+            ret = dup2(pipefd[1], STDOUT_FILENO);
+            if (ret < 0) {
+                throw std::runtime_error{"Redirecting stdout failed: " + std::string(strerror(errno))};
+            }
+            ret = dup2(pipefd[1], STDERR_FILENO);
+            if (ret < 0) {
+                throw std::runtime_error{"Redirecting stderr failed: " + std::string(strerror(errno))};
+            }
+            ret = close(pipefd[0]);
+            if (ret < 0) {
+                throw std::runtime_error{"Closing pipefd failed: " + std::string(strerror(errno))};
+            }
+        }
+
         if (inChroot) {
             if (chdir(snapshot->getRoot().c_str()) < 0) {
                 tulog.info("Warning: Couldn't set working directory: ", std::string(strerror(errno)));
@@ -312,6 +332,7 @@ int Transaction::impl::runCommand(char* argv[], bool inChroot) {
                 throw std::runtime_error{"Chrooting to " + std::string(snapshot->getRoot()) + " failed: " + std::string(strerror(errno))};
             }
         }
+
         // Set indicator for RPM pre/post sections to detect whether we run in a
         // transactional update
         setenv("TRANSACTIONAL_UPDATE", "true", 1);
@@ -320,6 +341,18 @@ int Transaction::impl::runCommand(char* argv[], bool inChroot) {
         }
         ret = -1;
     } else {
+        ret = close(pipefd[1]);
+        if (ret < 0) {
+            throw std::runtime_error{"Closing pipefd failed: " + std::string(strerror(errno))};
+        }
+        if (output != nullptr) {
+            char buffer[2048];
+            ssize_t len;
+            while((len = read(pipefd[0], buffer, 2048)) > 0) {
+                output->append(buffer, len);
+            }
+        }
+
         this->pidCmd = pid;
         ret = waitpid(pid, &status, 0);
         this->pidCmd = 0;
@@ -339,18 +372,22 @@ int Transaction::impl::runCommand(char* argv[], bool inChroot) {
     return ret;
 }
 
-int Transaction::execute(char* argv[]) {
-    return this->pImpl->runCommand(argv, true);
+int Transaction::execute(char* argv[], std::string* output) {
+    return this->pImpl->runCommand(argv, true, output);
 }
 
-int Transaction::callExt(char* argv[]) {
+int Transaction::callExt(char* argv[], std::string* output) {
     for (int i=0; argv[i] != nullptr; i++) {
-        if (strcmp(argv[i], "{}") == 0) {
-            char* bindDir = strdup(getRoot().c_str());
-            argv[i] = bindDir;
-        }
+        std::string s = std::string(argv[i]);
+        std::string from = "{}";
+        // replacing all {} by bindDir
+        for(size_t pos = 0;
+           (pos = s.find(from, pos)) != std::string::npos;
+           pos += getRoot().string().length())
+            s.replace(pos, from.size(), getRoot());
+        argv[i] = strdup(s.c_str());
     }
-    return this->pImpl->runCommand(argv, false);
+    return this->pImpl->runCommand(argv, false, output);
 }
 
 void Transaction::sendSignal(int signal) {
@@ -388,8 +425,7 @@ void Transaction::finalize() {
     pImpl->supplements.cleanup();
     pImpl->dirsToMount.clear();
 
-    std::unique_ptr<Snapshot> defaultSnap = SnapshotFactory::get();
-    defaultSnap->open(pImpl->snapshot->getDefault());
+    std::unique_ptr<Snapshot> defaultSnap = pImpl->snapshotMgr->open(pImpl->snapshotMgr->getDefault());
     if (defaultSnap->isReadOnly())
         pImpl->snapshot->setReadOnly(true);
     pImpl->snapshot->setDefault();

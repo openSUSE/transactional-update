@@ -2,6 +2,37 @@ transactional-update NEWS -- history of user-visible changes.
 
 Copyright (C) 2016-2021 Thorsten Kukuk, Ignaz Forster et al.
 
+Version 4.0.0~rc2
+* Fix missing prompt in "shell" command [bsc#1196580]
+* Add output of tukit commands to log file
+* Fix compilation error with GCC12 [boo#1194876]
+* Fixed (non-critical) security review comments [boo#1196149]
+* Fixed selfupdate
+* Code cleanup
+
+Version 4.0.0~rc1
+This release is API, but not ABI compatible with previous releases;
+existing applications will have to be recompiled against this new
+version.
+Major features:
+* Introduces a D-Bus service to access the libtukit API via the
+  org.opensuse.tukit.Transaction interface
+* Introduces a C binding via libtukit.h.
+Other changes:
+* t-u: Rework --quiet handling to make sure no output is shown even in
+  error cases; this is necessary for automation, e.g. with Salt.
+  [gh#openSUSE/transactional-update#73]
+* tukit: Allow storing command output into variable by introducing a new
+  optional parameter for "execute" and "callExt".
+* Replace multiple and non-standalone occurenses of {} in "callExt"
+  argument.
+* Split transactional-update.timer into transactional-update.timer
+  and transactional-update-cleanup.timer; the later will clean up
+  old snapshots even when the system does not do automatic updates.
+* tukit: Remove legacy alias "setDiscard" for "setDiscardIfUnchanged".
+* Throw exception if snapshot is not found.
+* Fix various compiler warnings
+
 Version 3.6.2
 * Bind mount root file system snapshot on itself, this makes the
   temporary directory in /tmp unnecessary; also fixes [boo#1188110]

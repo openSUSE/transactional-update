@@ -1,0 +1,7 @@
+[Unit]
+Description=tukitd deamon for transactional update
+
+[Service]
+Type=dbus
+BusName=org.opensuse.tukit
+ExecStart=/usr/sbin/tukitd

@@ -7,7 +7,6 @@ After=network.target local-fs.target
 OnCalendar=daily
 AccuracySec=1m
 RandomizedDelaySec=2h
-#Persistent=true
 
 [Install]
 WantedBy=timers.target

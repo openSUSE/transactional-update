@@ -16,7 +16,7 @@
         <email>iforster@suse.com</email>
       </author>
     </authorgroup>
-    <releaseinfo>Version 0.3, 12. September 2019</releaseinfo>
+    <releaseinfo>Version 0.4, 28. September 2021</releaseinfo>
     <abstract>
       <para>
 	This is the documentation for transactional-update and is intended for
@@ -61,14 +61,17 @@
 	to continue using existing packages and tool chains for delivery and
 	application of updates. While currently only implemented for (open)SUSE
 	environments the concept is vendor independent and may also be
-	implemented for other package managers and package formats.
+	implemented for other package managers, package formats and file
+	systems. It consists of the (open)SUSE specific
+	<emphasis remap='B'>transactional-update</emphasis> script and the
+	generic <emphasis>tukit</emphasis> library.
       </para>
       <para>
-	Conceptually <emphasis remap='B'>transactional-update</emphasis>
+	Conceptually <emphasis>transactional-update</emphasis>
 	creates a new snapshot with <emphasis>btrfs</emphasis> before
 	performing any update and uses that snapshot for modifications.
 	Since btrfs snapshots contain only the difference between two versions
-	and thus are usually very small updates done with
+	and thus are usually very small, updates done with
 	<emphasis remap='B'>transactional-update</emphasis> are very space
 	efficient.
 	This also means several snapshots can be installed at the same time
@@ -120,15 +123,14 @@
     </section>
 
     <section id="tu-introduction-reason">
-      <title>Motivation</title>
+      <title>Use Cases</title>
       <para>
-	Linux distributions have had working update mechanisms for many, many
-	years - so why do we need something new? Distributions evolved,
-	introducing new concepts such as rolling releases, containers or long
+	As Linux distributions are evolving over the years, new concepts are
+	appearing such rolling releases, containers, embedded systems or long
 	time support releases. While the classical update mechanisms are
-	probably perfectly fine for a regular desktop user, using a
-	distribution with regular releases, other concepts may require
-	different concepts.
+	probably perfectly fine for a regular desktop user or a conventional
+	server system, the following example use cases may give an indication
+	why an even more error-proof system may be desirable:
       </para>
       <para>
 	Distributions with <emphasis role="bold">rolling updates</emphasis> face
@@ -143,9 +145,10 @@
 	working state.
       </para>
       <para>
-	On <emphasis role="bold">mission critical systems</emphasis> you want to
-	make sure that no service or user behaviour interferes with the update
-	of the system. And conversely the update should not modify the system,
+	On <emphasis role="bold">mission critical systems</emphasis> or
+	<emphasis role="bold">embedded systems</emphasis> one will usually want
+	to make sure that no service or user behaviour interferes with the
+	update of the system. Moreover the update should not modify the system,
 	e.g. by uncontrolled restarts of services or unexpected modifications to
 	the system in post scripts. Potential interruptions are deferred to a
 	defined maintenance window instead. For really critical systems the
@@ -164,58 +167,117 @@
 	the updates cluster aware.
       </para>
       <para>
-	Sometimes new kernel versions or software updates are
-	incompatible with your hardware or other software. In this case there
-	should be a quick and easy way to roll back to the state before the
-	update was applied.
+	To summarize: The update should only be applied if there were no
+	errors during the update. If it turns out that the update is
+	causing errors (e.g. because of a new kernel version incompatible
+	with the hardware) there should be a quick and easy way to roll back
+	to the state before the update was applied.
+      </para>
+    </section>
+  </chapter>
+
+  <chapter id="tu-components">
+    <title>Components</title>
+    <para>
+	transactional-update is split into two parts: the (open)SUSE specific
+	<emphasis>transactional-update</emphasis> shell script, and the
+	generic <emphasis>tukit</emphasis> (including libtukit, the tukit
+	command line application and the D-Bus bindings).
+    </para>
+    <section id="tu-libtukit">
+      <title>libtukit.so</title>
+      <para>
+	libtukit is a C++ library implementing the core functionality of
+	<emphasis remap='B'>transactional-update</emphasis>. It is responsible
+	for snapshot management, preparing the environment (including
+	overlay handling, see <xref linkend="tu-setup-etc" />) and executing
+	the command to run within the update environment.
       </para>
       <para>
-	There are other solutions available for the above problems, like
-	downloading all RPMs upfront and apply them during the boot phase.
-	This however will block the system for an unknown period of time
-	while the update is running, delaying the availablility of the system.
+	The library is designed to be a general purpose library for handling
+	transactional systems. It provides methods to create, modify and close
+	transactions as well as execute commands within a transaction.
+	Currently <emphasis>snapper</emphasis> is the only implemented snapshot
+	management option.
+      </para>
+      <para>
+	Applications such as package managers are expected to use this library
+	for easily supporting transactional systems. DNF for example is
+	supporting transactional systems via the
+	<ulink url="https://code.opensuse.org/microos/libdnf-plugin-txnupd">libdnf-plugin-txnupd</ulink>
+	plugin.
+      </para>
+      <para>
+	The library also provides C bindings with the same functionality as the
+	C++ library.
+      </para>
+    </section>
+    <section id="tu-tukit">
+      <title>tukit</title>
+      <para>
+	tukit is a utility application to call <emphasis>libtukit</emphasis>
+	functionality from the command line. Applications which do not support
+	<emphasis>libtukit</emphasis> directly may use this application as
+	a wrapper. This command is not yet intended to be called by the user
+	directly, as it does not perform maintenance tasks such as marking a
+	snapshot for deletion for now.
+      </para>
+    </section>
+    <section id="tu-tukitd">
+      <title>D-Bus Bindings</title>
+      <para>
+	The <emphasis>libtukit</emphasis> functionality is also available via
+	D-Bus interface <emphasis>org.opensuse.tukit</emphasis>. Commands are
+	executed asynchronously, returning a signal when the command execution
+	is finished.
+      </para>
+    </section>
+    <section id="tu-transactional-update">
+      <title>transactional-update</title>
+      <para>
+	This shell script is an (open)SUSE specific wrapper for handling the
+	tasks typical on a transactional system, e.g. installing packages,
+	updating the system or updating the bootloader. To do so it is using
+	the tukit wrapper to call applications such as
+	<emphasis>zypper</emphasis> for package management.
       </para>
     </section>
   </chapter>
 
   <chapter id="tu-howitworks">
-    <title>Concept</title>
+    <title>High Level Concept</title>
     <section id="tu-concept">
-      <title>Filesystem</title>
+      <title>The root file system</title>
       <para>
-	This chapter describes the handling of the root file system, i.e. the
-	core functionality of
-	<emphasis remap='B'>transactional-update</emphasis>. Of course not
-	all information (such as
-	<filename class='directory'>/var</filename> or
-	<filename class='directory'>/home</filename>) should be stored on the
-	root volume, see <xref linkend="tu-setup" /> for a real world setup.
+	This chapter describes the handling of the root file system. In general
+	<emphasis remap='B'>transactional-update</emphasis> will not modify any
+	other subvolumes or file systems: Information stored on these mounts
+	(such as <filename class='directory'>/var</filename> or
+	<filename class='directory'>/home</filename>) is usually not supposed
+	to be rolled back. See <xref linkend="tu-setup" /> for a real world
+	setup.
+	There are exceptions for a few dedicated subvolumes such as
+	<filename class='directory'>/boot/grub2/x86_64-efi</filename> which
+	also have to be available to be	able to update the bootloader; these
+	directories will be bind mounted into the update environment.
       </para>
       <para>
 	<emphasis remap='B'>transactional-update</emphasis> is based around
 	several concepts of the <emphasis>Btrfs</emphasis> file system, a
 	general purpose Copy-on-Write (Cow) filesystem with snapshot and
-	subvolume support.
-	Subvolumes look like a directory, but behave like a mount point. They
-	can be accessed from the parent subvolume like a directory, or they can
-	be mounted on other directories of the same filesytem.
-	Snapshots will be created from existing subvolumes, excluding other
-	subvolumes inside of it, and are read-only by default.
-      </para>
-      <para>
-	Implementation note: <emphasis remap='B'>transactional-update</emphasis>
-	may also be implemented for any other file system as long as it provides
-	snapshot functionality and the ability to boot from snapshots. See
-	<xref linkend="tu-porting" /> for requirements and porting information.
+	subvolume support, though support for other file systems is possible
+	(see <xref linkend="tu-porting" /> for requirements and porting
+	information).
       </para>
     </section>
     <section id="tu-howitworks-chroot">
       <title>Updating the correct snapshot</title>
       <para>
-	transactional-update is using <emphasis>zypper</emphasis> with the
-	<option>--root</option>	option pointing to the new snapshot for package
-	management. Other commands (such as the creation of initrd) will be
-	called with <command>chroot</command>.
+	transactional-update is wrapping all binaries which will modify the
+	file system with <command>tukit</command>, which will in turn use
+	<command>chroot</command> to execute the command in the new snapshot.
+	That way e.g. <emphasis>zypper</emphasis> will install packages
+	into the new snapshot only.
       </para>
     </section>
     <section id="tu-howitworks-example">
@@ -229,22 +291,9 @@
         </textobject>
 	<caption>
 	  <para>
-	    At the beginning, there is a list of old snapshots, each one based
-	    on the other one, and the newest one is the current root filesystem.
-	  </para>
-	</caption>
-      </mediaobject>
-      <mediaobject>
-        <imageobject>
-          <imagedata fileref="png/Workflow-Step1.png"/>
-        </imageobject>
-        <textobject>
-          <phrase>List of snapshots with new read-only Clone of current root filesystem</phrase>
-        </textobject>
-	<caption>
-	  <para>
-	    In the first step, a new read-only snapshot of the current root
-	    filesystem will be created.
+	    In the beginning there is a list of old snapshots, each one based
+	    on the previous one, and the newest one is the current root
+	    file system.
 	  </para>
 	</caption>
       </mediaobject>
@@ -253,12 +302,12 @@
           <imagedata fileref="png/Workflow-Step2.png"/>
         </imageobject>
         <textobject>
-          <phrase>List of snapshots with a read-write Clone of current root filesystem</phrase>
+          <phrase>List of snapshots with a read-write clone of the current root file system.</phrase>
         </textobject>
 	<caption>
 	  <para>
-	    In the second step we switch the snapshot from read-only to
-	    read-write, so that we can update it.
+	    In the first step, a new snapshot of the current root
+	    file system will be created. This snapshot is set read write.
 	  </para>
 	</caption>
       </mediaobject>
@@ -267,12 +316,12 @@
           <imagedata fileref="png/Workflow-Step3.png"/>
         </imageobject>
         <textobject>
-          <phrase>List of snapshots with a read-write Clone of current root
-	  filesystem, which will be updated with zypper.</phrase>
+          <phrase>List of snapshots with a read-write clone of current root
+	  file system, which will be updated with zypper.</phrase>
         </textobject>
 	<caption>
 	  <para>
-	    In the third step the snapshot will be updated. This can be
+	    In the second step the snapshot will be updated. This can be
 	    <emphasis>zypper up</emphasis> or <emphasis>zypper dup</emphasis>,
 	    the installation or removal of a package or any other modification
 	    to the root file system.
@@ -284,11 +333,11 @@
           <imagedata fileref="png/Workflow-Step4.png"/>
         </imageobject>
         <textobject>
-          <phrase>List of snapshots with the clone again read-only.</phrase>
+          <phrase>List of snapshots with the clone set read-only.</phrase>
         </textobject>
 	<caption>
 	  <para>
-	    In the fourth step the snapshot will be changed back to read-only,
+	    In the third step the snapshot will be changed back to read-only,
 	    so that the data cannot be modified anymore.
 	  </para>
 	</caption>
@@ -298,12 +347,12 @@
           <imagedata fileref="png/Workflow-Step5.png"/>
         </imageobject>
         <textobject>
-          <phrase>List of snapshots with the read-only Clone the new default.</phrase>
+          <phrase>List of snapshots with the read-only clone set as the new default.</phrase>
         </textobject>
 	<caption>
 	  <para>
 	    The last step is to mark the updated snapshot as new root
-	    filesystem. This is the atomic step: If the power would have
+	    file system. This is the atomic step: If the power would have
 	    been pulled before, the unchanged old system would have been
 	    booted. Now the new, updated system will boot.
 	  </para>
@@ -314,13 +363,13 @@
           <imagedata fileref="png/Workflow-After-Reboot.png"/>
         </imageobject>
         <textobject>
-          <phrase>List of snapshots with the current root filesystem as newest
+          <phrase>List of snapshots with the current root file system as newest
 	  at the end.</phrase>
         </textobject>
 	<caption>
 	  <para>
 	    After reboot, the newly prepared snapshot is the new root
-	    filesystem. In case anything goes wrong a rollback to any of
+	    file system. In case anything goes wrong a rollback to any of
 	    the older snapshots can be performed.
 	  </para>
 	</caption>
@@ -330,7 +379,7 @@
           <imagedata fileref="png/Workflow-Without-Reboot.png"/>
         </imageobject>
         <textobject>
-          <phrase>List of snapshots with a read-write Clone of current root
+          <phrase>List of snapshots with a read-write clone of current root
 	  filesystem, which will be updated with zypper.</phrase>
         </textobject>
 	<caption>
@@ -342,7 +391,9 @@
 	    <emphasis>not</emphasis> on the new default snapshot!
 	    For stacking changes (i.e. if several commands are supposed to be
 	    combined in one single snapshot) the <option>shell</option> command
-	    can be used to perform any number of operations.
+	    can be used to perform any number of operations, or the
+	    <option>--continue</option> can be used to continue the latest
+	    snapshot while preserving a separate snapshot for each step.
 	  </para>
 	</caption>
       </mediaobject>
@@ -356,12 +407,7 @@
       <itemizedlist>
 	<listitem>
 	  <programlisting>
-SNAPSHOT_ID=`snapper create -p -d "Snapshot Update"`
-	  </programlisting>
-	</listitem>
-	<listitem>
-	  <programlisting>
-btrfs property set ${SNAPSHOT_DIR} ro false
+SNAPSHOT_ID=`snapper create --read-write -p -d "Snapshot Update"`
 	  </programlisting>
 	</listitem>
 	<listitem>
@@ -405,8 +451,8 @@ systemctl reboot
 	<filename class='directory'>/var</filename> should not be part of the
 	root file system, otherwise doing a rollback to a previous state would
 	also roll back the <filename class='directory'>/var</filename>
-	contents. On a read-only system this directory also has be mounted in
-	read-write mode anyway, as several variable data is written into it.
+	contents. On a read-only system this directory has to be writable in any
+	case, variable data is stored inside.
       </para>
       <para>
 	Due to the volatile nature of
@@ -428,8 +474,9 @@ systemctl reboot
 	<ulink url="https://en.opensuse.org/openSUSE:Packaging_for_transactional-updates">Packaging for transactional-updates</ulink>
 	and
 	<ulink url="https://en.opensuse.org/openSUSE:Packaging_guidelines#Migration_.2F_Upgrades">Migration / Upgrade</ulink>
-	in the Packaging guidelines for more information. If a package is
-	breaking this rule a warning message indicating the affected file is
+	in the Packaging guidelines. If a package is breaking this rule by
+	installing files into a directory which is not part of the root file
+	system, then a warning message indicating the affected file is
 	printed at the end of the
 	<emphasis remap='B'>transactional-update</emphasis> run.
       </para>
@@ -561,8 +608,10 @@ systemctl reboot
   <chapter id='tu-porting'>
     <title>Porting to other systems</title>
     <para>
-      You need a CoW filesystem (or anything else with snapshots
-      and rollback), else this should work with every package manager.
+      Currently <emphasis>snapper</emphasis> is the only supported snapshot
+      implementation, however it is prepared to support other (file) systems
+      as long as they provide snapshot functionality and the ability to boot
+      from specific snapshots.
     </para>
   </chapter>
 

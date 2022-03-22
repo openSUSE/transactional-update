@@ -13,10 +13,7 @@
 #ifndef T_U_TRANSACTION_H
 #define T_U_TRANSACTION_H
 
-#include <algorithm>
 #include <filesystem>
-#include <memory>
-#include <vector>
 
 namespace TransactionalUpdate {
 
@@ -69,8 +66,6 @@ public:
      * listeners already. Changes may not be detected correctly in this case.
      */
     void setDiscardIfUnchanged(bool discard);
-    /** Temporary legacy name - remove on the next incompatible interface change. **/
-    void setDiscard(bool discard);
 
     /**
      * @brief Resume an existing transaction
@@ -86,13 +81,13 @@ public:
      * @return application's return code
      *
      * Execute any given command within the new snapshot. The application's output will be
-     * printed to the corresponding streams.
+     * printed to the corresponding streams or, if set, stored in the output variable.
      *
      * Note that @param is following the default C style syntax:
      * @example: char *args[] = {(char*)"ls", (char*)"-l", NULL};
                  int status = transaction.execute(args);
      */
-    int execute(char* argv[]);
+    int execute(char* argv[], std::string *output=nullptr);
 
     /**
      * @brief Replace '{}' in argv with mount directory and execute command
@@ -103,13 +98,14 @@ public:
      * and execute the given command *outside* of the snapshot in the running system. This may
      * be useful if the command needs access to the current environment, e.g. to copy a file
      * from a directory not accessible from within the chroot environment.
-     * The application's output will be printed to the corresponding streams.
+     * The application's output will be printed to the corresponding streams or, if set,
+     * stored in the output variable.
      *
      * Note that @param is following the default C style syntax:
      * @example: char *args[] = {(char*)"zypper", (char*)"-R", (char*)"{}", (char*)"up", NULL};
-                 int status = transaction.execute(args);
+                 int status = transaction.callExt(args);
      */
-    int callExt(char* argv[]);
+    int callExt(char* argv[], std::string *output=nullptr);
 
     /**
      * @brief Close a transaction and set it as the new default snapshot

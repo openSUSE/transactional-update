@@ -1,0 +1,5 @@
+[D-BUS Service]
+Name=org.opensuse.tukit
+Exec=/usr/sbin/tukitd
+User=root
+SystemdService=tukitd.service

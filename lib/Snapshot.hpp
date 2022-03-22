@@ -17,15 +17,11 @@ namespace TransactionalUpdate {
 
 class Snapshot {
 public:
-    Snapshot() = default;
+    Snapshot(std::string id): snapshotId{id} {};
     virtual ~Snapshot() = default;
-    virtual void create(std::string base) = 0;
-    virtual void open(std::string id) = 0;
     virtual void close() = 0;
     virtual void abort() = 0;
     virtual std::filesystem::path getRoot() = 0;
-    virtual std::string getCurrent() = 0;
-    virtual std::string getDefault() = 0;
     virtual bool isInProgress() = 0;
     virtual bool isReadOnly() = 0;
     virtual void setDefault() = 0;
@@ -33,11 +29,6 @@ public:
     std::string getUid() { return snapshotId; };
 protected:
     std::string snapshotId;
-};
-
-class SnapshotFactory {
-public:
-    static std::unique_ptr<Snapshot> get();
 };
 
 } // namespace TransactionalUpdate
