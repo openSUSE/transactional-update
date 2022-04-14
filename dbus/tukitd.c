@@ -1,6 +1,7 @@
 #include "Bindings/libtukit.h"
 #include <errno.h>
 #include <pthread.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <systemd/sd-bus.h>
@@ -83,11 +84,37 @@ sd_bus* get_bus() {
     return bus;
 }
 
+int emit_internal_signal(sd_bus *bus, const char *transaction, const char* signame, const char *types, ...) {
+    va_list ap;
+    sd_bus_message *m = NULL;
+    int ret;
+
+    if ((ret = sd_bus_message_new_signal(bus, &m, "/org/opensuse/tukit/internal", "org.opensuse.tukit.internal", signame)) != 0) {
+        fprintf(stderr, "Error during sd_bus_message_new_signal for %s (Transaction %s): %s\n", signame, transaction, strerror(ret));
+    }
+    va_start(ap, types);
+    if (ret >= 0 && (ret = sd_bus_message_appendv(m, "sis", ap)) < 0) {
+        fprintf(stderr, "Error during sd_bus_message_appendv for %s (Transaction %s): %s\n", signame, transaction, strerror(ret));
+    }
+    va_end(ap);
+    if (ret >= 0 && (ret = sd_bus_message_set_destination(m, "org.opensuse.tukit")) < 0) {
+        fprintf(stderr, "Error during sd_bus_message_set_destination for %s (Transaction %s): %s\n", signame, transaction, strerror(ret));
+    }
+    if (ret >= 0 && (ret = sd_bus_send(bus, m, NULL)) < 0) {
+        fprintf(stderr, "Error during sd_bus_send for %s (Transaction %s): %s\n", signame, transaction, strerror(ret));
+    }
+
+    if (ret < 0)
+        return ret;
+    else
+        return 0;
+}
+
 int send_error_signal(sd_bus *bus, const char *transaction, const char *message, int error) {
     if (bus == NULL) {
         bus = get_bus();
     }
-    int ret = sd_bus_emit_signal(bus, "/org/opensuse/tukit", "org.opensuse.tukit", "Error", "ssi", transaction, message, error);
+    int ret = emit_internal_signal(bus, transaction, "Error", "sis", transaction, error, message);
     if (ret < 0) {
         // Something is seriously broken when even an error message can't be sent any more...
         fprintf(stderr, "Cannot reach D-Bus any more: %s\n", strerror(ret));
@@ -165,10 +192,9 @@ static void *execution_func(void *args) {
 
     fprintf(stdout, "Executing command `%s` in snapshot %s...\n", command, transaction);
 
-    // The bus connection has been allocated in a parent process and is being now reused in the
-    // child process, so a new dbus connection has to be established (D-Bus doesn't support
-    // connection sharing between several threads). The bus will only be initialized directly
-    // before it is used to avoid timeouts.
+    // D-Bus doesn't support connection sharing between several threads, so a new dbus connection
+    // has to be established. The bus will only be initialized directly before it is used to
+    // avoid timeouts.
     sd_bus *bus = NULL;
 
     struct tukit_tx* tx = tukit_new_tx();
@@ -208,7 +234,7 @@ static void *execution_func(void *args) {
     }
 
     bus = get_bus();
-    ret = sd_bus_emit_signal(bus, "/org/opensuse/tukit", "org.opensuse.tukit.Transaction", "CommandExecuted", "sis", transaction, exec_ret, output);
+    ret = emit_internal_signal(bus, transaction, "CommandExecuted", "sis", transaction, exec_ret, output);
     if (ret < 0) {
         send_error_signal(bus, transaction, "Cannot send signal 'CommandExecuted'.", ret);
     }
@@ -270,14 +296,38 @@ static int transaction_callext(sd_bus_message *m, void *userdata, sd_bus_error *
 }
 
 static int signalCallback(sd_bus_message *m, void *userdata, sd_bus_error *ret_error) {
+    const char *member;
     char *transaction;
+    int exec_ret = 0;
+    const char* output;
 
-    if (sd_bus_message_read(m, "s", &transaction) < 0) {
-        sd_bus_error_set_const(ret_error, "org.opensuse.tukit.Error", "Could not read transaction ID.");
+    if ((member = sd_bus_message_get_member(m)) < 0) {
+        sd_bus_error_set_const(ret_error, "org.opensuse.tukit.Error", "Could not read member name.");
         return -1;
     }
+    if (strcmp(member, "CommandExecuted") == 0) {
+        if (sd_bus_message_read(m, "sis", &transaction, &exec_ret, &output) < 0) {
+            sd_bus_error_set_const(ret_error, "org.opensuse.tukit.Error", "Could not read CommandExecuted signal data.");
+            return -1;
+        }
 
-    unlockSnapshot(userdata, transaction);
+        int ret = sd_bus_emit_signal(sd_bus_message_get_bus(m), "/org/opensuse/tukit/Transaction", "org.opensuse.tukit.Transaction", "CommandExecuted", "sis", transaction, exec_ret, output);
+        if (ret < 0) {
+            send_error_signal(sd_bus_message_get_bus(m), transaction, "Cannot send signal 'CommandExecuted'.", ret);
+        }
+        unlockSnapshot(userdata, transaction);
+    } else if (strcmp(member, "Error") == 0) {
+        if (sd_bus_message_read(m, "sis", &transaction, &exec_ret, &output) < 0) {
+            sd_bus_error_set_const(ret_error, "org.opensuse.tukit.Error", "Could not read CommandExecuted signal data.");
+            return -1;
+        }
+
+        int ret = sd_bus_emit_signal(sd_bus_message_get_bus(m), "/org/opensuse/tukit/Transaction", "org.opensuse.tukit.Transaction", "Error", "sis", transaction, exec_ret, output);
+        if (ret < 0) {
+            send_error_signal(sd_bus_message_get_bus(m), transaction, "Cannot send signal 'Error'.", ret);
+        }
+        unlockSnapshot(userdata, transaction);
+    }
     return 0;
 }
 
@@ -375,6 +425,7 @@ static const sd_bus_vtable tukit_transaction_vtable[] = {
     SD_BUS_METHOD_WITH_ARGS("Abort", SD_BUS_ARGS("s", transaction), SD_BUS_RESULT("i", ret), transaction_abort, 0),
     SD_BUS_SIGNAL_WITH_ARGS("TransactionOpened", SD_BUS_ARGS("s", snapshot), 0),
     SD_BUS_SIGNAL_WITH_ARGS("CommandExecuted", SD_BUS_ARGS("s", snapshot, "i", returncode, "s", output), 0),
+    SD_BUS_SIGNAL_WITH_ARGS("Error", SD_BUS_ARGS("s", snapshot, "i", returncode, "s", output), 0),
     SD_BUS_VTABLE_END
 };
 
@@ -421,13 +472,13 @@ int main() {
     ret = sd_bus_match_signal(bus,
                 NULL,
                 NULL,
-                "/org/opensuse/tukit",
+                "/org/opensuse/tukit/internal",
                 NULL,
                 NULL,
                 signalCallback,
                 activeTransactions);
     if (ret < 0) {
-        fprintf(stderr, "Failed to register DBus signal listener: %s\n", strerror(-ret));
+        fprintf(stderr, "Failed to register internal signal listener: %s\n", strerror(-ret));
         goto finish;
     }
 
