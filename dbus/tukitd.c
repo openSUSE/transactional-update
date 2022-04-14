@@ -17,6 +17,18 @@ typedef struct t_entry {
     enum transactionstates state;
 } TransactionEntry;
 
+struct call_args {
+    char *transaction;
+    char *command;
+    int chrooted;
+    enum transactionstates *state;
+};
+struct execute_args {
+    struct tukit_tx *transaction;
+    char *command;
+    enum transactionstates *state;
+};
+
 // Even though userdata / activeTransaction is shared between several threads, due to
 // systemd's serial event loop processing it's always guaranteed that no parallel
 // access will be happen: lockSnapshot will be called in the event functions before
@@ -123,6 +135,141 @@ int send_error_signal(sd_bus *bus, const char *transaction, const char *message,
     return ret;
 }
 
+static void *execute_func(void *args) {
+    int ret = 0;
+    int exec_ret = 0;
+    wordexp_t p;
+
+    struct execute_args* ea = (struct execute_args*)args;
+    struct tukit_tx* tx = ea->transaction;
+    char command[strlen(ea->command) + 1];
+    strcpy(command, ea->command);
+
+    enum transactionstates *state = ea->state;
+    *state = running;
+
+    // D-Bus doesn't support connection sharing between several threads, so a new dbus connection
+    // has to be established. The bus will only be initialized directly before it is used to
+    // avoid timeouts.
+    sd_bus *bus = NULL;
+
+    const char* transaction = tukit_tx_get_snapshot(tx);
+    if (tx == NULL) {
+        send_error_signal(bus, transaction, tukit_get_errmsg(), -1);
+        goto finish_execute;
+    }
+
+    fprintf(stdout, "Executing command `%s` in snapshot %s...\n", command, transaction);
+
+    ret = wordexp(command, &p, 0);
+    if (ret != 0) {
+        if (ret == WRDE_NOSPACE) {
+            wordfree(&p);
+        }
+        send_error_signal(bus, transaction, "Command could not be processed.", ret);
+        goto finish_execute;
+    }
+
+    const char* output;
+    exec_ret = tukit_tx_execute(tx, p.we_wordv, &output);
+
+    wordfree(&p);
+
+    // Discard snapshot on error
+    if (exec_ret != 0) {
+        send_error_signal(bus, transaction, output, exec_ret);
+        goto finish_execute;
+    }
+
+    if ((ret = tukit_tx_finalize(tx)) != 0) {
+        send_error_signal(bus, transaction, tukit_get_errmsg(), -1);
+        goto finish_execute;
+    }
+
+    bus = get_bus();
+
+    ret = emit_internal_signal(bus, transaction, "CommandExecuted", "sis", transaction, exec_ret, output);
+    if (ret < 0) {
+        send_error_signal(bus, transaction, "Cannot send signal 'CommandExecuted'.", ret);
+    }
+
+    free((void*)output);
+
+finish_execute:
+    sd_bus_flush_close_unref(bus);
+    tukit_free_tx(tx);
+    free((void*)transaction);
+
+    return (void*)(intptr_t) ret;
+}
+
+static int transaction_execute(sd_bus_message *m, void *userdata, sd_bus_error *ret_error) {
+    char *base;
+    const char *snapid = NULL;
+    pthread_t execute_thread;
+    struct execute_args exec_args;
+    TransactionEntry* activeTransaction = userdata;
+    int ret = 0;
+
+    if (sd_bus_message_read(m, "ss", &base, &exec_args.command) < 0) {
+        sd_bus_error_set_const(ret_error, "org.opensuse.tukit.Error", "Could not read base snapshot identifier.");
+        return -1;
+    }
+    struct tukit_tx* tx = tukit_new_tx();
+    if (tx == NULL) {
+        sd_bus_error_set_const(ret_error, "org.opensuse.tukit.Error", tukit_get_errmsg());
+        return -1;
+    }
+    if ((ret = tukit_tx_init(tx, base)) != 0) {
+        sd_bus_error_set_const(ret_error, "org.opensuse.tukit.Error", tukit_get_errmsg());
+        goto finish_execute;
+    }
+    if ((snapid = tukit_tx_get_snapshot(tx)) == NULL) {
+        sd_bus_error_set_const(ret_error, "org.opensuse.tukit.Error", tukit_get_errmsg());
+        goto finish_execute;
+    }
+
+    if ((ret = lockSnapshot(userdata, snapid, ret_error)) != 0) {
+        goto finish_execute;
+    }
+
+    if (sd_bus_emit_signal(sd_bus_message_get_bus(m), "/org/opensuse/tukit", "org.opensuse.tukit.Transaction", "TransactionOpened", "s", snapid) < 0) {
+        sd_bus_error_set_const(ret_error, "org.opensuse.tukit.Error", "Sending signal 'TransactionOpened' failed.");
+        goto finish_execute;
+    }
+
+    fprintf(stdout, "Snapshot %s created.\n", snapid);
+
+    while (activeTransaction->next->id != NULL) {
+        activeTransaction = activeTransaction->next;
+    }
+    exec_args.transaction = tx;
+    exec_args.state = &activeTransaction->state;
+
+    if ((ret = pthread_create(&execute_thread, NULL, execute_func, &exec_args)) != 0) {
+        goto finish_execute;
+    }
+
+    while (activeTransaction->state != running) {
+        usleep(500);
+    }
+
+    pthread_detach(execute_thread);
+
+    return sd_bus_reply_method_return(m, "s", snapid);
+
+finish_execute:
+    if (ret == 0)
+        ret = -1;
+
+    tukit_free_tx(tx);
+    if (snapid != NULL) {
+        free((void*)snapid);
+    }
+
+    return ret;
+}
+
 static int transaction_open(sd_bus_message *m, void *userdata, sd_bus_error *ret_error) {
     char *base;
     const char *snapid;
@@ -168,20 +315,13 @@ static int transaction_open(sd_bus_message *m, void *userdata, sd_bus_error *ret
     return ret;
 }
 
-struct execution_args {
-    char *transaction;
-    char *command;
-    int chrooted;
-    enum transactionstates *state;
-};
-
-static void *execution_func(void *args) {
+static void *call_func(void *args) {
     int ret = 0;
     int exec_ret = 0;
     wordexp_t p;
 
-    struct execution_args* ea = (struct execution_args*)args;
-    char transaction[strlen(ea->transaction) + 1]; // SIGSEGV
+    struct call_args* ea = (struct call_args*)args;
+    char transaction[strlen(ea->transaction) + 1];
     strcpy(transaction, ea->transaction);
     char command[strlen(ea->command) + 1];
     strcpy(command, ea->command);
@@ -248,11 +388,11 @@ finish_execute:
     return (void*)(intptr_t) ret;
 }
 
-static int execute(sd_bus_message *m, void *userdata,
+static int call_common(sd_bus_message *m, void *userdata,
            sd_bus_error *ret_error, const int chrooted) {
     int ret;
     pthread_t execute_thread;
-    struct execution_args exec_args;
+    struct call_args exec_args;
     TransactionEntry* activeTransaction = userdata;
 
     if (sd_bus_message_read(m, "ss", &exec_args.transaction, &exec_args.command) < 0) {
@@ -271,7 +411,10 @@ static int execute(sd_bus_message *m, void *userdata,
     exec_args.chrooted = chrooted;
     exec_args.state = &activeTransaction->state;
 
-    ret = pthread_create(&execute_thread, NULL, execution_func, &exec_args);
+    if ((ret = pthread_create(&execute_thread, NULL, call_func, &exec_args)) != 0) {
+        return ret;
+    }
+
     while (activeTransaction->state != running) {
         usleep(500);
     }
@@ -282,14 +425,14 @@ static int execute(sd_bus_message *m, void *userdata,
 }
 
 static int transaction_call(sd_bus_message *m, void *userdata, sd_bus_error *ret_error) {
-    int ret = execute(m, userdata, ret_error, 1);
+    int ret = call_common(m, userdata, ret_error, 1);
     if (ret)
         return ret;
     return sd_bus_reply_method_return(m, "");
 }
 
 static int transaction_callext(sd_bus_message *m, void *userdata, sd_bus_error *ret_error) {
-    int ret = execute(m, userdata, ret_error, 0);
+    int ret = call_common(m, userdata, ret_error, 0);
     if (ret)
         return ret;
     return sd_bus_reply_method_return(m, "");
@@ -418,6 +561,7 @@ int event_handler(sd_event_source *s, const struct signalfd_siginfo *si, void *u
 
 static const sd_bus_vtable tukit_transaction_vtable[] = {
     SD_BUS_VTABLE_START(0),
+    SD_BUS_METHOD_WITH_ARGS("Execute", SD_BUS_ARGS("s", base, "s", command), SD_BUS_RESULT("s", snapshot), transaction_execute, 0),
     SD_BUS_METHOD_WITH_ARGS("Open", SD_BUS_ARGS("s", base), SD_BUS_RESULT("s", snapshot), transaction_open, 0),
     SD_BUS_METHOD_WITH_ARGS("Call", SD_BUS_ARGS("s", transaction, "s", command), SD_BUS_NO_RESULT, transaction_call, 0),
     SD_BUS_METHOD_WITH_ARGS("CallExt", SD_BUS_ARGS("s", transaction, "s", command), SD_BUS_NO_RESULT, transaction_callext, 0),
