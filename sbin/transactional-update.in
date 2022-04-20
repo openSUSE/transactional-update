@@ -294,50 +294,28 @@ teardown() {
 }
 
 reboot_via_rebootmgr() {
-    /usr/sbin/rebootmgrctl is-active --quiet
-    if [ $? -eq 0 ]; then
-	# rebootmgrctl is running
-	TELEM_PAYLOAD="${TELEM_PAYLOAD}\nreboot=rebootmgr"
-	telem_finish 0
-	/usr/sbin/rebootmgrctl reboot
-	log_info "transactional-update finished - informed rebootmgr"
-	exit 0
-    fi
+    TELEM_PAYLOAD="${TELEM_PAYLOAD}\nreboot=rebootmgr"
+    tukit reboot rebootmgr |& tee -a ${LOGFILE}
 }
 
 reboot_via_systemd() {
     TELEM_PAYLOAD="${TELEM_PAYLOAD}\nreboot=systemctl reboot"
-    telem_finish 0
-    log_info "transactional-update finished - rebooting machine"
-    sync
-    systemctl reboot |& tee -a ${LOGFILE}
-    exit 0
+    tukit reboot systemd |& tee -a ${LOGFILE}
 }
 
 reboot_via_kured() {
-    log_info "transactional-update finished - informed kured"
     TELEM_PAYLOAD="${TELEM_PAYLOAD}\nreboot=kured"
-    telem_finish 0
-    touch /var/run/reboot-required
-    exit 0
+    tukit reboot kured |& tee -a ${LOGFILE}
 }
 
 reboot_via_kexec() {
-    log_info "transactional-update finished - re-initializing system with kexec"
     TELEM_PAYLOAD="${TELEM_PAYLOAD}\nreboot=kexec"
-    telem_finish 0
-    kexec -l /boot/vmlinuz --initrd=/boot/initrd --reuse-cmdline
-    sync
-    systemctl kexec |& tee -a ${LOGFILE}
-    exit 0
+    tukit reboot kexec |& tee -a ${LOGFILE}
 }
 
 reboot_autodetect() {
-    if [ -x /usr/sbin/rebootmgrctl ]; then
-	reboot_via_rebootmgr
-    fi
-    # If rebootmgr is inactive try systemd
-    reboot_via_systemd
+    TELEM_PAYLOAD="${TELEM_PAYLOAD}\nreboot=auto"
+    tukit reboot auto |& tee -a ${LOGFILE}
 }
 
 add_unique_id() {
@@ -1540,6 +1518,8 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
     log_info "New default snapshot is #${SNAPSHOT_ID} (${SNAPSHOT_DIR})."
 fi
 
+log_info "transactional-update finished"
+
 if [ ${EXITCODE} -eq 0 ]; then
     if [ $REBOOT_AFTERWARDS -eq 1 ]; then
 	trap '-' HUP INT QUIT TERM
@@ -1571,8 +1551,6 @@ if [ ${EXITCODE} -eq 0 ]; then
 	log_error "manually."
     fi
 fi
-
-log_info "transactional-update finished"
 
 telem_finish $EXITCODE
 

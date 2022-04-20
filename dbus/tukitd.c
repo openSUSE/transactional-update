@@ -9,6 +9,8 @@
 #include <unistd.h>
 #include <wordexp.h>
 
+#define _cleanup_(f) __attribute__((cleanup(f)))
+
 enum transactionstates { queued, running, finished };
 
 typedef struct t_entry {
@@ -27,6 +29,7 @@ struct execute_args {
     struct tukit_tx *transaction;
     char *command;
     enum transactionstates *state;
+    char *rebootmethod;
 };
 
 // Even though userdata / activeTransaction is shared between several threads, due to
@@ -98,7 +101,7 @@ sd_bus* get_bus() {
 
 int emit_internal_signal(sd_bus *bus, const char *transaction, const char* signame, const char *types, ...) {
     va_list ap;
-    sd_bus_message *m = NULL;
+    _cleanup_(sd_bus_message_unrefp) sd_bus_message *m = NULL;
     int ret;
 
     if ((ret = sd_bus_message_new_signal(bus, &m, "/org/opensuse/tukit/internal", "org.opensuse.tukit.internal", signame)) != 0) {
@@ -109,11 +112,8 @@ int emit_internal_signal(sd_bus *bus, const char *transaction, const char* signa
         fprintf(stderr, "Error during sd_bus_message_appendv for %s (Transaction %s): %s\n", signame, transaction, strerror(ret));
     }
     va_end(ap);
-    if (ret >= 0 && (ret = sd_bus_message_set_destination(m, "org.opensuse.tukit")) < 0) {
-        fprintf(stderr, "Error during sd_bus_message_set_destination for %s (Transaction %s): %s\n", signame, transaction, strerror(ret));
-    }
-    if (ret >= 0 && (ret = sd_bus_send(bus, m, NULL)) < 0) {
-        fprintf(stderr, "Error during sd_bus_send for %s (Transaction %s): %s\n", signame, transaction, strerror(ret));
+    if (ret >= 0 && (ret = sd_bus_send_to(bus, m, "org.opensuse.tukit", NULL)) < 0) {
+        fprintf(stderr, "Error during sd_bus_send_to for %s (Transaction %s): %s\n", signame, transaction, strerror(ret));
     }
 
     if (ret < 0)
@@ -144,6 +144,9 @@ static void *execute_func(void *args) {
     struct tukit_tx* tx = ea->transaction;
     char command[strlen(ea->command) + 1];
     strcpy(command, ea->command);
+    char rebootmethod[strlen(ea->rebootmethod) + 1];
+    strcpy(rebootmethod, ea->rebootmethod);
+
 
     enum transactionstates *state = ea->state;
     *state = running;
@@ -195,6 +198,13 @@ static void *execute_func(void *args) {
 
     free((void*)output);
 
+    if (strcmp(rebootmethod, "none") != 0) {
+        if (tukit_reboot(rebootmethod) != 0){
+            bus = get_bus();
+            send_error_signal(bus, transaction, tukit_get_errmsg(), -1);
+        }
+    }
+
 finish_execute:
     sd_bus_flush_close_unref(bus);
     tukit_free_tx(tx);
@@ -203,16 +213,22 @@ finish_execute:
     return (void*)(intptr_t) ret;
 }
 
-static int transaction_execute(sd_bus_message *m, void *userdata, sd_bus_error *ret_error) {
+static int execute_common(sd_bus_message *m, void *userdata, sd_bus_error *ret_error, int reboot) {
     char *base;
     const char *snapid = NULL;
+    char *rebootmethod = "none";
     pthread_t execute_thread;
     struct execute_args exec_args;
     TransactionEntry* activeTransaction = userdata;
     int ret = 0;
 
-    if (sd_bus_message_read(m, "ss", &base, &exec_args.command) < 0) {
-        sd_bus_error_set_const(ret_error, "org.opensuse.tukit.Error", "Could not read base snapshot identifier.");
+    if (reboot) {
+        ret = sd_bus_message_read(m, "sss", &base, &exec_args.command, &rebootmethod);
+    } else {
+        ret = sd_bus_message_read(m, "ss", &base, &exec_args.command);
+    }
+    if (ret < 0) {
+        sd_bus_error_set_const(ret_error, "org.opensuse.tukit.Error", "Could not read execution parameters.");
         return -1;
     }
     struct tukit_tx* tx = tukit_new_tx();
@@ -226,6 +242,7 @@ static int transaction_execute(sd_bus_message *m, void *userdata, sd_bus_error *
     }
     if ((snapid = tukit_tx_get_snapshot(tx)) == NULL) {
         sd_bus_error_set_const(ret_error, "org.opensuse.tukit.Error", tukit_get_errmsg());
+        ret = -1;
         goto finish_execute;
     }
 
@@ -233,7 +250,7 @@ static int transaction_execute(sd_bus_message *m, void *userdata, sd_bus_error *
         goto finish_execute;
     }
 
-    if (sd_bus_emit_signal(sd_bus_message_get_bus(m), "/org/opensuse/tukit", "org.opensuse.tukit.Transaction", "TransactionOpened", "s", snapid) < 0) {
+    if ((ret = sd_bus_emit_signal(sd_bus_message_get_bus(m), "/org/opensuse/tukit", "org.opensuse.tukit.Transaction", "TransactionOpened", "s", snapid)) < 0) {
         sd_bus_error_set_const(ret_error, "org.opensuse.tukit.Error", "Sending signal 'TransactionOpened' failed.");
         goto finish_execute;
     }
@@ -245,6 +262,7 @@ static int transaction_execute(sd_bus_message *m, void *userdata, sd_bus_error *
     }
     exec_args.transaction = tx;
     exec_args.state = &activeTransaction->state;
+    exec_args.rebootmethod = rebootmethod;
 
     if ((ret = pthread_create(&execute_thread, NULL, execute_func, &exec_args)) != 0) {
         goto finish_execute;
@@ -256,18 +274,27 @@ static int transaction_execute(sd_bus_message *m, void *userdata, sd_bus_error *
 
     pthread_detach(execute_thread);
 
-    return sd_bus_reply_method_return(m, "s", snapid);
+    ret = sd_bus_reply_method_return(m, "s", snapid);
+    if (snapid != NULL) {
+        free((void*)snapid);
+    }
+    return ret;
 
 finish_execute:
-    if (ret == 0)
-        ret = -1;
-
     tukit_free_tx(tx);
     if (snapid != NULL) {
         free((void*)snapid);
     }
 
     return ret;
+}
+
+static int transaction_execute(sd_bus_message *m, void *userdata, sd_bus_error *ret_error) {
+    return execute_common(m, userdata, ret_error, 0);
+}
+
+static int transaction_execute_reboot(sd_bus_message *m, void *userdata, sd_bus_error *ret_error) {
+    return execute_common(m, userdata, ret_error, 1);
 }
 
 static int transaction_open(sd_bus_message *m, void *userdata, sd_bus_error *ret_error) {
@@ -615,6 +642,7 @@ int event_handler(sd_event_source *s, const struct signalfd_siginfo *si, void *u
 static const sd_bus_vtable tukit_transaction_vtable[] = {
     SD_BUS_VTABLE_START(0),
     SD_BUS_METHOD_WITH_ARGS("Execute", SD_BUS_ARGS("s", base, "s", command), SD_BUS_RESULT("s", snapshot), transaction_execute, 0),
+    SD_BUS_METHOD_WITH_ARGS("ExecuteAndReboot", SD_BUS_ARGS("s", base, "s", command, "s", rebootmethod), SD_BUS_RESULT("s", snapshot), transaction_execute_reboot, 0),
     SD_BUS_METHOD_WITH_ARGS("Open", SD_BUS_ARGS("s", base), SD_BUS_RESULT("s", snapshot), transaction_open, 0),
     SD_BUS_METHOD_WITH_ARGS("Call", SD_BUS_ARGS("s", transaction, "s", command), SD_BUS_NO_RESULT, transaction_call, 0),
     SD_BUS_METHOD_WITH_ARGS("CallExt", SD_BUS_ARGS("s", transaction, "s", command), SD_BUS_NO_RESULT, transaction_callext, 0),

@@ -2,11 +2,12 @@ AUTOMAKE_OPTIONS = subdir-objects
 lib_LTLIBRARIES = libtukit.la
 libtukit_la_SOURCES=Transaction.cpp \
         SnapshotManager.cpp Snapshot/Snapper.cpp \
-        Mount.cpp Overlay.cpp Configuration.cpp \
+        Mount.cpp Overlay.cpp Reboot.cpp Configuration.cpp \
         Util.cpp Supplement.cpp Bindings/CBindings.cpp
 publicheadersdir=$(includedir)/tukit
 publicheaders_HEADERS=Transaction.hpp \
 	Snapshot.hpp SnapshotManager.hpp \
+	Reboot.hpp \
 	Bindings/libtukit.h
 noinst_HEADERS=Snapshot/Snapper.hpp \
         Mount.hpp Overlay.hpp Log.hpp Configuration.hpp \

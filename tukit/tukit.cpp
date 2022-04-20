@@ -9,6 +9,7 @@
 #include "Configuration.hpp"
 #include "SnapshotManager.hpp"
 #include "Transaction.hpp"
+#include "Reboot.hpp"
 #include "Log.hpp"
 #include <fcntl.h>
 #include <getopt.h>
@@ -57,9 +58,13 @@ void TUKit::displayHelp() {
     cout << "snapshots\n";
     cout << "\tPrints a list of all available transactions\n";
     cout << "\n";
-    cout << "Snapshot Options:\n";
+    cout << "Snapshot Options:\n"; //TODO: Migrate to options of command
     cout << "--fields=<id,date,comment,default,current>, -f<...>\n";
     cout << "                             List of fields to print\n";
+    cout << "\n";
+    cout << "Reboot Commands:\n";
+    cout << "reboot [auto|rebootmgr|systemd|kured|kexec]\n";
+    cout << "\tReboot the system using the given method; Default: auto\n";
     cout << "\n";
     cout << "Generic Options:\n";
     cout << "--help, -h                   Display this help and exit\n";
@@ -193,6 +198,18 @@ int TUKit::processCommand(char *argv[]) {
             }
             cout << endl;
         }
+        return 0;
+    }
+    else if (arg == "reboot") {
+        string method;
+        if (argv[1]) {
+            method = argv[1];
+        } else {
+            method = "auto";
+        }
+        TransactionalUpdate::Reboot rebootmgr{method};
+        rebootmgr.reboot();
+
         return 0;
     }
     else {

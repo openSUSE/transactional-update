@@ -4,6 +4,7 @@
 
 #include "libtukit.h"
 #include "Log.hpp"
+#include "Reboot.hpp"
 #include "Transaction.hpp"
 #include "SnapshotManager.hpp"
 #include <algorithm>
@@ -191,4 +192,16 @@ const char* tukit_sm_get_list_value(tukit_sm_list list, size_t row, size_t colum
 void tukit_free_sm_list(tukit_sm_list list) {
     auto result = reinterpret_cast<std::vector<std::vector<std::string>>*>(list);
     delete result;
+}
+
+int tukit_reboot(const char* method) {
+    try {
+        auto rebootmgr = Reboot{method};
+        rebootmgr.reboot();
+    } catch (const std::exception &e) {
+        fprintf(stderr, "ERROR: %s\n", e.what());
+        errmsg = e.what();
+        return -1;
+    }
+    return 0;
 }
