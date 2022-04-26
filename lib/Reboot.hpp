@@ -30,11 +30,14 @@ public:
      * @brief Trigger the actual reboot.
      */
     void reboot();
-protected:
+
     /**
-     * @brief Contains the command which will be triggered during reboot().
+     * @brief Query whether a reboot is scheduled (usually triggered via the reboot() method).
+     * @return indicates whether a reboot is scheduled
      */
-    std::string command;
+    bool isRebootScheduled();
+private:
+    std::string method;
 };
 
 } // namespace TransactionalUpdate

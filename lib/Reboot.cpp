@@ -24,6 +24,11 @@ Reboot::Reboot(std::string method) {
             }
         }
     }
+    this->method = method;
+}
+
+void Reboot::reboot() {
+    std::string command;
 
     tulog.info("Triggering reboot using " + method);
 
@@ -43,10 +48,35 @@ Reboot::Reboot(std::string method) {
     } else {
         throw std::invalid_argument{"Unknown reboot method '" + method + "'."};
     }
+
+    Util::exec(command);
 }
 
-void Reboot::reboot() {
-    Util::exec(command);
+bool Reboot::isRebootScheduled() {
+    if (method == "rebootmgr") {
+        try {
+            Util::exec("rebootmgrctl status --quiet");
+        } catch (ExecutionException &e) {
+            if (e.getReturnCode() > 0 && e.getReturnCode() < 4) {
+                return true;
+            }
+        }
+        return false;
+    } else if (method == "systemd") {
+        return false;
+    } else if (method == "kured") {
+        if (std::filesystem::exists("/var/run/reboot-required")) {
+            return true;
+        } else {
+            return false;
+        }
+    } else if (method == "kexec") {
+        return false;
+    } else if (method == "none") {
+        return false;
+    } else {
+        throw std::invalid_argument{"Unknown reboot method '" + method + "'."};
+    }
 }
 
 }

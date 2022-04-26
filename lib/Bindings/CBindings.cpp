@@ -205,3 +205,14 @@ int tukit_reboot(const char* method) {
     }
     return 0;
 }
+
+int tukit_reboot_is_scheduled(const char* method) {
+    try {
+        auto rebootmgr = Reboot{method};
+        return rebootmgr.isRebootScheduled();
+    } catch (const std::exception &e) {
+        fprintf(stderr, "ERROR: %s\n", e.what());
+        errmsg = e.what();
+        return -1;
+    }
+}

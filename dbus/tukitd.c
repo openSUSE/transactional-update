@@ -621,6 +621,23 @@ static int snapshot_list(sd_bus_message *m, void *userdata, sd_bus_error *ret_er
     return 0;
 }
 
+static int is_reboot_scheduled(sd_bus_message *m, void *userdata, sd_bus_error *ret_error) {
+    const char *method;
+    int ret;
+
+    if ((ret = sd_bus_message_read(m, "s", &method) < 0)) {
+        sd_bus_error_set_const(ret_error, "org.opensuse.tukit.Error", "Could not read D-Bus parameters.");
+        return ret;
+    }
+
+    if ((ret = tukit_reboot_is_scheduled(method)) < 0) {
+        sd_bus_error_set_const(ret_error, "org.opensuse.tukit.Error", tukit_get_errmsg());
+        return ret;
+    }
+
+    return sd_bus_reply_method_return(m, "i", ret);
+}
+
 int event_handler(sd_event_source *s, const struct signalfd_siginfo *si, void *userdata) {
     TransactionEntry* activeTransaction = userdata;
     if (activeTransaction->id != NULL) {
@@ -660,11 +677,18 @@ static const sd_bus_vtable tukit_snapshot_vtable[] = {
     SD_BUS_VTABLE_END
 };
 
+static const sd_bus_vtable tukit_reboot_vtable[] = {
+    SD_BUS_VTABLE_START(0),
+    SD_BUS_METHOD_WITH_ARGS("IsScheduled", SD_BUS_ARGS("s", rebootmethod), SD_BUS_RESULT("i", ret), is_reboot_scheduled, 0),
+    SD_BUS_VTABLE_END
+};
+
 int main() {
     fprintf(stdout, "Started tukitd %s\n", VERSION);
 
     sd_bus_slot *slot_tx = NULL;
     sd_bus_slot *slot_snap = NULL;
+    sd_bus_slot *slot_reboot = NULL;
     sd_bus *bus = NULL;
     sd_event *event = NULL;
     int ret = 1;
@@ -699,6 +723,17 @@ int main() {
                                    "/org/opensuse/tukit/Snapshot",
                                    "org.opensuse.tukit.Snapshot",
                                    tukit_snapshot_vtable,
+                                   NULL);
+    if (ret < 0) {
+        fprintf(stderr, "Failed to issue method call: %s\n", strerror(-ret));
+        goto finish;
+    }
+
+    ret = sd_bus_add_object_vtable(bus,
+                                   &slot_reboot,
+                                   "/org/opensuse/tukit/Reboot",
+                                   "org.opensuse.tukit.Reboot",
+                                   tukit_reboot_vtable,
                                    NULL);
     if (ret < 0) {
         fprintf(stderr, "Failed to issue method call: %s\n", strerror(-ret));
@@ -774,6 +809,7 @@ finish:
     sd_event_unref(event);
     sd_bus_slot_unref(slot_tx);
     sd_bus_slot_unref(slot_snap);
+    sd_bus_slot_unref(slot_reboot);
     sd_bus_unref(bus);
 
     return ret < 0 ? EXIT_FAILURE : EXIT_SUCCESS;

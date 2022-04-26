@@ -65,6 +65,8 @@ void TUKit::displayHelp() {
     cout << "Reboot Commands:\n";
     cout << "reboot [auto|rebootmgr|systemd|kured|kexec]\n";
     cout << "\tReboot the system using the given method; Default: auto\n";
+    cout << "isRebootScheduled [auto|rebootmgr|systemd|kured|kexec]\n";
+    cout << "\tQuery whether a reboot is pending; Default: auto\n";
     cout << "\n";
     cout << "Generic Options:\n";
     cout << "--help, -h                   Display this help and exit\n";
@@ -212,6 +214,16 @@ int TUKit::processCommand(char *argv[]) {
 
         return 0;
     }
+    else if (arg == "isRebootScheduled") {
+        string method;
+        if (argv[1]) {
+            method = argv[1];
+        } else {
+            method = "auto";
+        }
+        TransactionalUpdate::Reboot rebootmgr{method};
+        return rebootmgr.isRebootScheduled();
+    }
     else {
         displayHelp();
         throw invalid_argument{"Unknown command or option '" + arg + "'."};
@@ -272,5 +284,5 @@ TUKit::TUKit(int argc, char *argv[]) {
         throw ret;
     }
 
-    tulog.info("Transaction completed.");
+    tulog.info("tukit finished.");
 }
