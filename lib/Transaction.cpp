@@ -94,7 +94,7 @@ void Transaction::impl::mount() {
 
     // GRUB needs to have an actual mount point for the root partition, so
     // mount the snapshot directory on a temporary mount point
-    std::unique_ptr<BindMount> mntBind{new BindMount{snapshot->getRoot(), MS_UNBINDABLE}};
+    std::unique_ptr<BindMount> mntBind{new BindMount{snapshot->getRoot(), MS_PRIVATE}};
     mntBind->setSource(snapshot->getRoot());
     mntBind->mount();
 
