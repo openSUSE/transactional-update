@@ -1,5 +1,6 @@
 #include "Bindings/libtukit.h"
 #include <errno.h>
+#include <limits.h>
 #include <pthread.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -578,7 +579,7 @@ static int snapshot_list(sd_bus_message *m, void *userdata, sd_bus_error *ret_er
         return -1;
     }
 
-    for (int i=0; columns[i]; i++)
+    for (int i=0; i < INT_MAX && columns[i]; i++)
         columnnum += (columns[i] == ',');
 
     struct tukit_sm_list* list = tukit_sm_get_list(&list_len, columns);
