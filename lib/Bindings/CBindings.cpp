@@ -164,7 +164,14 @@ const char* tukit_tx_get_root(tukit_tx tx) {
 
 tukit_sm_list tukit_sm_get_list(size_t* len, const char* columns) {
     std::unique_ptr<TransactionalUpdate::SnapshotManager> snapshotMgr = TransactionalUpdate::SnapshotFactory::get();
-    auto list = snapshotMgr->getList(columns);
+    std::deque<std::map<std::string,std::string>> list;
+    try {
+        list = snapshotMgr->getList(columns);
+    } catch (const std::exception &e) {
+        fprintf(stderr, "ERROR: %s\n", e.what());
+        errmsg = e.what();
+        return nullptr;
+    }
     *len = list.size();
     std::string cols(columns);
     const size_t numColumns = std::count(cols.begin(), cols.end(), ',') + 1;
