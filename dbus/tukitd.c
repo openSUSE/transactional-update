@@ -140,13 +140,12 @@ static void *execute_func(void *args) {
     int ret = 0;
     int exec_ret = 0;
     wordexp_t p;
+    const char* transaction = NULL;
 
     struct execute_args* ea = (struct execute_args*)args;
     struct tukit_tx* tx = ea->transaction;
-    char command[strlen(ea->command) + 1];
-    strcpy(command, ea->command);
-    char rebootmethod[strlen(ea->rebootmethod) + 1];
-    strcpy(rebootmethod, ea->rebootmethod);
+    char *command = strdup(ea->command);
+    char *rebootmethod = strdup(ea->rebootmethod);
 
 
     enum transactionstates *state = ea->state;
@@ -157,7 +156,12 @@ static void *execute_func(void *args) {
     // avoid timeouts.
     sd_bus *bus = NULL;
 
-    const char* transaction = tukit_tx_get_snapshot(tx);
+    if (command == NULL || rebootmethod == NULL) {
+        send_error_signal(bus, rebootmethod, "Error during strdup.", -ENOMEM);
+        goto finish_execute;
+    }
+
+    transaction = tukit_tx_get_snapshot(tx);
     if (tx == NULL) {
         send_error_signal(bus, transaction, tukit_get_errmsg(), -1);
         goto finish_execute;
@@ -210,6 +214,8 @@ finish_execute:
     sd_bus_flush_close_unref(bus);
     tukit_free_tx(tx);
     free((void*)transaction);
+    free(command);
+    free(rebootmethod);
 
     return (void*)(intptr_t) ret;
 }
@@ -347,12 +353,11 @@ static void *call_func(void *args) {
     int ret = 0;
     int exec_ret = 0;
     wordexp_t p;
+    struct tukit_tx* tx = NULL;
 
     struct call_args* ea = (struct call_args*)args;
-    char transaction[strlen(ea->transaction) + 1];
-    strcpy(transaction, ea->transaction);
-    char command[strlen(ea->command) + 1];
-    strcpy(command, ea->command);
+    char *transaction = strdup(ea->transaction);
+    char *command = strdup(ea->command);
     int chrooted = ea->chrooted;
 
     enum transactionstates *state = ea->state;
@@ -365,7 +370,12 @@ static void *call_func(void *args) {
     // avoid timeouts.
     sd_bus *bus = NULL;
 
-    struct tukit_tx* tx = tukit_new_tx();
+    if (command == NULL || transaction == NULL) {
+        send_error_signal(bus, transaction, "Error during strdup.", -ENOMEM);
+        goto finish_execute;
+    }
+
+    tx = tukit_new_tx();
     if (tx == NULL) {
         send_error_signal(bus, transaction, tukit_get_errmsg(), -1);
         goto finish_execute;
@@ -412,6 +422,8 @@ static void *call_func(void *args) {
 finish_execute:
     sd_bus_flush_close_unref(bus);
     tukit_free_tx(tx);
+    free(transaction);
+    free(command);
 
     return (void*)(intptr_t) ret;
 }
