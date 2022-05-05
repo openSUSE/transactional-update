@@ -26,6 +26,7 @@
 #include <sched.h>
 #include <signal.h>
 #include <sys/inotify.h>
+#include <sys/mount.h>
 #include <sys/wait.h>
 #include <unistd.h>
 #include <utime.h>
@@ -38,7 +39,7 @@ std::vector<std::filesystem::path> inotifyExcludes;
 class Transaction::impl {
 public:
     void addSupplements();
-    void mount();
+    void snapMount();
     int runCommand(char* argv[], bool inChroot, std::string* buffer);
     static int inotifyAdd(const char *pathname, const struct stat *sbuf, int type, struct FTW *ftwb);
     int inotifyRead();
@@ -87,7 +88,7 @@ fs::path Transaction::getRoot() {
     return pImpl->snapshot->getRoot();
 }
 
-void Transaction::impl::mount() {
+void Transaction::impl::snapMount() {
     if (unshare(CLONE_NEWNS) < 0) {
         throw std::runtime_error{"Creating new mount namespace failed: " + std::string(strerror(errno))};
     }
@@ -228,7 +229,7 @@ void Transaction::init(std::string base) {
         fs::copy(fs::path{getRoot() / "etc" / "fstab"}, overlay.upperdir, fs::copy_options::overwrite_existing);
     }
 
-    pImpl->mount();
+    pImpl->snapMount();
     pImpl->addSupplements();
     if (pImpl->discardIfNoChange) {
         // Flag file to indicate this snapshot was initialized with discard flag
@@ -242,7 +243,7 @@ void Transaction::resume(std::string id) {
         pImpl->snapshot.reset();
         throw std::invalid_argument{"Snapshot " + id + " is not an open transaction."};
     }
-    pImpl->mount();
+    pImpl->snapMount();
     pImpl->addSupplements();
     if (fs::exists(getRoot() / "discardIfNoChange")) {
         pImpl->discardIfNoChange = true;
@@ -330,6 +331,13 @@ int Transaction::impl::runCommand(char* argv[], bool inChroot, std::string* outp
             }
             if (chroot(snapshot->getRoot().c_str()) < 0) {
                 throw std::runtime_error{"Chrooting to " + std::string(snapshot->getRoot()) + " failed: " + std::string(strerror(errno))};
+            }
+            // Prevent mounts from within the chroot environment influence the tukit organized mounts
+            if (unshare(CLONE_NEWNS) < 0) {
+                throw std::runtime_error{"Creating new mount namespace failed: " + std::string(strerror(errno))};
+            }
+            if (mount("none", "/", NULL, MS_REC|MS_PRIVATE, NULL) < 0) {
+                 throw std::runtime_error{"Setting private mount for command execution failed: " + std::string(strerror(errno))};
             }
         }
 
