@@ -11,6 +11,7 @@
 #include <exception>
 #include <thread>
 #include <string.h>
+#include <vector>
 
 using namespace TransactionalUpdate;
 thread_local std::string errmsg;
