@@ -2,6 +2,14 @@ transactional-update NEWS -- history of user-visible changes.
 
 Copyright (C) 2016-2021 Thorsten Kukuk, Ignaz Forster et al.
 
+Version 4.0.0~rc4
+* Fix building with GCC 12
+* Fix stack overflow with very long commands / ids [bsc#1196149]
+* Use separate mount namespace for chroot, allowing overwriting the bind
+  mounts from the update environment - this could have lead to data loss
+  of the bind mount previously
+* Fix C error and exception handling for snapshots
+
 Version 4.0.0~rc3
 * Add Snapshot interface
 * Reworked signal handling: All public signals are sent from the

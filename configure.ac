@@ -1,5 +1,5 @@
 dnl Process this file with autoconf to produce a configure script.
-AC_INIT(transactional-update, 4.0.0~rc3)
+AC_INIT(transactional-update, 4.0.0~rc4)
 # Increase on any interface change and reset revision
 LIBTOOL_CURRENT=4
 # Increase or reset on any VERSION update
