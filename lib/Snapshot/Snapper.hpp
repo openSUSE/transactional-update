@@ -9,6 +9,7 @@
 #define T_U_SNAPPER_H
 
 #include "SnapshotManager.hpp"
+#include "Snapshot.hpp"
 #include <filesystem>
 #include <string>
 

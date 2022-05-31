@@ -13,6 +13,7 @@
 #include "Mount.hpp"
 #include "Overlay.hpp"
 #include "SnapshotManager.hpp"
+#include "Snapshot.hpp"
 #include "Supplement.hpp"
 #include "Util.hpp"
 #include <cerrno>

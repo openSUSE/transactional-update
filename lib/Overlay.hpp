@@ -10,6 +10,7 @@
 
 #include "Mount.hpp"
 #include "SnapshotManager.hpp"
+#include "Snapshot.hpp"
 #include <memory>
 #include <string>
 #include <vector>
