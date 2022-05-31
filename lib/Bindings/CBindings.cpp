@@ -162,6 +162,28 @@ const char* tukit_tx_get_root(tukit_tx tx) {
     }
 }
 
+const char* tukit_sm_get_current() {
+    try {
+        std::unique_ptr<TransactionalUpdate::SnapshotManager> snapshotMgr = TransactionalUpdate::SnapshotFactory::get();
+        return strdup(snapshotMgr->getCurrent().c_str());
+    } catch (const std::exception &e) {
+        fprintf(stderr, "ERROR: %s\n", e.what());
+        errmsg = e.what();
+        return nullptr;
+    }
+}
+
+const char* tukit_sm_get_default() {
+    try {
+        std::unique_ptr<TransactionalUpdate::SnapshotManager> snapshotMgr = TransactionalUpdate::SnapshotFactory::get();
+        return strdup(snapshotMgr->getDefault().c_str());
+    } catch (const std::exception &e) {
+        fprintf(stderr, "ERROR: %s\n", e.what());
+        errmsg = e.what();
+        return nullptr;
+    }
+}
+
 tukit_sm_list tukit_sm_get_list(size_t* len, const char* columns) {
     std::unique_ptr<TransactionalUpdate::SnapshotManager> snapshotMgr = TransactionalUpdate::SnapshotFactory::get();
     std::deque<std::map<std::string,std::string>> list;
