@@ -202,6 +202,18 @@ void tukit_free_sm_list(tukit_sm_list list) {
     delete result;
 }
 
+int tukit_sm_deletesnap(const char* id) {
+    try {
+        std::unique_ptr<TransactionalUpdate::SnapshotManager> snapshotMgr = TransactionalUpdate::SnapshotFactory::get();
+        snapshotMgr->deleteSnap(id);
+        return 0;
+    } catch (const std::exception &e) {
+        fprintf(stderr, "ERROR: %s\n", e.what());
+        errmsg = e.what();
+        return -1;
+    }
+}
+
 int tukit_reboot(const char* method) {
     try {
         auto rebootmgr = Reboot{method};

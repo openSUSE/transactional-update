@@ -78,6 +78,7 @@ public:
     /**
      * @brief Execute the given application in the new snapshot
      * @param argv
+     * @param (optional) output Variable to store the command's output to
      * @return application's return code
      *
      * Execute any given command within the new snapshot. The application's output will be
@@ -92,6 +93,7 @@ public:
     /**
      * @brief Replace '{}' in argv with mount directory and execute command
      * @param argv
+     * @param (optional) output Variable to store the command's output to
      * @return application's return code
      *
      * Replace any standalone occurrence of '{}' in argv with the snapshot's mount directory

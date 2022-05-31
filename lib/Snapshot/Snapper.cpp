@@ -118,6 +118,10 @@ std::string Snapper::getDefault() {
     return match[1].str();
 }
 
+void Snapper::deleteSnap(std::string id) {
+    callSnapper("delete " + id);
+}
+
 bool Snapper::isInProgress() {
     std::string desc = callSnapper("--csvout list --columns number,userdata");
     std::smatch match;

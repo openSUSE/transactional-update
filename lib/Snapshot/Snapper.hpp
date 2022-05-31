@@ -35,6 +35,7 @@ public:
     std::deque<std::map<std::string, std::string>> getList(std::string columns) override;
     std::string getCurrent() override;
     std::string getDefault() override;
+    void deleteSnap(std::string id) override;
 private:
     std::string callSnapper(std::string);
     inline static bool snapperNoDbus;
