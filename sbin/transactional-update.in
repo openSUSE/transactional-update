@@ -119,7 +119,7 @@ self_update() {
 	    return
 	fi
 	export TA_UPDATE_TMPFILE
-	exec "${TA_UPDATE_TMPFILE}/usr/sbin/transactional-update" "$@"
+	exec "${TA_UPDATE_TMPFILE}/usr/sbin/transactional-update" "$@" 1>&${origstdout} 2>&${origstderr}
     fi
 }
 
