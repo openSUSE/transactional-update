@@ -6,10 +6,9 @@ libtukit_la_SOURCES=Transaction.cpp \
         Util.cpp Supplement.cpp Bindings/CBindings.cpp
 publicheadersdir=$(includedir)/tukit
 publicheaders_HEADERS=Transaction.hpp \
-	Snapshot.hpp SnapshotManager.hpp \
-	Reboot.hpp \
+	SnapshotManager.hpp Reboot.hpp \
 	Bindings/libtukit.h
-noinst_HEADERS=Snapshot/Snapper.hpp \
+noinst_HEADERS=Snapshot/Snapper.hpp Snapshot.hpp \
         Mount.hpp Overlay.hpp Log.hpp Configuration.hpp \
         Util.hpp Supplement.hpp Exceptions.hpp
 libtukit_la_CPPFLAGS=-DPREFIX=\"$(prefix)\" -DCONFDIR=\"$(sysconfdir)\" $(ECONF_CFLAGS) $(LIBMOUNT_CFLAGS) $(SELINUX_CFLAGS)
