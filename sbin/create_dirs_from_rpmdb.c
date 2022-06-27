@@ -21,6 +21,7 @@
 #include <config.h>
 #endif
 
+#include <errno.h>
 #include <fcntl.h>
 #include <getopt.h>
 #include <grp.h>
@@ -29,6 +30,8 @@
 #include <rpm/rpmcli.h>
 #include <rpm/rpmdb.h>
 #include <rpm/rpmts.h>
+#include <selinux/label.h>
+#include <selinux/selinux.h>
 #include <string.h>
 #include <sys/types.h>
 #include <time.h>
@@ -222,6 +225,19 @@ int create_dirs(struct node *node, size_t size) {
     int rc = 0;
     size_t i;
 
+    char *newcon = NULL;
+    char *curcon = NULL;
+    struct selabel_handle *hnd = NULL;
+    int use_selinux = is_selinux_enabled();
+
+    if (use_selinux) {
+        hnd = selabel_open(SELABEL_CTX_FILE, NULL, 0);
+        if (hnd == NULL) {
+            fprintf(stderr, "Failed to open userspace SELinux labeling interface: %m\n");
+            return 1;
+        }
+    }
+
     for (i = 0; i < size; ++i, ++node) {
         struct timeval stamps[2] = {
             {.tv_sec = node->fmtime, .tv_usec = 0},
@@ -245,7 +261,45 @@ int create_dirs(struct node *node, size_t size) {
         }
         /* ignore errors here, time stamps are not critical */
         utimes(node->dirname, stamps);
+
+        /* set selinux file context */
+        if (use_selinux) {
+            if (selabel_lookup_raw(hnd, &newcon, node->dirname, node->fmode) < 0) {
+                fprintf(stderr, "Failed to get default context for directory '%s': %m\n", node->dirname);
+                rmdir(node->dirname);
+                rc = 1;
+                continue;
+            }
+
+            if (getfilecon_raw(node->dirname, &curcon) < 0) {
+                /* ENODATA: The named attribute does not exist, or the process has no
+                            access to this attribute.
+                   Mimic selinux_restorecon.c behavior and ignore ENODATA */
+                if (errno != ENODATA) {
+                    fprintf(stderr, "Failed to get old context for '%s': %m\n", node->dirname);
+                    freecon(newcon);
+                    rmdir(node->dirname);
+                    rc = 1;
+                    continue;
+                }
+                curcon = NULL;
+            }
+
+            if (curcon == NULL || strcmp(curcon, newcon) != 0) {
+                if (setfilecon_raw(node->dirname, newcon) < 0) {
+                    fprintf(stderr, "Failed to set new context for '%s': %m\n", node->dirname);
+                    rmdir(node->dirname);
+                    rc = 1;
+                }
+            }
+
+            freecon(curcon);
+            freecon(newcon);
+        }
     }
+
+    if (use_selinux)
+        selabel_close(hnd);
 
     return rc;
 }
