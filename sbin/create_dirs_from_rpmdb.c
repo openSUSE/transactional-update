@@ -230,15 +230,13 @@ int create_dirs(struct node *node, size_t size) {
         if (verbose_flag)
             printf("Create %s\n", node->dirname);
 
-        rc = mkdir(node->dirname, node->fmode);
-        if (rc < 0) {
+        if (mkdir(node->dirname, node->fmode) < 0) {
             fprintf(stderr, "Failed to create directory '%s': %m\n", node->dirname);
             rc = 1;
             continue;
         }
 
-        rc = chown(node->dirname, node->user_id, node->group_id);
-        if (rc < 0) {
+        if (chown(node->dirname, node->user_id, node->group_id) < 0) {
             fprintf(stderr, "Failed to set owner/group for '%s': %m\n", node->dirname);
             /* wrong permissions are bad, remove dir and continue */
             rmdir(node->dirname);
