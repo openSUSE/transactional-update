@@ -1,4 +1,4 @@
-/var/log/transactional.log {
+/var/log/transactional-update.log {
     compress
     dateext
     notifempty
