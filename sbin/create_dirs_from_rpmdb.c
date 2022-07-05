@@ -286,6 +286,8 @@ int create_dirs(struct node *node, size_t size) {
             }
 
             if (curcon == NULL || strcmp(curcon, newcon) != 0) {
+                if (verbose_flag)
+                    printf("Set SELinux file context to %s\n", newcon);
                 if (setfilecon_raw(node->dirname, newcon) < 0) {
                     fprintf(stderr, "Failed to set new context for '%s': %m\n", node->dirname);
                     rmdir(node->dirname);
