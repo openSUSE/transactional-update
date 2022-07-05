@@ -59,7 +59,7 @@ void TUKit::displayHelp() {
     cout << "\tPrints a list of all available transactions\n";
     cout << "\n";
     cout << "Snapshot Options:\n"; //TODO: Migrate to options of command
-    cout << "--fields=<id,date,comment,default,current>, -f<...>\n";
+    cout << "--fields=<default,active,number,date,description>, -f<...>\n";
     cout << "                             List of fields to print\n";
     cout << "\n";
     cout << "Reboot Commands:\n";
