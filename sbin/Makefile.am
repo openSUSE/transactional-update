@@ -5,7 +5,8 @@
 sbin_SCRIPTS = transactional-update tu-rebuild-kdump-initrd
 sbin_PROGRAMS = create_dirs_from_rpmdb
 create_dirs_from_rpmdb_SOURCES = create_dirs_from_rpmdb.c
-create_dirs_from_rpmdb_LDADD = @LIBRPM_LIBS@
+create_dirs_from_rpmdb_CFLAGS = $(LIBRPM_CFLAGS) $(SELINUX_CFLAGS)
+create_dirs_from_rpmdb_LDFLAGS = $(LIBRPM_LIBS) $(SELINUX_LIBS)
 CLEANFILES = transactional-update
 EXTRA_DIST = transactional-update.in tu-rebuild-kdump-initrd
 
