@@ -27,6 +27,7 @@ typedef void* tukit_tx;
 tukit_tx tukit_new_tx();
 void tukit_free_tx(tukit_tx tx);
 int tukit_tx_init(tukit_tx tx, char* base);
+int tukit_tx_init_with_desc(tukit_tx tx, char* base, char* description);
 int tukit_tx_discard_if_unchanged(tukit_tx tx, int discard);
 int tukit_tx_resume(tukit_tx tx, char* id);
 int tukit_tx_execute(tukit_tx tx, char* argv[], const char* output[]);

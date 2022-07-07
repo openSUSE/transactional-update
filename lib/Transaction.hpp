@@ -14,6 +14,7 @@
 #define T_U_TRANSACTION_H
 
 #include <filesystem>
+#include <optional>
 
 namespace TransactionalUpdate {
 
@@ -38,6 +39,7 @@ public:
     /**
      * @brief Open a new transaction
      * @param base Snapshot ID, "active" or "default"
+     * @param description (optional) allows to customize the description of the snapshot
      *
      * Create a new snapshot, based on the given @base.
      * @base can be "active" to base the snapshot on the currently running system, "default" to
@@ -46,7 +48,7 @@ public:
      *
      * If @base is not set "active" will be used as the default.
      */
-    void init(std::string base);
+    void init(std::string base, std::optional<std::string> description = std::nullopt);
 
     /**
      * @brief Set flag to discard snapshots if no changes are detected

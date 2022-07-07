@@ -51,6 +51,22 @@ int tukit_tx_init(tukit_tx tx, char* base) {
     }
     return 0;
 }
+int tukit_tx_init_with_desc(tukit_tx tx, char* base, char* description) {
+    Transaction* transaction = reinterpret_cast<Transaction*>(tx);
+    if (std::string(base).empty())
+        base=(char*)"active";
+    try {
+        if (description == nullptr)
+            transaction->init(base);
+        else
+            transaction->init(base, description);
+    } catch (const std::exception &e) {
+        fprintf(stderr, "ERROR: %s\n", e.what());
+        errmsg = e.what();
+        return -1;
+    }
+    return 0;
+}
 int tukit_tx_discard_if_unchanged(tukit_tx tx, int discard) {
     Transaction* transaction = reinterpret_cast<Transaction*>(tx);
     try {

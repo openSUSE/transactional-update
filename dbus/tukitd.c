@@ -220,30 +220,90 @@ finish_execute:
     return (void*)(intptr_t) ret;
 }
 
-static int execute_common(sd_bus_message *m, void *userdata, sd_bus_error *ret_error, int reboot) {
+static int transaction_execute(sd_bus_message *m, void *userdata, sd_bus_error *ret_error) {
     char *base;
     const char *snapid = NULL;
+    char *description = NULL;
     char *rebootmethod = "none";
     pthread_t execute_thread;
     struct execute_args exec_args;
     TransactionEntry* activeTransaction = userdata;
     int ret = 0;
+    char type;
 
-    if (reboot) {
-        ret = sd_bus_message_read(m, "sss", &base, &exec_args.command, &rebootmethod);
-    } else {
-        ret = sd_bus_message_read(m, "ss", &base, &exec_args.command);
-    }
-    if (ret < 0) {
+    if (sd_bus_message_read(m, "ss", &base, &exec_args.command) < 0) {
         sd_bus_error_set_const(ret_error, "org.opensuse.tukit.Error", "Could not read execution parameters.");
         return -1;
     }
+    if ((ret = sd_bus_message_peek_type(m, &type, NULL)) < 0) {
+        sd_bus_error_set_const(ret_error, "org.opensuse.tukit.Error", "Could not look for option parameters.");
+        return -1;
+    }
+
+    if (ret > 0 && type == 's') {
+        if (sd_bus_message_read(m, "s", &rebootmethod) < 0) {
+            sd_bus_error_set_const(ret_error, "org.opensuse.tukit.Error", "Could not read reboot parameter.");
+            return -1;
+        }
+    }
+    if (ret > 0 && type == 'a') {
+        if (sd_bus_message_enter_container(m, 'a', "{sv}")) {
+            while (sd_bus_message_enter_container(m, 'e', "sv") > 0) {
+                char *optionname = NULL;
+                if (sd_bus_message_read(m, "s", &optionname) >= 0) {
+                    if (strcmp(optionname, "Reboot") == 0) {
+                        if (sd_bus_message_enter_container(m, 'v', "s") >= 0) {
+                            if (sd_bus_message_read(m, "s", &rebootmethod) < 0) {
+                                sd_bus_error_set_const(ret_error, "org.opensuse.tukit.Error", "Could not decode 'Reboot' option value.");
+                                return -1;
+                            }
+                        } else {
+                            sd_bus_error_set_const(ret_error, "org.opensuse.tukit.Error", "Could not open variant container.");
+                            return -1;
+                        }
+                    } else if (strcmp(optionname, "Description") == 0) {
+                        if (sd_bus_message_enter_container(m, 'v', "s") >= 0) {
+                            if (sd_bus_message_read(m, "s", &description) < 0) {
+                                sd_bus_error_set_const(ret_error, "org.opensuse.tukit.Error", "Could not decode 'Description' option value.");
+                                return -1;
+                            }
+                        } else {
+                            sd_bus_error_set_const(ret_error, "org.opensuse.tukit.Error", "Could not open variant container.");
+                            return -1;
+                        }
+                    } else {
+                        sd_bus_error_set_const(ret_error, "org.opensuse.tukit.Error", "Unknown option.");
+                        return -1;
+                    }
+                    if (sd_bus_message_exit_container(m) < 0) {
+                        sd_bus_error_set_const(ret_error, "org.opensuse.tukit.Error", "Could not close variant container.");
+                        return -1;
+                    }
+                } else {
+                    sd_bus_error_set_const(ret_error, "org.opensuse.tukit.Error", "Could not decode option name.");
+                    return -1;
+                }
+                if (sd_bus_message_exit_container(m) < 0) {
+                    sd_bus_error_set_const(ret_error, "org.opensuse.tukit.Error", "Could not close dict entry container.");
+                    return -1;
+                }
+            }
+            if (sd_bus_message_exit_container(m) < 0) {
+                sd_bus_error_set_const(ret_error, "org.opensuse.tukit.Error", "Could not close array container.");
+                return -1;
+            }
+        } else {
+            sd_bus_error_set_const(ret_error, "org.opensuse.tukit.Error", "Could not read options container.");
+            return -1;
+        }
+    }
+
     struct tukit_tx* tx = tukit_new_tx();
     if (tx == NULL) {
         sd_bus_error_set_const(ret_error, "org.opensuse.tukit.Error", tukit_get_errmsg());
         return -1;
     }
-    if ((ret = tukit_tx_init(tx, base)) != 0) {
+    if ((ret = tukit_tx_init_with_desc(tx, base, description)) != 0) {
         sd_bus_error_set_const(ret_error, "org.opensuse.tukit.Error", tukit_get_errmsg());
         goto finish_execute;
     }
@@ -296,16 +356,9 @@ finish_execute:
     return ret;
 }
 
-static int transaction_execute(sd_bus_message *m, void *userdata, sd_bus_error *ret_error) {
-    return execute_common(m, userdata, ret_error, 0);
-}
-
-static int transaction_execute_reboot(sd_bus_message *m, void *userdata, sd_bus_error *ret_error) {
-    return execute_common(m, userdata, ret_error, 1);
-}
-
 static int transaction_open(sd_bus_message *m, void *userdata, sd_bus_error *ret_error) {
     char *base;
+    char *desc = NULL;
     const char *snapid;
     int ret = 0;
 
@@ -313,13 +366,55 @@ static int transaction_open(sd_bus_message *m, void *userdata, sd_bus_error *ret
         sd_bus_error_set_const(ret_error, "org.opensuse.tukit.Error", "Could not read base snapshot identifier.");
         return -1;
     }
+    if (sd_bus_message_enter_container(m, 'a', "{sv}") > 0) {
+        while (sd_bus_message_enter_container(m, 'e', "sv") > 0) {
+            char *optionname = NULL;
+            if (sd_bus_message_read(m, "s", &optionname) >= 0) {
+                if (strcmp(optionname, "Description") == 0) {
+                    if (sd_bus_message_enter_container(m, 'v', "s") >= 0) {
+                        if (sd_bus_message_read(m, "s", &desc) < 0) {
+                            sd_bus_error_set_const(ret_error, "org.opensuse.tukit.Error", "Could not decode 'Description' option value.");
+                            return -1;
+                        }
+                    } else {
+                        sd_bus_error_set_const(ret_error, "org.opensuse.tukit.Error", "Could not open variant container.");
+                        return -1;
+                    }
+                } else {
+                    sd_bus_error_set_const(ret_error, "org.opensuse.tukit.Error", "Unknown option.");
+                    return -1;
+                }
+                if (sd_bus_message_exit_container(m) < 0) {
+                    sd_bus_error_set_const(ret_error, "org.opensuse.tukit.Error", "Could not close variant container.");
+                    return -1;
+                }
+            } else {
+                sd_bus_error_set_const(ret_error, "org.opensuse.tukit.Error", "Could not decode option name.");
+                return -1;
+            }
+            if (sd_bus_message_exit_container(m) < 0) {
+                sd_bus_error_set_const(ret_error, "org.opensuse.tukit.Error", "Could not close dict entry container.");
+                return -1;
+            }
+        }
+        if (sd_bus_message_exit_container(m) < 0) {
+            sd_bus_error_set_const(ret_error, "org.opensuse.tukit.Error", "Could not close array container.");
+            return -1;
+        }
+    }
     struct tukit_tx* tx = tukit_new_tx();
     if (tx == NULL) {
         sd_bus_error_set_const(ret_error, "org.opensuse.tukit.Error", tukit_get_errmsg());
         return -1;
     }
-    if ((ret = tukit_tx_init(tx, base)) != 0) {
-        sd_bus_error_set_const(ret_error, "org.opensuse.tukit.Error", tukit_get_errmsg());
+    if (desc) {
+        if ((ret = tukit_tx_init_with_desc(tx, base, desc)) != 0) {
+            sd_bus_error_set_const(ret_error, "org.opensuse.tukit.Error", tukit_get_errmsg());
+        }
+    } else {
+        if ((ret = tukit_tx_init(tx, base)) != 0) {
+            sd_bus_error_set_const(ret_error, "org.opensuse.tukit.Error", tukit_get_errmsg());
+        }
     }
     if (!ret) {
         snapid = tukit_tx_get_snapshot(tx);
@@ -663,8 +758,10 @@ int event_handler(sd_event_source *s, const struct signalfd_siginfo *si, void *u
 static const sd_bus_vtable tukit_transaction_vtable[] = {
     SD_BUS_VTABLE_START(0),
     SD_BUS_METHOD_WITH_ARGS("Execute", SD_BUS_ARGS("s", base, "s", command), SD_BUS_RESULT("s", snapshot), transaction_execute, 0),
-    SD_BUS_METHOD_WITH_ARGS("ExecuteAndReboot", SD_BUS_ARGS("s", base, "s", command, "s", rebootmethod), SD_BUS_RESULT("s", snapshot), transaction_execute_reboot, 0),
+    SD_BUS_METHOD_WITH_ARGS("ExecuteAndReboot", SD_BUS_ARGS("s", base, "s", command, "s", rebootmethod), SD_BUS_RESULT("s", snapshot), transaction_execute, 0),
+    SD_BUS_METHOD_WITH_ARGS("ExecuteWithOpts", SD_BUS_ARGS("s", base, "s", command, "a{sv}", options), SD_BUS_RESULT("s", snapshot), transaction_execute, 0),
     SD_BUS_METHOD_WITH_ARGS("Open", SD_BUS_ARGS("s", base), SD_BUS_RESULT("s", snapshot), transaction_open, 0),
+    SD_BUS_METHOD_WITH_ARGS("OpenWithOpts", SD_BUS_ARGS("s", base, "a{sv}", options), SD_BUS_RESULT("s", snapshot), transaction_open, 0),
     SD_BUS_METHOD_WITH_ARGS("Call", SD_BUS_ARGS("s", transaction, "s", command), SD_BUS_NO_RESULT, transaction_call, 0),
     SD_BUS_METHOD_WITH_ARGS("CallExt", SD_BUS_ARGS("s", transaction, "s", command), SD_BUS_NO_RESULT, transaction_callext, 0),
     SD_BUS_METHOD_WITH_ARGS("Close", SD_BUS_ARGS("s", transaction), SD_BUS_RESULT("i", ret), transaction_close, 0),

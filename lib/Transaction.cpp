@@ -202,12 +202,14 @@ int Transaction::impl::inotifyAdd(const char *pathname, const struct stat *sbuf,
     return 0;
 }
 
-void Transaction::init(std::string base) {
+void Transaction::init(std::string base, std::optional<std::string> description) {
     if (base == "active")
         base = pImpl->snapshotMgr->getCurrent();
     else if (base == "default")
         base = pImpl->snapshotMgr->getDefault();
-    pImpl->snapshot = pImpl->snapshotMgr->create(base);
+    if (!description)
+        description = "Snapshot Update of #" + base;
+    pImpl->snapshot = pImpl->snapshotMgr->create(base, description.value());
 
     tulog.info("Using snapshot " + base + " as base for new snapshot " + pImpl->snapshot->getUid() + ".");
 
