@@ -624,6 +624,7 @@ static int transaction_close(sd_bus_message *m, void *userdata, sd_bus_error *re
     struct tukit_tx* tx = tukit_new_tx();
     if (tx == NULL) {
         sd_bus_error_set_const(ret_error, "org.opensuse.tukit.Error", tukit_get_errmsg());
+        ret = -1;
         goto finish_close;
     }
     if ((ret = tukit_tx_resume(tx, transaction)) != 0) {
@@ -636,13 +637,14 @@ static int transaction_close(sd_bus_message *m, void *userdata, sd_bus_error *re
     }
 
     fprintf(stdout, "Snapshot %s closed.\n", transaction);
-    sd_bus_reply_method_return(m, "i", ret);
 
 finish_close:
     tukit_free_tx(tx);
     unlockSnapshot(userdata, transaction);
 
-    return ret;
+    if (ret)
+        return ret;
+    return sd_bus_reply_method_return(m, "");
 }
 
 static int transaction_abort(sd_bus_message *m, void *userdata, sd_bus_error *ret_error) {
@@ -660,20 +662,23 @@ static int transaction_abort(sd_bus_message *m, void *userdata, sd_bus_error *re
     struct tukit_tx* tx = tukit_new_tx();
     if (tx == NULL) {
         sd_bus_error_set_const(ret_error, "org.opensuse.tukit.Error", tukit_get_errmsg());
-	goto finish_abort;
+        ret = -1;
+        goto finish_abort;
     }
     if ((ret = tukit_tx_resume(tx, transaction)) != 0) {
         sd_bus_error_set_const(ret_error, "org.opensuse.tukit.Error", tukit_get_errmsg());
         goto finish_abort;
     }
+
     fprintf(stdout, "Snapshot %s aborted.\n", transaction);
-    sd_bus_reply_method_return(m, "i", ret);
 
 finish_abort:
     tukit_free_tx(tx);
     unlockSnapshot(userdata, transaction);
 
-    return ret;
+    if (ret)
+        return ret;
+    return sd_bus_reply_method_return(m, "");
 }
 
 static int snapshot_list(sd_bus_message *m, void *userdata, sd_bus_error *ret_error) {
@@ -764,8 +769,8 @@ static const sd_bus_vtable tukit_transaction_vtable[] = {
     SD_BUS_METHOD_WITH_ARGS("OpenWithOpts", SD_BUS_ARGS("s", base, "a{sv}", options), SD_BUS_RESULT("s", snapshot), transaction_open, 0),
     SD_BUS_METHOD_WITH_ARGS("Call", SD_BUS_ARGS("s", transaction, "s", command), SD_BUS_NO_RESULT, transaction_call, 0),
     SD_BUS_METHOD_WITH_ARGS("CallExt", SD_BUS_ARGS("s", transaction, "s", command), SD_BUS_NO_RESULT, transaction_callext, 0),
-    SD_BUS_METHOD_WITH_ARGS("Close", SD_BUS_ARGS("s", transaction), SD_BUS_RESULT("i", ret), transaction_close, 0),
-    SD_BUS_METHOD_WITH_ARGS("Abort", SD_BUS_ARGS("s", transaction), SD_BUS_RESULT("i", ret), transaction_abort, 0),
+    SD_BUS_METHOD_WITH_ARGS("Close", SD_BUS_ARGS("s", transaction), SD_BUS_NO_RESULT, transaction_close, 0),
+    SD_BUS_METHOD_WITH_ARGS("Abort", SD_BUS_ARGS("s", transaction), SD_BUS_NO_RESULT, transaction_abort, 0),
     SD_BUS_SIGNAL_WITH_ARGS("TransactionOpened", SD_BUS_ARGS("s", snapshot), 0),
     SD_BUS_SIGNAL_WITH_ARGS("CommandExecuted", SD_BUS_ARGS("s", snapshot, "i", returncode, "s", output), 0),
     SD_BUS_SIGNAL_WITH_ARGS("Error", SD_BUS_ARGS("s", snapshot, "i", returncode, "s", output), 0),
