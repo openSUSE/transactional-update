@@ -1,3 +1,6 @@
+﻿/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2021 SUSE LLC */
+
 #include "Bindings/libtukit.h"
 #include <errno.h>
 #include <limits.h>
@@ -684,10 +687,12 @@ finish_abort:
 static int snapshot_list(sd_bus_message *m, void *userdata, sd_bus_error *ret_error) {
     char *columns;
     size_t list_len = 0;
-    int columnnum = 1;
+    size_t columnnum = 1;
     int ret = 0;
     struct tukit_sm_list* list = NULL;
     sd_bus_message *message = NULL;
+    char* result_tmp_prev = NULL;
+    char* result_tmp;
 
     if (sd_bus_message_read(m, "s", &columns) < 0) {
         sd_bus_error_set_const(ret_error, "org.opensuse.tukit.Error", "Could not read D-Bus parameters.");
@@ -699,8 +704,18 @@ static int snapshot_list(sd_bus_message *m, void *userdata, sd_bus_error *ret_er
 
     if ((list = tukit_sm_get_list(&list_len, columns)) == NULL) {
         sd_bus_error_set_const(ret_error, "org.opensuse.tukit.Error", tukit_get_errmsg());
-        ret = -1;
-        goto finish_snapshotlist;
+        sd_bus_message_unref(message);
+        return -1;
+    }
+
+    char* fields[columnnum];
+    char *field = strtok(columns, ",");
+    if (field == NULL) { // columns was empty
+        columnnum = 0;
+    }
+    for (int i = 0; field != NULL; i++) {
+        fields[i] = field;
+        field = strtok(NULL, ",");
     }
 
     if ((ret = sd_bus_message_new_method_return(m, &message)) < 0) {
@@ -712,15 +727,27 @@ static int snapshot_list(sd_bus_message *m, void *userdata, sd_bus_error *ret_er
         goto finish_snapshotlist;
     }
     for (int i=0; i < list_len; i++) {
+        char *result = "";
         if ((ret = sd_bus_message_open_container(message, SD_BUS_TYPE_ARRAY, "s")) < 0 ) {
             sd_bus_error_set_const(ret_error, "org.opensuse.tukit.Error", "Creating container (array of snapshot data) failed.");
             goto finish_snapshotlist;
         }
-        for (int j=0; j < columnnum; j++) {
-            if ((ret = sd_bus_message_append(message, "s", tukit_sm_get_list_value(list, i, j))) < 0) {
-                sd_bus_error_set_const(ret_error, "org.opensuse.tukit.Error", "Couldn't append to message (container).");
+        for (int j = 0; j < columnnum; j++) {
+            const char* value = tukit_sm_get_list_value(list, i, fields[j]);
+            if ((result_tmp = malloc(strlen(result) + strlen(value) + 2)) == NULL) {
+                sd_bus_error_set_const(ret_error, "org.opensuse.tukit.Error", "Allocating memory for list failed.");
                 goto finish_snapshotlist;
             }
+            sprintf(result_tmp, "%s,%s", result, value);
+            free(result_tmp_prev);
+            result_tmp_prev = result_tmp;
+            result = result_tmp;
+        }
+        if (columnnum > 0)
+            result++; // Skip first comma
+        if ((ret = sd_bus_message_append(message, "s", result)) < 0) {
+            sd_bus_error_set_const(ret_error, "org.opensuse.tukit.Error", "Couldn't append to message (container).");
+            goto finish_snapshotlist;
         }
         if ((ret = sd_bus_message_close_container(message)) < 0) {
             sd_bus_error_set_const(ret_error, "org.opensuse.tukit.Error", "Closing container (array of snapshot data) failed.");
@@ -739,6 +766,7 @@ static int snapshot_list(sd_bus_message *m, void *userdata, sd_bus_error *ret_er
 finish_snapshotlist:
     sd_bus_message_unref(message);
     tukit_free_sm_list(list);
+    free(result_tmp_prev);
     return ret;
 }
 

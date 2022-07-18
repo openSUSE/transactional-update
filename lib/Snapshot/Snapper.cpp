@@ -59,8 +59,9 @@ std::deque<std::map<std::string, std::string>> Snapper::getList(std::string colu
         std::map<std::string, std::string> snapshot;
         auto header = headers.begin();
         std::stringstream fieldsStream(line, std::stringstream::out | std::stringstream::in | std::stringstream::app);
+        std::string field;
         // This is a simple CSV parser
-        for (std::string field; std::getline(fieldsStream, field, ','); ) {
+        while (std::getline(fieldsStream, field, ',')) {
             if (field[0] == '"') {
                 while (field[field.length() - 1] != '"') {
                     std::string continuation;
@@ -80,6 +81,9 @@ std::deque<std::map<std::string, std::string>> Snapper::getList(std::string colu
             }
             snapshot.emplace(*header, field);
             header++;
+        }
+        if (line.back() == ',') {
+            snapshot.emplace(*header, "");
         }
         snapshotList.push_back(snapshot);
     }
