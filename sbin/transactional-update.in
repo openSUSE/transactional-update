@@ -299,6 +299,11 @@ reboot_via_rebootmgr() {
     tukit reboot rebootmgr |& tee -a ${LOGFILE}
 }
 
+reboot_via_notify() {
+    TELEM_PAYLOAD="${TELEM_PAYLOAD}\nreboot=transactional-update-notify client"
+    tukit reboot notify |& tee -a ${LOGFILE}
+}
+
 reboot_via_systemd() {
     TELEM_PAYLOAD="${TELEM_PAYLOAD}\nreboot=systemctl reboot"
     tukit reboot systemd |& tee -a ${LOGFILE}

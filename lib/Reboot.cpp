@@ -29,6 +29,8 @@ Reboot::Reboot(std::string method) {
 
     if (method == "rebootmgr") {
         command  = "/usr/sbin/rebootmgrctl reboot";
+    } else if (method == "notify") {
+        command  = "/usr/bin/transactional-update-notifier client";
     } else if (method == "systemd") {
         command  = "sync;";
         command += "systemctl reboot;";
