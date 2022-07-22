@@ -1539,6 +1539,9 @@ if [ ${EXITCODE} -eq 0 ]; then
 	    rebootmgr)
 		reboot_via_rebootmgr
 		;;
+	    notify)
+		reboot_via_notify
+		;;
 	    systemd)
 		reboot_via_systemd
 		;;
