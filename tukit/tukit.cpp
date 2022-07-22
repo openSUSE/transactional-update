@@ -64,7 +64,7 @@ void TUKit::displayHelp() {
     cout << "                             List of fields to print\n";
     cout << "\n";
     cout << "Reboot Commands:\n";
-    cout << "reboot [auto|rebootmgr|systemd|kured|kexec]\n";
+    cout << "reboot [auto|rebootmgr|notify|systemd|kured|kexec]\n";
     cout << "\tReboot the system using the given method; Default: auto\n";
     cout << "\n";
     cout << "Generic Options:\n";
