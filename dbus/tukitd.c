@@ -722,16 +722,12 @@ static int snapshot_list(sd_bus_message *m, void *userdata, sd_bus_error *ret_er
         sd_bus_error_set_const(ret_error, "org.opensuse.tukit.Error", "Creating new return method failed.");
         goto finish_snapshotlist;
     }
-    if ((ret = sd_bus_message_open_container(message, SD_BUS_TYPE_ARRAY, "as")) < 0 ) {
+    if ((ret = sd_bus_message_open_container(message, SD_BUS_TYPE_ARRAY, "s")) < 0 ) {
         sd_bus_error_set_const(ret_error, "org.opensuse.tukit.Error", "Creating container (array of snapshots) failed.");
         goto finish_snapshotlist;
     }
     for (int i=0; i < list_len; i++) {
         char *result = "";
-        if ((ret = sd_bus_message_open_container(message, SD_BUS_TYPE_ARRAY, "s")) < 0 ) {
-            sd_bus_error_set_const(ret_error, "org.opensuse.tukit.Error", "Creating container (array of snapshot data) failed.");
-            goto finish_snapshotlist;
-        }
         for (int j = 0; j < columnnum; j++) {
             const char* value = tukit_sm_get_list_value(list, i, fields[j]);
             if ((result_tmp = malloc(strlen(result) + strlen(value) + 2)) == NULL) {
@@ -747,10 +743,6 @@ static int snapshot_list(sd_bus_message *m, void *userdata, sd_bus_error *ret_er
             result++; // Skip first comma
         if ((ret = sd_bus_message_append(message, "s", result)) < 0) {
             sd_bus_error_set_const(ret_error, "org.opensuse.tukit.Error", "Couldn't append to message (container).");
-            goto finish_snapshotlist;
-        }
-        if ((ret = sd_bus_message_close_container(message)) < 0) {
-            sd_bus_error_set_const(ret_error, "org.opensuse.tukit.Error", "Closing container (array of snapshot data) failed.");
             goto finish_snapshotlist;
         }
     }
@@ -807,7 +799,7 @@ static const sd_bus_vtable tukit_transaction_vtable[] = {
 
 static const sd_bus_vtable tukit_snapshot_vtable[] = {
     SD_BUS_VTABLE_START(0),
-    SD_BUS_METHOD_WITH_ARGS("List", SD_BUS_ARGS("s", columns), SD_BUS_RESULT("aas", list), snapshot_list, 0),
+    SD_BUS_METHOD_WITH_ARGS("List", SD_BUS_ARGS("s", columns), SD_BUS_RESULT("as", list), snapshot_list, 0),
     SD_BUS_VTABLE_END
 };
 
