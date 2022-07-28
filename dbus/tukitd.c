@@ -691,15 +691,13 @@ static int snapshot_list(sd_bus_message *m, void *userdata, sd_bus_error *ret_er
     int ret = 0;
     struct tukit_sm_list* list = NULL;
     sd_bus_message *message = NULL;
-    char* result_tmp_prev = NULL;
-    char* result_tmp;
 
     if (sd_bus_message_read(m, "s", &columns) < 0) {
         sd_bus_error_set_const(ret_error, "org.opensuse.tukit.Error", "Could not read D-Bus parameters.");
         return -1;
     }
 
-    for (int i=0; i < INT_MAX && columns[i]; i++)
+    for (size_t i = 0; i < SIZE_MAX && columns[i]; i++)
         columnnum += (columns[i] == ',');
 
     if ((list = tukit_sm_get_list(&list_len, columns)) == NULL) {
@@ -713,7 +711,7 @@ static int snapshot_list(sd_bus_message *m, void *userdata, sd_bus_error *ret_er
     if (field == NULL) { // columns was empty
         columnnum = 0;
     }
-    for (int i = 0; field != NULL; i++) {
+    for (size_t i = 0; field != NULL; i++) {
         fields[i] = field;
         field = strtok(NULL, ",");
     }
@@ -722,32 +720,36 @@ static int snapshot_list(sd_bus_message *m, void *userdata, sd_bus_error *ret_er
         sd_bus_error_set_const(ret_error, "org.opensuse.tukit.Error", "Creating new return method failed.");
         goto finish_snapshotlist;
     }
-    if ((ret = sd_bus_message_open_container(message, SD_BUS_TYPE_ARRAY, "s")) < 0 ) {
+    if ((ret = sd_bus_message_open_container(message, 'a', "a{ss}")) < 0 ) {
         sd_bus_error_set_const(ret_error, "org.opensuse.tukit.Error", "Creating container (array of snapshots) failed.");
         goto finish_snapshotlist;
     }
-    for (int i=0; i < list_len; i++) {
-        char *result = "";
-        for (int j = 0; j < columnnum; j++) {
-            const char* value = tukit_sm_get_list_value(list, i, fields[j]);
-            if ((result_tmp = malloc(strlen(result) + strlen(value) + 2)) == NULL) {
-                sd_bus_error_set_const(ret_error, "org.opensuse.tukit.Error", "Allocating memory for list failed.");
+    for (size_t i = 0; i < list_len; i++) {
+        if ((ret = sd_bus_message_open_container(message, 'a', "{ss}")) < 0 ) {
+            sd_bus_error_set_const(ret_error, "org.opensuse.tukit.Error", "Creating container (array of properties) failed.");
+            goto finish_snapshotlist;
+        }
+        for (size_t j = 0; j < columnnum; j++) {
+            if ((ret = sd_bus_message_open_container(message, 'e', "ss")) < 0) {
+                sd_bus_error_set_const(ret_error, "org.opensuse.tukit.Error", "Creating map container failed.");
                 goto finish_snapshotlist;
             }
-            sprintf(result_tmp, "%s,%s", result, value);
-            free(result_tmp_prev);
-            result_tmp_prev = result_tmp;
-            result = result_tmp;
+            if ((ret = sd_bus_message_append(message, "ss", fields[j], tukit_sm_get_list_value(list, i, fields[j]))) < 0) {
+                sd_bus_error_set_const(ret_error, "org.opensuse.tukit.Error", "Creating map failed.");
+                goto finish_snapshotlist;
+            }
+            if ((ret = sd_bus_message_close_container(message)) < 0) {
+                sd_bus_error_set_const(ret_error, "org.opensuse.tukit.Error", "Closing map container failed.");
+                goto finish_snapshotlist;
+            }
         }
-        if (columnnum > 0)
-            result++; // Skip first comma
-        if ((ret = sd_bus_message_append(message, "s", result)) < 0) {
-            sd_bus_error_set_const(ret_error, "org.opensuse.tukit.Error", "Couldn't append to message (container).");
+        if ((ret = sd_bus_message_close_container(message)) < 0) {
+            sd_bus_error_set_const(ret_error, "org.opensuse.tukit.Error", "Closing container (array of snapshot data) failed.");
             goto finish_snapshotlist;
         }
     }
     if ((ret = sd_bus_message_close_container(message)) < 0) {
-        sd_bus_error_set_const(ret_error, "org.opensuse.tukit.Error", "Closing container (array of snapshot data) failed.");
+        sd_bus_error_set_const(ret_error, "org.opensuse.tukit.Error", "Closing container (array of snapshots) failed.");
         goto finish_snapshotlist;
     }
     if ((ret = sd_bus_send(sd_bus_message_get_bus(message), message, NULL)) < 0) {
@@ -758,7 +760,6 @@ static int snapshot_list(sd_bus_message *m, void *userdata, sd_bus_error *ret_er
 finish_snapshotlist:
     sd_bus_message_unref(message);
     tukit_free_sm_list(list);
-    free(result_tmp_prev);
     return ret;
 }
 
@@ -799,7 +800,7 @@ static const sd_bus_vtable tukit_transaction_vtable[] = {
 
 static const sd_bus_vtable tukit_snapshot_vtable[] = {
     SD_BUS_VTABLE_START(0),
-    SD_BUS_METHOD_WITH_ARGS("List", SD_BUS_ARGS("s", columns), SD_BUS_RESULT("as", list), snapshot_list, 0),
+    SD_BUS_METHOD_WITH_ARGS("List", SD_BUS_ARGS("s", columns), SD_BUS_RESULT("aa{ss}", list), snapshot_list, 0),
     SD_BUS_VTABLE_END
 };
 
