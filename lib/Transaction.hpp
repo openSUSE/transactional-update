@@ -43,7 +43,7 @@ public:
      *
      * Create a new snapshot, based on the given @base.
      * @base can be "active" to base the snapshot on the currently running system, "default" to
-     * the current default snapshot as a base (which may or may not be identical to "active")
+     * use the current default snapshot as a base (which may or may not be identical to "active")
      * or any specific existing snapshot id.
      *
      * If @base is not set "active" will be used as the default.
