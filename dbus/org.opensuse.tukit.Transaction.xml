@@ -1,0 +1,278 @@
+<!DOCTYPE node PUBLIC "-//freedesktop//DTD D-BUS Object Introspection 1.0//EN"
+"http://www.freedesktop.org/standards/dbus/1.0/introspect.dtd">
+<node xmlns:doc="http://www.freedesktop.org/dbus/1.0/doc.dtd">
+ <interface name="org.opensuse.tukit.Transaction">
+  <method name="Execute">
+   <doc:doc><doc:description>
+    <doc:para>
+    Creates a new snapshot and execute the given command. If execution was successful
+    the snapshot will be set as the new snapshot, if the command returned with an error
+    code the snapshot will be discarded.
+    </doc:para>
+    <doc:para>
+    This command combines the "Open", "Call" and "Close" / "Abort" calls in one method.
+    For more fine-grained control, e.g. to execute several commands in one snapshot
+    or to control snapshot deletion use the individual commands.
+    </doc:para>
+    <doc:para>
+    As it can take a long time until a command is executed the command is executed
+    asynchronously. The actual result is returned either via a "CommandExecuted" signal
+    on success or an "Error" signal if the command returned with an error code.
+    Additionally the "TransactionOpened" signal is sent as soon as the new snapshot
+    has been created.
+    </doc:para>
+   </doc:description></doc:doc>
+   <doc:errors>
+    <doc:error name="org.opensuse.tukit.Error">if an error occured before the snapshot
+    could be created - errors after that point will be communicated via the "Error"
+    signal (see below).</doc:error>
+   </doc:errors>
+   <arg type="s" name="base" direction="in">
+    <doc:doc><doc:summary>The snapshot id to use as a base for the new snapshot.
+    Can be "active" to base the snapshot on the currently running system, "default" to
+    use the current default snapshot as a base (which may or may not be identical to
+    "active" or any specific existing snapshot id.</doc:summary></doc:doc>
+   </arg>
+   <arg type="s" name="command" direction="in">
+    <doc:doc><doc:summary>The command to execute. To execute several commands at once
+    a syntax such as "bash -c 'command1; command2'" may be used.</doc:summary></doc:doc>
+   </arg>
+   <arg type="s" name="snapshot" direction="out">
+    <doc:doc><doc:summary>The id of the new snapshot. Returns as soon the snapshot has
+    been created.</doc:summary></doc:doc>
+   </arg>
+  </method>
+  <method name="ExecuteAndReboot">
+   <doc:doc><doc:description><doc:para>
+    Same as "ExecuteWithOpts" with the "Reboot" value set.
+   </doc:para></doc:description></doc:doc>
+   <doc:errors>
+    <doc:error name="org.opensuse.tukit.Error">if an error occured before the snapshot
+    could be created - errors after that point will be communicated via the "Error"
+    signal (see below).</doc:error>
+   </doc:errors>
+   <arg type="s" name="base" direction="in">
+    <doc:doc><doc:summary>Same as in "Execute".</doc:summary></doc:doc>
+   </arg>
+   <arg type="s" name="command" direction="in">
+    <doc:doc><doc:summary>Same as in "Execute".</doc:summary></doc:doc>
+   </arg>
+   <arg type="s" name="rebootmethod" direction="in">
+    <doc:doc><doc:summary>Same as the "Reboot" option in "ExecuteWithOpts".
+    </doc:summary></doc:doc>
+   </arg>
+   <arg type="s" name="snapshot" direction="out">
+    <doc:doc><doc:summary>Same as in "Execute".</doc:summary></doc:doc>
+   </arg>
+  </method>
+  <method name="ExecuteWithOpts">
+   <doc:doc><doc:description><doc:para>
+    Same as "Execute", but allow setting additional options.
+   </doc:para></doc:description></doc:doc>
+   <doc:errors>
+    <doc:error name="org.opensuse.tukit.Error">if an error occured before the snapshot
+    could be created - errors after that point will be communicated via the "Error"
+    signal (see below).</doc:error>
+   </doc:errors>
+   <arg type="s" name="base" direction="in">
+    <doc:doc><doc:summary>Same as in "Execute".</doc:summary></doc:doc>
+   </arg>
+   <arg type="s" name="command" direction="in">
+    <doc:doc><doc:summary>Same as in "Execute".</doc:summary></doc:doc>
+   </arg>
+   <arg type="a{sv}" name="options" direction="in">
+    <doc:doc><doc:summary>
+     <doc:para>Accepts the following options:</doc:para>
+     <doc:list>
+      <doc:item>
+       <doc:term>Description</doc:term>
+       <doc:definition>Sets a custom description for the snapshot.
+       The description in the variant value has to be of type
+       "string".
+       </doc:definition>
+      </doc:item>
+      <doc:item>
+       <doc:term>Reboot</doc:term>
+       <doc:definition>Indicate the reboot method to use; see the
+       transactional-update.conf man page for supported reboot
+       methods. The variant value containing the reboot method has
+       to be of type "string".</doc:definition>
+      </doc:item>
+     </doc:list>
+    </doc:summary></doc:doc>
+   </arg>
+   <arg type="s" name="snapshot" direction="out">
+    <doc:doc><doc:summary>Same as in "Execute".</doc:summary></doc:doc>
+   </arg>
+  </method>
+  <method name="Open">
+   <doc:doc><doc:description><doc:para>
+    Creates a new snapshot. The new snapshot id is returned both as a return value and
+    announced via the "TransactionOpened" signal.
+   </doc:para></doc:description></doc:doc>
+   <doc:errors>
+    <doc:error name="org.opensuse.tukit.Error">if an error occured.</doc:error>
+   </doc:errors>
+   <arg type="s" name="base" direction="in">
+    <doc:doc><doc:summary>The snapshot id to use as a base for the new snapshot.
+    Can be "active" to base the snapshot on the currently running system, "default" to
+    use the current default snapshot as a base (which may or may not be identical to
+    "active" or any specific existing snapshot id.</doc:summary></doc:doc>
+   </arg>
+   <arg type="s" name="snapshot" direction="out">
+    <doc:doc><doc:summary>The id of the new snapshot.</doc:summary></doc:doc>
+   </arg>
+  </method>
+  <method name="OpenWithOpts">
+   <doc:doc><doc:description><doc:para>
+    Same as "Open", but allow setting additional options.
+   </doc:para></doc:description></doc:doc>
+   <doc:errors>
+    <doc:error name="org.opensuse.tukit.Error">if an error occured.</doc:error>
+   </doc:errors>
+   <arg type="s" name="base" direction="in">
+    <doc:doc><doc:summary>Same as in "Open".</doc:summary></doc:doc>
+   </arg>
+   <arg type="a{sv}" name="options" direction="in">
+    <doc:doc><doc:summary>
+     <doc:para>Accepts the following options:</doc:para>
+     <doc:list>
+      <doc:item>
+       <doc:term>Description</doc:term>
+       <doc:definition>Sets a custom description for the snapshot.
+       The description in the variant value has to be of type
+       "string".
+       </doc:definition>
+      </doc:item>
+     </doc:list>
+    </doc:summary></doc:doc>
+   </arg>
+   <arg type="s" name="snapshot" direction="out">
+    <doc:doc><doc:summary>Same as in "Open".</doc:summary></doc:doc>
+   </arg>
+  </method>
+  <method name="Call">
+   <doc:doc><doc:description>
+    <doc:para>
+    Execute the given command in the specified snapshot. The snapshot will not
+    automatically be discarded if the command should return with error.
+    </doc:para>
+    <doc:para>
+    As it can take a long time until a command returns the command is executed
+    asynchronously. The actual result and output is returned either via a
+    "CommandExecuted" signal on success or an "Error" signal if the command returned
+    with an error code.
+    </doc:para>
+   </doc:description></doc:doc>
+   <doc:errors>
+    <doc:error name="org.opensuse.tukit.Error">if an error occured before the snapshot
+    could be resumed - errors after that point will be communicated via the "Error"
+    signal (see below).</doc:error>
+   </doc:errors>
+   <arg type="s" name="transaction" direction="in">
+    <doc:doc><doc:summary>The snapshot id. The snapshot must still be in open state, i.e.
+    it must not have been finalized with "Close" yet.</doc:summary></doc:doc>
+   </arg>
+   <arg type="s" name="command" direction="in">
+    <doc:doc><doc:summary>The command to execute.</doc:summary></doc:doc>
+   </arg>
+  </method>
+  <method name="CallExt">
+   <doc:doc><doc:description>
+    <doc:para>
+    Replace any standalone occurrence of '{}' in in command parameter with the
+    snapshot's mount directory and execute the given command *outside* of the snapshot
+    in the running system, but while the update environment is mounted. This may
+    be useful if the command needs access to the current environment, e.g. to copy a file
+    from a directory not accessible from within the chroot environment.
+    </doc:para>
+    <doc:para>
+    As it can take a long time until a command returns the command is executed
+    asynchronously. The actual result and output is returned either via a
+    "CommandExecuted" signal on success or an "Error" signal if the command returned
+    with an error code.
+    </doc:para>
+   </doc:description></doc:doc>
+   <doc:errors>
+    <doc:error name="org.opensuse.tukit.Error">if an error occured before the snapshot
+    could be resumed - errors after that point will be communicated via the "Error"
+    signal (see below).</doc:error>
+   </doc:errors>
+   <arg type="s" name="transaction" direction="in">
+    <doc:doc><doc:summary>The snapshot id. The snapshot must still be in open state, i.e.
+    it must not have been finalized with "Close" yet.</doc:summary></doc:doc>
+   </arg>
+   <arg type="s" name="command" direction="in">
+    <doc:doc><doc:summary>The command to execute. Any occurence of '{}' will be replaced
+    with the (writable) directory of the snapshot.</doc:summary></doc:doc>
+   </arg>
+  </method>
+  <method name="Close">
+   <doc:doc><doc:description><doc:para>
+    Sets the snapshot as the new default snapshot and prevents any further modification.
+   </doc:para></doc:description></doc:doc>
+   <doc:errors>
+    <doc:error name="org.opensuse.tukit.Error">if an error occured.</doc:error>
+   </doc:errors>
+   <arg type="s" name="transaction" direction="in">
+    <doc:doc><doc:summary>The snapshot id.</doc:summary></doc:doc>
+   </arg>
+  </method>
+  <method name="Abort">
+   <doc:doc><doc:description><doc:para>
+    Discards the snapshot completely.
+   </doc:para></doc:description></doc:doc>
+   <doc:errors>
+    <doc:error name="org.opensuse.tukit.Error">if an error occured.</doc:error>
+   </doc:errors>
+   <arg type="s" name="transaction" direction="in">
+    <doc:doc><doc:summary>The snapshot id. The snapshot must still be in open state, i.e.
+    it must not have been finalized with "Close" yet.</doc:summary></doc:doc>
+   </arg>
+  </method>
+  <signal name="TransactionOpened">
+   <doc:doc><doc:description><doc:para>
+    Sent when a new snapshot was created with the D-Bus interface. Snapshots created via
+    the command line or API will not trigger this event.
+   </doc:para></doc:description></doc:doc>
+   <arg type="s" name="snapshot">
+    <doc:doc><doc:summary>The snapshot id.</doc:summary></doc:doc>
+   </arg>
+  </signal>
+  <signal name="CommandExecuted">
+   <doc:doc><doc:description><doc:para>
+    Sent when the anyncronously executed commands initiated by the "Execute..." or
+    "Call..." methods return.
+   </doc:para></doc:description></doc:doc>
+   <arg type="s" name="snapshot">
+    <doc:doc><doc:summary>The snapshot id the command was executed in.
+    </doc:summary></doc:doc>
+   </arg>
+   <arg type="i" name="returncode">
+    <doc:doc><doc:summary>The exit code of the command.</doc:summary></doc:doc>
+   </arg>
+   <arg type="s" name="output">
+    <doc:doc><doc:summary>The output (stdout and stderr) of the command while it was
+    executed.</doc:summary></doc:doc>
+   </arg>
+  </signal>
+  <signal name="Error">
+   <doc:doc><doc:description><doc:para>
+    Any error occuring during the asyncronous execution of commands initiated with the
+    "Execute..." or "Call..." methods after the method returned is signalled via this
+    signal. The exit code of the command itself is returned via the "CommandExecuted"
+    signal (if the error didn't occur before the execution).
+   </doc:para></doc:description></doc:doc>
+   <arg type="s" name="snapshot">
+    <doc:doc><doc:summary>The snapshot id the error happened in.
+    </doc:summary></doc:doc>
+   </arg>
+   <arg type="i" name="returncode">
+    <doc:doc><doc:summary>The return code of the failing function.</doc:summary></doc:doc>
+   </arg>
+   <arg type="s" name="output">
+    <doc:doc><doc:summary>The error message of the failed function.</doc:summary></doc:doc>
+   </arg>
+  </signal>
+ </interface>
+</node>

@@ -1,0 +1,218 @@
+<!DOCTYPE node PUBLIC "-//freedesktop//DTD D-BUS Object Introspection 1.0//EN"
+"http://www.freedesktop.org/standards/dbus/1.0/introspect.dtd">
+<node xmlns:doc="http://www.freedesktop.org/dbus/1.0/doc.dtd">
+ <interface name="org.opensuse.tukit.Snapshot">
+  <method name="List">
+   <doc:doc>
+    <doc:description>
+     <doc:para>
+      Retrieve a list of snapshots present on the system, including their properties. For
+      performance reasons only the properties explicity requested via the "columns" arg
+      are queried. the desired snapshots's properties (such as the snapshot id,
+      description or whether it is the default snapshot) have to be queried explicitly.
+     </doc:para>
+     <doc:example language="shell" title="Query some fields">
+      <doc:para>Request of common fields:</doc:para>
+      <doc:code>busctl call org.opensuse.tukit /org/opensuse/tukit/Snapshot org.opensuse.tukit.Snapshot List "s" "number,description,default,active,userdata,cleanup,date,user"</doc:code>
+      <doc:para>Example output on bus:</doc:para>
+      <doc:code>
+‣ Type=method_return  Endian=l  Flags=1  Version=1 Cookie=7  ReplyCookie=2  Timestamp="Tue 2022-08-02 11:28:14.651537 UTC"
+  Sender=:1.6222  Destination=:1.7658
+  UniqueName=:1.6222
+  MESSAGE "aa{ss}" {
+          ARRAY "a{ss}" {
+                  ARRAY "{ss}" {
+                          DICT_ENTRY "ss" {
+                                  STRING "number";
+                                  STRING "0";
+                          };
+                          DICT_ENTRY "ss" {
+                                  STRING "description";
+                                  STRING "current";
+                          };
+                          DICT_ENTRY "ss" {
+                                  STRING "default";
+                                  STRING "no";
+                          };
+                          DICT_ENTRY "ss" {
+                                  STRING "active";
+                                  STRING "no";
+                          };
+                          DICT_ENTRY "ss" {
+                                  STRING "userdata";
+                                  STRING "";
+                          };
+                          DICT_ENTRY "ss" {
+                                  STRING "cleanup";
+                                  STRING "";
+                          };
+                          DICT_ENTRY "ss" {
+                                  STRING "date";
+                                  STRING "";
+                          };
+                          DICT_ENTRY "ss" {
+                                  STRING "user";
+                                  STRING "root";
+                          };
+                  };
+                  ARRAY "{ss}" {
+                          DICT_ENTRY "ss" {
+                                  STRING "number";
+                                  STRING "2264";
+                          };
+                          DICT_ENTRY "ss" {
+                                  STRING "description";
+                                  STRING "Snapshot Update of #2263";
+                          };
+                          DICT_ENTRY "ss" {
+                                  STRING "default";
+                                  STRING "no";
+                          };
+                          DICT_ENTRY "ss" {
+                                  STRING "active";
+                                  STRING "no";
+                          };
+                          DICT_ENTRY "ss" {
+                                  STRING "userdata";
+                                  STRING "";
+                          };
+                          DICT_ENTRY "ss" {
+                                  STRING "cleanup";
+                                  STRING "";
+                          };
+                          DICT_ENTRY "ss" {
+                                  STRING "date";
+                                  STRING "2022-07-11 17:00:12";
+                          };
+                          DICT_ENTRY "ss" {
+                                  STRING "user";
+                                  STRING "root";
+                          };
+                  };
+                  ARRAY "{ss}" {
+                          DICT_ENTRY "ss" {
+                                  STRING "number";
+                                  STRING "2304";
+                          };
+                          DICT_ENTRY "ss" {
+                                  STRING "description";
+                                  STRING "Snapshot Update of #2300";
+                          };
+                          DICT_ENTRY "ss" {
+                                  STRING "default";
+                                  STRING "no";
+                          };
+                          DICT_ENTRY "ss" {
+                                  STRING "active";
+                                  STRING "no";
+                          };
+                          DICT_ENTRY "ss" {
+                                  STRING "userdata";
+                                  STRING "";
+                          };
+                          DICT_ENTRY "ss" {
+                                  STRING "cleanup";
+                                  STRING "";
+                          };
+                          DICT_ENTRY "ss" {
+                                  STRING "date";
+                                  STRING "2022-07-14 13:52:15";
+                          };
+                          DICT_ENTRY "ss" {
+                                  STRING "user";
+                                  STRING "root";
+                          };
+                  };
+                  ARRAY "{ss}" {
+                          DICT_ENTRY "ss" {
+                                  STRING "number";
+                                  STRING "2305";
+                          };
+                          DICT_ENTRY "ss" {
+                                  STRING "description";
+                                  STRING "Open";
+                          };
+                          DICT_ENTRY "ss" {
+                                  STRING "default";
+                                  STRING "yes";
+                          };
+                          DICT_ENTRY "ss" {
+                                  STRING "active";
+                                  STRING "yes";
+                          };
+                          DICT_ENTRY "ss" {
+                                  STRING "userdata";
+                                  STRING "";
+                          };
+                          DICT_ENTRY "ss" {
+                                  STRING "cleanup";
+                                  STRING "";
+                          };
+                          DICT_ENTRY "ss" {
+                                  STRING "date";
+                                  STRING "2022-07-14 14:08:54";
+                          };
+                          DICT_ENTRY "ss" {
+                                  STRING "user";
+                                  STRING "root";
+                          };
+                  };
+                  ARRAY "{ss}" {
+                          DICT_ENTRY "ss" {
+                                  STRING "number";
+                                  STRING "2310";
+                          };
+                          DICT_ENTRY "ss" {
+                                  STRING "description";
+                                  STRING "zypp(zypper)";
+                          };
+                          DICT_ENTRY "ss" {
+                                  STRING "default";
+                                  STRING "no";
+                          };
+                          DICT_ENTRY "ss" {
+                                  STRING "active";
+                                  STRING "no";
+                          };
+                          DICT_ENTRY "ss" {
+                                  STRING "userdata";
+                                  STRING "important=yes";
+                          };
+                          DICT_ENTRY "ss" {
+                                  STRING "cleanup";
+                                  STRING "number";
+                          };
+                          DICT_ENTRY "ss" {
+                                  STRING "date";
+                                  STRING "2022-07-28 13:45:52";
+                          };
+                          DICT_ENTRY "ss" {
+                                  STRING "user";
+                                  STRING "root";
+                          };
+                  };
+          };
+  };
+      </doc:code>
+     </doc:example>
+    </doc:description>
+   </doc:doc>
+   <doc:errors>
+     <doc:error name="org.opensuse.tukit.Error">if an error occured.</doc:error>
+   </doc:errors>
+   <arg type="s" name="columns" direction="in">
+    <doc:doc><doc:summary>A comma separated list of fields to query such as the snapshot
+     id, the description or whether it is the default snapshot. The accepted field names
+     currently match the  ...   If the list is empty, an
+     empty map array will be returned; this can be used to query the number of
+     snapshots.</doc:summary></doc:doc>
+   </arg>
+   <arg type="aa{ss}" name="list" direction="out">
+    <doc:doc><doc:summary>An array of maps of property - value pairs, with the
+     properties being the requested fields. The map arrays are grouped together in an
+     outer array, separating the snapshots.
+   </doc:summary></doc:doc>
+   </arg>
+  </method>
+ </interface>
+</node>

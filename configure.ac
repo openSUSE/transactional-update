@@ -27,6 +27,8 @@ PKG_CHECK_VAR([UDEVDIR], [udev], [udevdir], [],
 	[AC_MSG_ERROR([Could not determine value for 'udevdir' - is the 'udev.pc' file installed?])])
 PKG_CHECK_VAR([DBUSDATADIR], [dbus-1], [datadir], [],
 	[AC_MSG_ERROR([Could not determine value for 'datadir' - is the 'dbus-1.pc' file installed?])])
+PKG_CHECK_VAR([DBUSINTERFACESDIR], [dbus-1], [interfaces_dir], [],
+	[AC_MSG_ERROR([Could not determine value for 'interfaces_dir' - is the 'dbus-1.pc' file installed?])])
 PKG_CHECK_VAR([DBUSSYSTEMBUSSERVICEDIR], [dbus-1], [system_bus_services_dir], [],
 	[AC_MSG_ERROR([Could not determine value for 'system_bus_services_dir' - is the 'dbus-1.pc' file installed?])])
 
@@ -41,6 +43,7 @@ AC_SUBST(SYSTEMDSYSTEMCONFDIR)
 AC_SUBST(DRACUTDIR)
 AC_SUBST(LOGROTATEDDIR)
 AC_SUBST(DBUSCONFDIR)
+AC_SUBST(DBUSINTERFACESDIR)
 AC_SUBST(DBUSSYSTEMBUSSERVICEDIR)
 
 AC_PROG_CXX

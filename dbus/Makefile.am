@@ -10,6 +10,8 @@ dbusconfdir = @DBUSCONFDIR@
 dbusconf_DATA = org.opensuse.tukit.conf
 dbussystembusservicedir = @DBUSSYSTEMBUSSERVICEDIR@
 dbussystembusservice_DATA = tukitd.d-bus.service
+dbusinterfacesdir = @DBUSINTERFACESDIR@
+dbusinterfaces_DATA = org.opensuse.tukit.Transaction.xml org.opensuse.tukit.Snapshot.xml
 systemdsystemunitdir = @SYSTEMDDIR@
 systemdsystemunit_DATA = tukitd.service
 
