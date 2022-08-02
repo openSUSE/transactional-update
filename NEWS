@@ -1,6 +1,29 @@
 transactional-update NEWS -- history of user-visible changes.
 
-Copyright (C) 2016-2021 Thorsten Kukuk, Ignaz Forster et al.
+Copyright (C) 2016-2022 Thorsten Kukuk, Ignaz Forster et al.
+
+Version 4.0.0
+* Last minute interface change: Changed "List" method of Snapshot D-Bus
+  interface to return a map of properties instead of a comma separated
+  list of strings; this will allow retrieving the snapshot properties
+  even if they contain a comma in their value
+* Remove "Snapshot.hpp" as a public API for now - all public
+  functionality is part of SnapshotManager.hpp
+* Add header file documentation for SnapshotManager.hpp
+* Add method to delete snapshot
+  [gh#openSUSE/transactional-update#52]
+* Allow setting description of snapshot
+  [gh#openSUSE/transactional-update#55]
+* create_dirs_from_rpmdb: set SELinux file context of missing directories
+  [gh#openSUSE/transactional-update#84], [bsc#1197242]
+* Fix broken logrotate due to typo in config file
+  [gh#openSUSE/transactional-update#87]
+* create_dirs_from_rpmdb: Fix handling return code of create_dirs()
+  [gh#openSUSE/transactional-update#86]
+* Fix broken "shell" prompt after selfupdate
+* Add documented D-Bus interface definition files
+* Add tukit_sm_get_current and tukit_sm_get_default to C interface
+* Fixed typos
 
 Version 4.0.0~rc4
 * Fix building with GCC 12
