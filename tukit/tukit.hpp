@@ -8,6 +8,7 @@
 #ifndef TRANSACTIONALUPDATE_H
 #define TRANSACTIONALUPDATE_H
 
+#include <optional>
 #include <string>
 
 class TUKit {
@@ -22,6 +23,7 @@ private:
     std::string baseSnapshot = "active";
     bool discardSnapshot = false;
     std::string fields;
+    std::optional<std::string> description = std::nullopt;
 };
 
 #endif /* TRANSACTIONALUPDATE_H */
