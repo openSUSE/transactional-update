@@ -1,40 +1,37 @@
 # transactional-update
-Transactional Updates with btrfs snapshots and zypper for openSUSE
-and SUSE Linux Enterprise products
+## Update the operating system in an atomic way
+This project provides an application and library to update a Linux operating system in a transactional way, i.e. the update will be performed in the background while the system continues running as it is. Only if the update was the successful the system will boot into the new snapshot.
 
-## Definition
-A "transactional update" is a kind of update that:
-* is atomic - the update does not influence your running system
-* can be rolled back - if the upgrade fails or if the newer software version is not compatible with your infrastructure, you can quickly  restore the situation as it was before the upgrade.
+Originally developed for the openSUSE project as the update mechanism for all transactional / read-only systems (openSUSE MicroOS, SLE Micro, SLES / openSUSE Leap / openSUSE Tumbleweed "Transactional Server" role) the original *transactional-update* Bash script has since been split into several components:
 
+* **libtukit**: A generic library for atomic system updates.
+* **tukit**: A command line application to access the library functionality.
+* **tukitd**: A D-Bus service to access the library functionality.
+* **transactional-update**: An (open)SUSE specific tukit wrapper to call common tasks, e.g. updating the system or installing the boot loader.
 
-## Prerequires
-* SLES12 SP2, openSUSE Leap 42.2 or a current openSUSE Tumbleweed
-  * The installation needs to be done with at least this versions, updating older versions to this version is not enough!
-* btrfs with snapshots and rollback enabled by default
-* snapper
-* zypper
-* this package
+## Supported Systems
+Currently only systems running **Btrfs with Snapper** are supported, however the API is intentionally generic and able to support a wider range of backends for atomic / transactional systems.
 
 ## How does this work?
-The script creates at first a new snapshot of the system. Afterwards, this
-snapshot is changed from read-only to read-write and several special
-directories like /dev, /sys and /proc are mounted. zypper is called with
-the --root option and the snapshot as argument.
-If the update did succeed, we cleanup the snapshot, switch it to
-read-only if the original root filesystem is read-only and make this
-subvolume the new default. With the next boot, the updated snapshot is
-the new default root filesystem.
-If the update does not boot, the old root filesystem can be booted from the
-grub2 menu and made as new default again, means a rollback to the old
-state.
+First a new snapshot of the system is created. Afterwards, this snapshot is changed from read-only to read-write and several special directories such as /dev, /sys and /proc are mounted. The proposed change(s) can the be performed in that snapshot in a chroot environment, on (open)SUSE systems for example zypper is wrapped in a *tukit* call to install, update or remove RPMs. If the update did succeed switch the snapshot to read-only (on ro systems) and make the subvolume the new default. On next boot, the system will boot the new snapshot. If the updated system should not boot (see also [health-checker](https://github.com/openSUSE/health-checker)), the system can simply be rolled back to the old snapshot.
+
+## How to update an atomic system
+Applications can integrate support directly (such as dnf or Cockpit - see below), otherwise any command can be wrapped with `tukit execute` (e.g. zypper).
+
+## User Documentation
+* [The Transactional Update Guide](https://kubic.opensuse.org/documentation/transactional-update-guide/transactional-update.html) provides general information on the concept of transactional-update.
+
+## API Documentation
+Developers that want to integrate support for transactional updates may be interested in the following official API ressources:
+* C++: [Transaction.hpp](lib/Transaction.hpp) / [SnapshotManager](lib/SnapshotManager.hpp)
+* C: [libtukit.h](lib/Bindings/libtukit.h) (C binding - see the C++ header files for documentation)
+* D-Bus interface: [org.opensuse.tukit.Transaction.xml](dbus/org.opensuse.tukit.Transaction.xml) / [org.opensuse.tukit.Snapshot.xml](dbus/org.opensuse.tukit.Snapshot.xml)
+
+## Known users
+* **dnf**, Fedora's package management system, supports transactional systems directly via the [libdnf-plugin-txnupd](https://code.opensuse.org/microos/libdnf-plugin-txnupd) plugin (libtukit).
+* **Cockpit** can update transactionals systems via the [cockpit-tukit](https://github.com/openSUSE/cockpit-tukit) plugin (tukitd).
+* **Salt** contains the [salt.modules.transactional\_update module](https://docs.saltproject.io/en/3004/ref/modules/all/salt.modules.transactional_update.html) module (transactional-update).
+* **Ansible** also supports transactional-update via the the [community.general.zypper](https://docs.ansible.com/ansible/latest/collections/community/general/zypper_module.html) module (transactional-update).
 
 ## Caveats
-* The RPMs needs to be aware, that they are updated in a chroot environment
-and not in the running system. This means:
-  * %post install sections:
-    *  if a pre/post install scripts modifies data not inside the snapshot, but a subvolume, it could be that either the data is not modified at all (not accessible) or that the running system breaks. This data modification has to happen a the first boot.
-    * Don't restart services. This would interrupt the running system and the old daemon will be restarted, not the new one.
-* RPM installs into directories, which are subvolumes and not accessible
-* Strict seperation of applications, configuration and user data
-* RPMs installed in /opt or /usr/local can be updated while the system is executing them.
+* A transactional system needs strict separation of applications, configuration and user data. Data in /var must not be available during the update, as changes in there would necessarily modify the state of the currently running system.
