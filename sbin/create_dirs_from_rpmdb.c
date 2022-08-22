@@ -265,6 +265,11 @@ int create_dirs(struct node *node, size_t size) {
         /* set selinux file context */
         if (use_selinux) {
             if (selabel_lookup_raw(hnd, &newcon, node->dirname, node->fmode) < 0) {
+                if (errno == ENOENT) {
+                    fprintf(stderr, "Warning: No default context for directory '%s'\n", node->dirname);
+                    continue;
+                }
+
                 fprintf(stderr, "Failed to get default context for directory '%s': %m\n", node->dirname);
                 rmdir(node->dirname);
                 rc = 1;
