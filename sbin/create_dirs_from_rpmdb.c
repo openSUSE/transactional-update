@@ -243,6 +243,30 @@ int create_dirs(struct node *node, size_t size) {
             {.tv_sec = node->fmtime, .tv_usec = 0},
             {.tv_sec = node->fmtime, .tv_usec = 0}};
 
+        /* Check whether the directory was already handled.
+         * The list is sorted, so only the previous one needs to be checked. */
+        if (i > 0 && strcmp(node[-1].dirname, node[0].dirname) == 0) {
+            struct node *last = &node[-1];
+            if (debug_flag)
+                printf("%s already seen\n", node->dirname);
+
+            if (last->user_id != node->user_id || last->group_id != node->group_id)
+                fprintf(stderr, "Warning: Conflicting owners (%ld:%ld and %ld:%ld) for %s\n",
+                        (long)last->user_id, (long)last->group_id,
+                        (long)node->user_id, (long)node->group_id,
+                        node->dirname);
+
+            if (last->fmode != node->fmode) {
+                char *lastperms = fmode2str(last->fmode), *nodeperms = fmode2str(node->fmode);
+                fprintf(stderr, "Warning: Conflicting modes (%s and %s) for %s\n",
+                        lastperms, nodeperms, node->dirname);
+                free(lastperms);
+                free(nodeperms);
+            }
+
+            continue;
+        }
+
         if (verbose_flag)
             printf("Create %s\n", node->dirname);
 
