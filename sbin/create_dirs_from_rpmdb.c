@@ -441,7 +441,7 @@ int main(int argc, char *argv[]) {
     /* XXX missing: free list */
 
     /* Can't do anything if this fails anyway. */
-    if (rpmdb_cookie)
+    if (ec == 0 && rpmdb_cookie)
         rpmCookieWrite(rpmdb_cookie);
 
     rpmdbFreeIterator(mi);
