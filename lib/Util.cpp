@@ -46,13 +46,13 @@ string Util::exec(const string cmd) {
 // trim from start (in place)
 void Util::ltrim(string &s) {
     s.erase(s.begin(), std::find_if(s.begin(), s.end(),
-            std::not1(std::ptr_fun<int, int>(std::isspace))));
+            [](char a) { return !std::isspace(a); }));
 }
 
 // trim from end (in place)
 void Util::rtrim(string &s) {
     s.erase(std::find_if(s.rbegin(), s.rend(),
-            std::not1(std::ptr_fun<int, int>(std::isspace))).base(), s.end());
+            [](char a) { return !std::isspace(a); }).base(), s.end());
 }
 
 void Util::stub(string option) {
