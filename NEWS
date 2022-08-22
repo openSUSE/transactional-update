@@ -2,6 +2,14 @@ transactional-update NEWS -- history of user-visible changes.
 
 Copyright (C) 2016-2022 Thorsten Kukuk, Ignaz Forster et al.
 
+Version 4.0.1
+* create_dirs_from_rpmdb: Just warn if no default SELinux context found
+  [gh#openSUSE/transactional-update#88], [bsc#1188215]
+* create_dirs_from_rpmdb: Don't update the rpmdb cookie on failure
+  [gh#openSUSE/transactional-update#88]
+* Handle directories owned by multiple packages
+  [gh#openSUSE/transactional-update#90], [bsc#1188215]
+
 Version 4.0.0
 * Last minute interface change: Changed "List" method of Snapshot D-Bus
   interface to return a map of properties instead of a comma separated
