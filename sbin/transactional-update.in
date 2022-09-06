@@ -957,6 +957,9 @@ while [ 1 ]; do
 
 	    REGISTRATION_ARGS="$*";
 	    shift $#
+
+	    # A lot of commands won't change anything; discard snapshot then
+	    TUKIT_OPTS="${TUKIT_OPTS} --discard"
 	    ;;
 	-h|--help)
 	    usage 0
