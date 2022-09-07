@@ -465,10 +465,12 @@ for more information.
     <term><option>status</option></term>
     <listitem>
       <warning>
-	This command is under development and will change in the
-	future. The status command is currently using a non-stable
-	feature of MicroOS, the control.xml file, that will change the
-	scope and location in future releases.
+        <para>
+          This command is under development and will change in the
+          future. The status command is currently using a non-stable
+          feature of MicroOS, the control.xml file, that will change the
+          scope and location in future releases.
+        </para>
       </warning>
       <para>
 	Shows the status of current and older snapshots. The status
