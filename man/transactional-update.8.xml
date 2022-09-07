@@ -350,6 +350,26 @@ for more information.
       </para>
     </listitem>
   </varlistentry>
+  <varlistentry>
+    <term><option>register</option> <replaceable>arguments</replaceable></term>
+    <listitem>
+      <para>
+        Register a (commercial) system. This is a simple wrapper for
+        <command>SUSEConnect</command>, as some commands may require access
+        to the root file system (e.g. to add a new key to the RPM database).
+        Any arguments will just be forwarded to <command>SUSEConnect</command>.
+      </para>
+      <para>
+        This command implies the <option>--drop-if-no-change</option> option
+        to avoid creation of unnecessary snapshots, as many of the
+        <command>SUSEConnect</command> options are read-only or only require
+        access to <filename class='directory'>/etc</filename>.
+      </para>
+      <para>
+        <command>SUSEConnect</command> is always a non-interactive command.
+      </para>
+    </listitem>
+  </varlistentry>
 </variablelist>
 </refsect3>
 <refsect3 id='i_pkg_commands'><title>Interactive Package Commands</title>
