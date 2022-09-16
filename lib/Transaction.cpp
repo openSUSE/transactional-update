@@ -346,7 +346,13 @@ int Transaction::impl::runCommand(char* argv[], bool inChroot, std::string* outp
 
         // Set indicator for RPM pre/post sections to detect whether we run in a
         // transactional update
-        setenv("TRANSACTIONAL_UPDATE", "true", 1);
+        if (setenv("TRANSACTIONAL_UPDATE", "true", 1) < 0) {
+            throw std::runtime_error{"Setting environment variable TRANSACTIONAL_UPDATE failed: " + std::string(strerror(errno))};
+        }
+        if (setenv("TRANSACTIONAL_UPDATE_ROOT", snapshot->getRoot().c_str(), 1)) {
+            throw std::runtime_error{"Setting environment variable TRANSACTIONAL_UPDATE_ROOT failed: " + std::string(strerror(errno))};
+        }
+
         if (execvp(argv[0], (char* const*)argv) < 0) {
             throw std::runtime_error{"Calling " + std::string(argv[0]) + " failed: " + std::string(strerror(errno))};
         }
