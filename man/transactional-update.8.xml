@@ -267,6 +267,24 @@ for more information.
     </listitem>
   </varlistentry>
   <varlistentry>
+    <term><option>setup-kdump</option> <optional>--crashkernel=<replaceable>low</replaceable>,<replaceable>high</replaceable></optional></term>
+    <listitem>
+      <para>
+	Sets up kdump on the system; if no <option>--crashkernel</option>
+	option is specified then it will use the values determined by
+	<command>kdumptool calibrate</command>, otherwise the values of
+	<replaceable>low</replaceable> and <replaceable>high</replaceable>
+	(numbers in Megabytes) will be used for the corresponding
+	<command>crashkernel</command> kernel parameters.
+      </para>
+      <para>
+	This command can not be combined with any
+	<link linkend='pkg_commands'>Package Command</link> other than
+	<option>install</option>.
+      </para>
+    </listitem>
+  </varlistentry>
+  <varlistentry>
     <term><option>setup-selinux</option></term>
     <listitem>
       <para>

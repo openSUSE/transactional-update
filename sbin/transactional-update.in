@@ -46,6 +46,7 @@ REBOOT_AFTERWARDS=0
 REBOOT_METHOD="auto"
 RUN_CMD=""
 RUN_SHELL=0
+SETUP_KDUMP=0
 SETUP_SELINUX=0
 USE_TELEMETRICS=0
 TELEM_PAYLOAD="PACKAGE_NAME=transactional-update\nPACKAGE_VERSION=@VERSION@"
@@ -141,6 +142,7 @@ usage() {
     echo "shell                      Open rw shell in new snapshot before exiting"
     echo "reboot                     Reboot after update"
     echo "run <cmd>                  Run a command in a new snapshot"
+    echo "setup-kdump [--crashkernel=<low>,<high>]  Configure and enable kdump"
     echo "setup-selinux              Install targeted SELinux policy and enable it"
     echo ""
     echo "Package Commands:"
@@ -235,7 +237,7 @@ save_state_file() {
 }
 
 rebuild_kdump_initrd() {
-    test -f "/.snapshots/$1/snapshot/usr/lib/systemd/system/kdump.service" || return
+    test -f "/.snapshots/$1/snapshot/usr/lib/systemd/system/kdump.service" || return 0
     tukit -q call "$1" systemctl is-enabled --quiet kdump.service
     if [ $? = 0 -a -x "/.snapshots/$1/snapshot/usr/sbin/tu-rebuild-kdump-initrd" ]; then
 	tukit ${TUKIT_OPTS} call "$1" /usr/sbin/tu-rebuild-kdump-initrd |& tee -a ${LOGFILE} 1>&${origstdout}
@@ -898,6 +900,20 @@ while [ 1 ]; do
 	    RUN_CMD=("$@")
 	    break
 	    ;;
+	setup-kdump)
+	    test -z "$TELEM_CLASS" && TELEM_CLASS="setup-kdump"
+	    SETUP_KDUMP=1
+	    shift
+	    if [[ $1 == --crashkernel* ]]; then
+		if ! [[ $1 =~ ^--crashkernel=[[:digit:]]+,[[:digit:]]+ ]]; then
+		    echo "Invalid --crashkernel syntax"
+		    usage 1
+		fi
+		KDUMP_LOW="$(echo "$1" | cut -d '=' -f 2 | cut -d ',' -f 1)"
+		KDUMP_HIGH="$(echo "$1" | cut -d '=' -f 2 | cut -d ',' -f 2)"
+		shift
+	    fi
+	    ;;
 	setup-selinux)
 	    test -z "$TELEM_CLASS" && TELEM_CLASS="selinux"
 	    SETUP_SELINUX=1
@@ -1023,6 +1039,22 @@ if [ "${SETUP_SELINUX}" -eq 1 ]; then
     # Make sure /var/lib/selinux exists, else installing the
     # Policy will fail
     test -d /var/lib/selinux || mkdir -p /var/lib/selinux
+fi
+
+# Setup kdump
+if [ ${SETUP_KDUMP} -eq 1 ]; then
+    if [ -n "${ZYPPER_ARG}" -a "${ZYPPER_ARG}" != "install" ]; then
+        log_error "ERROR: Cannot combine 'setup-kdump' with zypper command '${ZYPPER_ARG}'"
+        exit 1
+    fi
+    # Check if we need to install packages
+    for pkg in kdump; do
+        rpm -q --quiet ${pkg} || ZYPPER_ARG_PKGS+=("${pkg}")
+    done
+    if [ ${#ZYPPER_ARG_PKGS[@]} -ne 0 ]; then
+        ZYPPER_ARG="install"
+    fi
+    REBUILD_KDUMP_INITRD=1
 fi
 
 # If no commands were given, assume "up"
@@ -1404,6 +1436,19 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	test -f ${SNAPSHOT_DIR}/.autorelabel && mv ${SNAPSHOT_DIR}/.autorelabel ${ETC_BASE}/etc/selinux/.autorelabel
     fi
 
+    if [ ${SETUP_KDUMP} -eq 1 ]; then
+	if [ -z "${KDUMP_LOW}" ]; then
+	    KDUMP_CALIBRATION="$(tukit -q call "${SNAPSHOT_ID}" kdumptool calibrate)"
+	    KDUMP_LOW="$(echo "$KDUMP_CALIBRATION" | grep ^Low: | cut -d ' ' -f 2)"
+	    KDUMP_HIGH="$(echo "$KDUMP_CALIBRATION" | grep ^High: | cut -d ' ' -f 2)"
+	fi
+
+	tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" sed -i -e '/^GRUB_CMDLINE_LINUX_DEFAULT=/s/ *crashkernel[^ "]\+//g' -e 's|\(^GRUB_CMDLINE_LINUX_DEFAULT=.*\)"|\1 crashkernel='${KDUMP_LOW}'M,low crashkernel='${KDUMP_HIGH}'M,high"|g' "/etc/default/grub"
+	REWRITE_GRUB_CFG=1
+
+        tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" systemctl enable kdump
+    fi
+
     if [ ${REWRITE_INITRD} -eq 1 ]; then
 	log_info "Creating new initrd"
 	tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" dracut ${DRACUT_OPTS} --force --regenerate-all |& tee -a ${LOGFILE} 1>&${origstdout}
@@ -1417,7 +1462,11 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 
     if [ ${REBUILD_KDUMP_INITRD} -eq 1 ]; then
 	log_info "Trying to rebuild kdump initrd"
-        rebuild_kdump_initrd ${SNAPSHOT_ID}
+	rebuild_kdump_initrd ${SNAPSHOT_ID}
+	if [ $? -ne 0 ]; then
+	    log_error "ERROR: kdump initrd creation failed!"
+	    EXITCODE=1
+	fi
     fi
 
     if [ ${REWRITE_GRUB_CFG} -eq 1 ]; then
