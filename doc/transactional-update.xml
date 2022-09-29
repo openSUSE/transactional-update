@@ -485,56 +485,117 @@ systemctl reboot
       <title>/etc</title>
       <para>
 	<emphasis remap='B'>transactional-update</emphasis> also supports
-	write support to <filename class='directory'>/etc</filename> on an
+	write operations to <filename class='directory'>/etc</filename> on an
 	otherwise read-only file system. To do so an
 	<emphasis>overlayfs</emphasis> layer is put on top of the system's
 	<filename class='directory'>/etc</filename> directory. All modified
 	configuration files will end up in the current snapshot's overlay in
-	<filename class='directory'>/var/lib/overlay/&lt;snapshotnum&gt;/etc</filename>.
+	<filename class='directory'>/var/lib/overlay/&lt;snapshotnum&gt;/etc</filename>,
+	with each snapshot having one associated overlay directory.
       </para>
       <para>
-	Each snapshot will have one associated overlay directory. On creating
-	a new snapshot the previous snapshot's
-	<filename class='directory'>/etc</filename> state will be sychronized
-	into the new snapshot and used as a base. The overlay directories of
-	the current and the new snapshot are then mounted using overlay
-	stacking, i.e. the new snapshot's overlay will be mounted as the
-	<option>upperdir</option> and the current snapshot's overlay as
-	<option>lowerdir</option>. This way changes applied to
-	<filename class='directory'>/etc</filename> after the snapshot was
-	taken, but before the reboot takes place, will still be visible to the
-	new snapshot (Exception: If the file has been modified both in the
-	current and the new snapshot, then the file state of the new snapshot
-	will be visible).
+	The mounted <filename class='directory'>/etc</filename> directory will
+	typically consist of three (or more) layers. In
+	<filename>/etc/fstab</filename> this may look similar as the following
+	entry:
+	<programlisting>overlay  /etc  overlay  defaults,upperdir=/sysroot/var/lib/overlay/82/etc,lowerdir=/sysroot/var/lib/overlay/81/etc:/sysroot/var/lib/overlay/76/etc:/sysroot/etc,workdir=/sysroot/var/lib/overlay/work-etc,x-systemd.requires-mounts-for=/var,x-systemd.requires-mounts-for=/var/lib/overlay,x-systemd.requires-mounts-for=/sysroot/var,x-systemd.requires-mounts-for=/sysroot/var/lib/overlay,x-initrd.mount  0  0</programlisting>
       </para>
+      <para>
+	The important options are <option>upperdir</option> and
+	<option>lowerdir</option>. <option>upperdir</option> references the
+	write layer, i.e. the directory the system is currently writing to. If
+	a file in <filename class='directory'>/etc</filename> is opened for
+	read access, it will first try to open the file from this directory.
+	If the file is not present in this layer, then overlayfs will search
+	in the <option>lowerdir</option>s from left to right until it finds
+	the file, i.e. the layers are <emphasis>transparent</emphasis>. The
+	last layer is the reference layer and always has to have a complete
+	copy of <filename class='directory'>/etc</filename>, all the layers
+	above just contain changes to that base layer.
+      </para>
+      <example>
+	<title>/etc layers</title>
+	<programlisting>
+upperdir  (/var/lib/overlay/x/etc)   |       | file2 | file3 | file4 |       |
+lowerdir1 (/var/lib/overlay/x-1/etc) |       |       | file3 |       | file5 | file6
+lowerdir2 (/etc of snapshot x-2)     | file1 | file2 | file3 |       |       | file6
+	</programlisting>
+        <para>
+	  Let's have another look from the perspective while an update is
+	  running. <replaceable>x</replaceable> is the id of the new snapshot
+	  where the update is currently be performed in,
+	  <replaceable>x-1</replaceable> is the id of the currently running
+	  snapshot, and <replaceable>x-2</replaceable> is the id of the
+	  snapshot before the currently running one.
+      </para>
+	<para>
+	  <filename>file1</filename> is an old file that hasn't been
+	  changed in the last two snapshots. Therefore it is only present in the
+	  base / lowest overlay. As the file cannot be found in the first two
+	  layers, the version from the base layer will be used.</para>
+	  <para><filename>file2</filename> has been changed during the update.
+	  The currently running system still sees the old version of the file
+	  from the base layer, the updated system will see the new version of
+	  the file.
+	</para>
+	<para>
+	  <filename>file3</filename> has been changed during the update,
+	  but there is also a modification in the currently running system. See
+	  the Warning below for details.
+	</para>
+	<para>
+	  <filename>file4</filename> was only added in the new snapshot
+	  and will be only available there. The currently running system doesn't
+	  know anything about it.
+	</para>
+	<para>
+	  <filename>file5</filename> was added in the current snapshot.
+	  It will also be visible in the new snapshot.
+	</para>
+	<para>
+	  <filename>file6</filename> was modified in the current snapshot.
+	  It will also be visible in the new snapshot. Basically the same case
+	  as <filename>file5</filename>.
+	</para>
+      </example>
+      <para>
+	To reduce the number of overlays the contents of the overlays are
+	merged into the base layer if a new snapshot is created. Caveat:
+	the state of <filename class='directory'>/etc</filename> that is
+	synced into the new snapshot is not the	one from the currently
+	running system, but the previous one: the files in the current
+	system could still be changed before the reboot, and we want these
+	changes (e.g. by the admin or a configuration management software)
+	to be visible in the new system.
+      </para>
+      <warning>
+	<para>
+	  If a file has been modified both in the new snapshot and in the
+	  currently running system <emphasis>after the snapshot was
+	  created</emphasis>, then the changes done in the currently running
+	  system will be lost in the new snapshot (see the
+	  <filename>file3</filename> case from the example above).
+	</para>
+	<para>
+	  When the new snapshot is booted for the first time the systemd
+	  service <command>transactional-update-etc-cleaner</command> will
+	  check for these conflicts and print the results to the journal.
+	</para>
+      </warning>
       <para>
 	If the <option>--continue</option> is used multiple times to extend a
 	new snapshot while the system has not been rebooted, and if that
 	snapshot is based on the currently active system, then the
-	synchronization will only run for the first snapshot; the additional
-	snapshot layers will be added to <option>lowerdir</option>. Again
-	this is to make sure that changes to the running system will still be
+	merge will only run for the first snapshot; the additional
+	snapshot layers will be added to <option>lowerdir</option>. This is
+	to make sure that changes to the running system will still be
 	visible after booting into the new system.
       </para>
       <para>
-	Let's have a look at an example <filename>fstab</filename> entry:
-	<programlisting>overlay  /etc  overlay  defaults,upperdir=/sysroot/var/lib/overlay/82/etc,lowerdir=/sysroot/var/lib/overlay/81/etc:/sysroot/var/lib/overlay/76/etc:/sysroot/etc,workdir=/sysroot/var/lib/overlay/work-etc,x-systemd.requires-mounts-for=/var,x-systemd.requires-mounts-for=/var/lib/overlay,x-systemd.requires-mounts-for=/sysroot/var,x-systemd.requires-mounts-for=/sysroot/var/lib/overlay,x-initrd.mount  0  0</programlisting>
-      </para>
-      <itemizedlist>
-      <listitem><para>
-	We are currently in snapshot <emphasis>82</emphasis> as indicated by the
-	<option>upperdir</option> directory. This can be confirmed by typing
-	<command>snapper list</command> or
-	<command>btrfs subvolume get-default /</command>. All changes to
-	<filename class='directory'>/etc</filename> will end up in this
-	directory.
-      </para></listitem>
-      <listitem><para>
-	<option>lowerdir</option> contains two numbered overlay directories.
-	The later directory with number <emphasis>76</emphasis> indicates the
-	snapshot which was used as a base. This snapshot's
-	<filename class='directory'>/etc</filename> state was also synchronized
-	into the read-only root file system of snapshot 82. As the
+	The above <filename>/etc/fstab</filename> example is showing such a
+	case: <option>lowerdir</option> contains two numbered overlay
+	directories. The later directory with number <emphasis>76</emphasis>
+	indicates the snapshot which was used as a base. As the
 	<option>lowerdir</option> contains a second entry with number
 	<emphasis>81</emphasis> it means that the <option>--continue</option>
 	has been used before the system was rebooted. Gaps in the number such
@@ -542,15 +603,14 @@ systemctl reboot
 	rollback to snapshot 76 was performed. The lowest snapshot is always
 	<filename class='directory'>/sysroot/etc</filename>, containing the
 	root file system's contents.
-      </para></listitem>
-      <listitem><para>
+      </para>
+      <para>
 	As <filename class='directory'>/etc</filename> is mounted by
 	<application>dracut</application> during early boot the options have to
 	be prefixed with <emphasis>/sysroot</emphasis>. The
 	<command>x-systemd.</command> options are setting up the volume's
 	<application>systemd</application> dependencies correctly.
-      </para></listitem>
-      </itemizedlist>
+      </para>
       <para>
 	Overlays no longer referenced by any snapshots will be deleted during
 	the <command>transactional-update cleanup-overlays</command> run.
