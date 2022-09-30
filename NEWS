@@ -2,6 +2,27 @@ transactional-update NEWS -- history of user-visible changes.
 
 Copyright (C) 2016-2022 Thorsten Kukuk, Ignaz Forster et al.
 
+Version 4.1.0
+* t-u: Add a "setup-kdump" command; implements [jsc#PED-1441]
+* Add support for ULP (Userspace Live Patching) [jsc#PED-1078]:
+  * Export TRANSACTIONAL_UPDATE_ROOT (the path to the snapshot) in
+    the update environment
+  * Unfortunately requires a separate bind mount in /tmp again for the
+    update environment, as libpulp has to be able to access the snapshot
+    directly, without it being bind mounted on itself
+* Add support for "notify" reboot method for desktop use
+  [gh#openSUSE/transactional-update#93]
+* Fix kdump initrd recreation detection; the check was performed in the
+  active snapshot instead of the target snapshot
+* Document register command [bsc#1202900]
+* Avoid unnecessary snapshots for register command [bsc#1202901]
+* Various optimizations for register command
+* Remove bogus error message when triggering reboot
+* Rework /etc overlay documentation in "The Transactional Update Guide"
+* Fix incorrect manpage formatting
+* Remove leftover "salt" reboot method in configuration example file
+* Replace deprecated std::mem_fn with lambdas
+
 Version 4.0.1
 * create_dirs_from_rpmdb: Just warn if no default SELinux context found
   [gh#openSUSE/transactional-update#88], [bsc#1188215]
