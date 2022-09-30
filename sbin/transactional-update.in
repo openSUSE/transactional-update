@@ -235,8 +235,8 @@ save_state_file() {
 }
 
 rebuild_kdump_initrd() {
-    test -f /usr/lib/systemd/system/kdump.service || return
-    systemctl is-enabled --quiet kdump.service
+    test -f "/.snapshots/$1/snapshot/usr/lib/systemd/system/kdump.service" || return
+    tukit -q call "$1" systemctl is-enabled --quiet kdump.service
     if [ $? = 0 -a -x "/.snapshots/$1/snapshot/usr/sbin/tu-rebuild-kdump-initrd" ]; then
 	tukit ${TUKIT_OPTS} call "$1" /usr/sbin/tu-rebuild-kdump-initrd |& tee -a ${LOGFILE} 1>&${origstdout}
     fi
