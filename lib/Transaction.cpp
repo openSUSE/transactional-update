@@ -46,6 +46,7 @@ public:
     int inotifyRead();
     std::unique_ptr<SnapshotManager> snapshotMgr;
     std::unique_ptr<Snapshot> snapshot;
+    std::string bindDir;
     std::vector<std::unique_ptr<Mount>> dirsToMount;
     Supplements supplements;
     pid_t pidCmd;
@@ -67,6 +68,13 @@ Transaction::~Transaction() {
         close(inotifyFd);
 
     pImpl->dirsToMount.clear();
+    if (!pImpl->bindDir.empty()) {
+        try {
+            fs::remove(fs::path{pImpl->bindDir});
+        }  catch (const std::exception &e) {
+            tulog.error("ERROR: ", e.what());
+        }
+    }
     try {
         if (isInitialized() && !getSnapshot().empty() && fs::exists(getRoot())) {
             tulog.info("Discarding snapshot ", pImpl->snapshot->getUid(), ".");
@@ -96,7 +104,9 @@ void Transaction::impl::snapMount() {
 
     // GRUB needs to have an actual mount point for the root partition, so
     // mount the snapshot directory on a temporary mount point
-    std::unique_ptr<BindMount> mntBind{new BindMount{snapshot->getRoot(), MS_PRIVATE}};
+    char bindTemplate[] = "/tmp/transactional-update-XXXXXX";
+    bindDir = mkdtemp(bindTemplate);
+    std::unique_ptr<BindMount> mntBind{new BindMount{bindDir, MS_PRIVATE}};
     mntBind->setSource(snapshot->getRoot());
     mntBind->mount();
 
@@ -164,14 +174,14 @@ void Transaction::impl::snapMount() {
     dirsToMount.push_back(std::make_unique<BindMount>("/.snapshots"));
 
     for (auto it = dirsToMount.begin(); it != dirsToMount.end(); ++it) {
-        it->get()->mount(snapshot->getRoot());
+        it->get()->mount(bindDir);
     }
 
     dirsToMount.push_back(std::move(mntBind));
 }
 
 void Transaction::impl::addSupplements() {
-    supplements = Supplements(snapshot->getRoot());
+    supplements = Supplements(bindDir);
 
     Mount mntVar{"/var"};
     if (mntVar.isMount()) {
@@ -329,11 +339,11 @@ int Transaction::impl::runCommand(char* argv[], bool inChroot, std::string* outp
         }
 
         if (inChroot) {
-            if (chdir(snapshot->getRoot().c_str()) < 0) {
+            if (chdir(bindDir.c_str()) < 0) {
                 tulog.info("Warning: Couldn't set working directory: ", std::string(strerror(errno)));
             }
-            if (chroot(snapshot->getRoot().c_str()) < 0) {
-                throw std::runtime_error{"Chrooting to " + std::string(snapshot->getRoot()) + " failed: " + std::string(strerror(errno))};
+            if (chroot(bindDir.c_str()) < 0) {
+                throw std::runtime_error{"Chrooting to " + bindDir + " failed: " + std::string(strerror(errno))};
             }
             // Prevent mounts from within the chroot environment influence the tukit organized mounts
             if (unshare(CLONE_NEWNS) < 0) {
@@ -401,7 +411,7 @@ int Transaction::callExt(char* argv[], std::string* output) {
         for(size_t pos = 0;
            (pos = s.find(from, pos)) != std::string::npos;
            pos += getRoot().string().length())
-            s.replace(pos, from.size(), getRoot());
+            s.replace(pos, from.size(), this->pImpl->bindDir);
         argv[i] = strdup(s.c_str());
     }
     return this->pImpl->runCommand(argv, false, output);
@@ -426,7 +436,7 @@ void Transaction::finalize() {
         // in /etc may be applied immediately, so merge them back into the running system.
         std::unique_ptr<Mount> mntEtc{new Mount{"/etc"}};
         if (mntEtc->isMount() && mntEtc->getFilesystem() == "overlay") {
-            Util::exec("rsync --archive --inplace --xattrs --acls --exclude 'fstab' --delete --quiet '" + std::string(getRoot()) + "/etc/' /etc");
+            Util::exec("rsync --archive --inplace --xattrs --acls --exclude 'fstab' --delete --quiet '" + this->pImpl->bindDir + "/etc/' /etc");
         }
         return;
     }
