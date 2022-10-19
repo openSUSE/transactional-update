@@ -1605,8 +1605,6 @@ if [ ${EXITCODE} -eq 0 ]; then
 	        reboot_autodetect
 	        ;;
 	esac
-	log_error "The system couldn't be rebooted using method '${REBOOT_METHOD}'. Please reboot the system"
-	log_error "manually."
     fi
 fi
 
