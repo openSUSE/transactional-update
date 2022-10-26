@@ -163,7 +163,7 @@
 	For these systems transactional-updates provides automatic
 	updates; snapshots with failed updates will be automatically removed.
 	Automatic reboots can be triggered using a variety of different reboot
-	methods (e.g. rebootmgr, kured or systemd), making the appliance of
+	methods (e.g. rebootmgr, notify, kured or systemd), making the appliance of
 	the updates cluster aware.
       </para>
       <para>
