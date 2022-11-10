@@ -29,7 +29,7 @@ Developers that want to integrate support for transactional updates may be inter
 
 ## Known users
 * **dnf**, Fedora's package management system, supports transactional systems directly via the [libdnf-plugin-txnupd](https://code.opensuse.org/microos/libdnf-plugin-txnupd) plugin (libtukit).
-* **Cockpit** can update transactionals systems via the [cockpit-tukit](https://github.com/openSUSE/cockpit-tukit) plugin (tukitd).
+* **Cockpit** can update transactional systems via the [cockpit-tukit](https://github.com/openSUSE/cockpit-tukit) plugin (tukitd).
 * **Salt** contains the [salt.modules.transactional\_update module](https://docs.saltproject.io/en/3004/ref/modules/all/salt.modules.transactional_update.html) module (transactional-update).
 * **Ansible** also supports transactional-update via the the [community.general.zypper](https://docs.ansible.com/ansible/latest/collections/community/general/zypper_module.html) module (transactional-update).
 
