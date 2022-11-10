@@ -1209,10 +1209,14 @@ if [ ${DO_ROLLBACK} -eq 1 ]; then
 fi
 
 if [ "${DO_STATUS}" -eq 1 ]; then
-    for snapshot in $(ls -d /.snapshots/*/ | cut -d '/' -f 3 | sort --reverse --numeric-sort); do
-	show_snapshot_status "/.snapshots/$snapshot/"
-	[ "${DO_STATUS_LAST}" -eq 1 ] && break
-    done
+    if [ "${EXPERIMENTAL_STATUS}" -eq 1 ]; then
+        for snapshot in $(ls -d /.snapshots/*/ | cut -d '/' -f 3 | sort --reverse --numeric-sort); do
+	    show_snapshot_status "/.snapshots/$snapshot/"
+	    [ "${DO_STATUS_LAST}" -eq 1 ] && break
+	done
+    elif
+	echo "The status command is disabled by default as it is marked as experimental"
+    fi
     exit 0
 fi
 
