@@ -1214,7 +1214,7 @@ if [ "${DO_STATUS}" -eq 1 ]; then
 	    show_snapshot_status "/.snapshots/$snapshot/"
 	    [ "${DO_STATUS_LAST}" -eq 1 ] && break
 	done
-    elif
+    else
 	echo "The status command is disabled by default as it is marked as experimental"
     fi
     exit 0
