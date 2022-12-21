@@ -7,7 +7,6 @@
 
 #include "Snapper.hpp"
 #include "Exceptions.hpp"
-#include "Log.hpp"
 #include "Util.hpp"
 #include <regex>
 
