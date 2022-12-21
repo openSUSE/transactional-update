@@ -113,11 +113,6 @@ void Transaction::impl::snapMount() {
     dirsToMount.push_back(std::make_unique<PropagatedBindMount>("/dev"));
     dirsToMount.push_back(std::make_unique<BindMount>("/var/log"));
 
-    std::vector<std::string> customDirs = config.getArray("BINDDIRS");
-    for (auto it = customDirs.begin(); it != customDirs.end(); ++it) {
-        dirsToMount.push_back(std::make_unique<BindMount>(*it));
-    }
-
     Mount mntVar{"/var"};
     if (mntVar.isMount()) {
         if (fs::is_directory("/var/lib/zypp"))
@@ -170,6 +165,11 @@ void Transaction::impl::snapMount() {
 
     if (BindMount{"/boot/writable"}.isMount())
         dirsToMount.push_back(std::make_unique<BindMount>("/boot/writable"));
+
+    std::vector<std::string> customDirs = config.getArray("BINDDIRS");
+    for (auto it = customDirs.begin(); it != customDirs.end(); ++it) {
+        dirsToMount.push_back(std::make_unique<BindMount>(*it));
+    }
 
     dirsToMount.push_back(std::make_unique<BindMount>("/.snapshots"));
 
