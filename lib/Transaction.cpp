@@ -25,6 +25,8 @@
 #include <limits.h>
 #include <poll.h>
 #include <sched.h>
+#include <selinux/restorecon.h>
+#include <selinux/selinux.h>
 #include <signal.h>
 #include <sys/inotify.h>
 #include <sys/mount.h>
@@ -122,7 +124,41 @@ void Transaction::impl::snapMount() {
             dirsToMount.push_back(std::make_unique<BindMount>("/var/lib/alternatives"));
         if (fs::is_directory("/var/lib/selinux"))
             dirsToMount.push_back(std::make_unique<BindMount>("/var/lib/selinux"));
+        if (is_selinux_enabled()) {
+            // If packages installed files into /var (which is not allowed, but still happens), they will end
+            // up in the root file system, but will always be shadowed by the real /var mount. Due to that they
+            // also won't be relabelled at any time. During updates this may cause problems if packages try to
+            // access those leftover directories with wrong permissions, so they have to be relabelled manually...
+            BindMount selinuxVar("/var/lib/selinux");
+            selinuxVar.mount(bindDir);
+            BindMount selinuxEtc("/etc/selinux");
+            selinuxEtc.mount(bindDir);
+
+            // restorecon keeps open file handles, so execute it in a child process - umount will fail otherwise
+            pid_t childPid = fork();
+            if (childPid < 0) {
+                throw std::runtime_error{"Forking for SELinux relabelling failed: " + std::string(strerror(errno))};
+            } else if (childPid == 0) {
+                if (chroot(bindDir.c_str()) < 0) {
+                    tulog.error("Chrooting to " + bindDir + " for SELinux relabelling failed: " + std::string(strerror(errno)));
+                    _exit(errno);
+                }
+                if (selinux_restorecon("/var", SELINUX_RESTORECON_RECURSE | SELINUX_RESTORECON_VERBOSE | SELINUX_RESTORECON_IGNORE_DIGEST) < 0) {
+                    tulog.error("Relabelling of snapshot /var failed: " + std::string(strerror(errno)));
+                    _exit(errno);
+                }
+                _exit(0);
+            }
+            else {
+                int status;
+                waitpid(childPid, &status, 0);
+                if ((WIFEXITED(status) && WEXITSTATUS(status) != 0) || WIFSIGNALED(status)) {
+                    throw std::runtime_error{"SELinux relabelling failed."};
+                }
+            }
+        }
     }
+
     std::unique_ptr<Mount> mntEtc{new Mount{"/etc"}};
     if (mntEtc->isMount() && mntEtc->getFilesystem() == "overlay") {
         Overlay overlay = Overlay{snapshot->getUid()};
