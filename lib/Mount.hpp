@@ -38,7 +38,6 @@ protected:
     std::string tabsource;
     std::string mountpoint;
     unsigned long flags;
-    std::string directoryCreated;
     struct libmnt_fs* findFS();
     struct libmnt_fs* getTabEntry();
     struct libmnt_fs* newFS();
