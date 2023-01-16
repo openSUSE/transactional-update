@@ -312,7 +312,7 @@ int Transaction::impl::inotifyRead() {
     struct pollfd pfd = {inotifyFd, POLLIN, 0};
     ret = (poll(&pfd, 1, 500));
     if (ret == -1) {
-        throw std::runtime_error{"Polling inotify file descriptior failed: " + std::string(strerror(errno))};
+        throw std::runtime_error{"Polling inotify file descriptor failed: " + std::string(strerror(errno))};
     } else if (ret > 0) {
         numRead = read(inotifyFd, buf, bufLen);
         if (numRead == 0)
@@ -468,12 +468,33 @@ void Transaction::finalize() {
             (inotifyFd == 0 && fs::exists(getRoot() / "discardIfNoChange")))) {
         tulog.info("No changes to the root file system - discarding snapshot.");
 
-        // Even if the snapshot itself did not contain any changes, /etc may do so. Changes
-        // in /etc may be applied immediately, so merge them back into the running system.
+        // Even if the snapshot itself does not contain any changes, /etc may do so. If the new snapshot is a
+        // direct descendant of the currently running system, then merge the changes back into the currently
+        // running system directly and delete the snapshot. Otherwise merge it back into the previous overlay
+        // (using rsync instead of a plain copy to preserve xattrs).
         std::unique_ptr<Mount> mntEtc{new Mount{"/etc"}};
         if (mntEtc->isMount() && mntEtc->getFilesystem() == "overlay") {
-            Util::exec("rsync --archive --inplace --xattrs --acls --exclude 'fstab' --delete --quiet '" + this->pImpl->bindDir + "/etc/' /etc");
+            std::filesystem::path targetRoot;
+            std::unique_ptr<Mount> previousEtc{new Mount("/etc", 0, true)};
+            if (pImpl->snapshotMgr->getCurrent() == Overlay{pImpl->snapshot->getUid()}.getPreviousSnapshotOvlId()) {
+                tulog.info("Merging changes in /etc into the running system.");
+                targetRoot = "/";
+            } else {
+                tulog.info("Merging changes in /etc into the previous snapshot.");
+
+                auto previousSnapId = Overlay{pImpl->snapshot->getUid()}.getPreviousSnapshotOvlId();
+                std::unique_ptr<Snapshot> previousSnapshot = pImpl->snapshotMgr->open(previousSnapId);
+                previousEtc->setTabSource(previousSnapshot->getRoot() / "etc" / "fstab");
+
+                Overlay previousOvl{previousSnapId};
+                previousOvl.lowerdirs.back() = previousSnapshot->getRoot();
+                previousOvl.setMountOptionsForMount(previousEtc);
+                targetRoot = previousOvl.upperdir.parent_path() / "sync";
+                previousEtc->mount(targetRoot);
+            }
+            Util::exec("rsync --archive --inplace --xattrs --acls --exclude 'fstab' --delete --quiet '" + this->pImpl->bindDir + "/etc/' " + targetRoot.native() + "/etc");
         }
+
         return;
     }
     if (fs::exists(getRoot() / "discardIfNoChange")) {

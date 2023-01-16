@@ -115,7 +115,6 @@ void Overlay::sync(string base, fs::path snapRoot) {
     previousEtc->removeOption("workdir");
 
     string syncSource = string(previousOvl.upperdir.parent_path() / "sync" / "etc") + "/";
-    string rsyncExtraArgs;
     previousEtc->mount(previousOvl.upperdir.parent_path() / "sync");
     tulog.info("Syncing /etc of previous snapshot ", previousSnapId, " as base into new snapshot ", snapRoot);
 
