@@ -13,9 +13,9 @@
 
 namespace TransactionalUpdate {
 
-Mount::Mount(std::string mountpoint, unsigned long flags)
+Mount::Mount(std::string mountpoint, unsigned long flags, bool umount)
     : mnt_table{mnt_new_table()}, mountpoint{std::move(mountpoint)},
-      flags{std::move(flags)}
+      flags{std::move(flags)}, umount{std::move(umount)}
 {
 }
 
@@ -29,7 +29,7 @@ Mount::Mount(Mount&& other) noexcept
 }
 
 Mount::~Mount() {
-    if (mnt_fs) {
+    if (mnt_fs && umount) {
         struct libmnt_table* umount_table = mnt_new_table();
         if ((mnt_table_parse_mtab(umount_table, nullptr)) != 0)
             tulog.error("Error reading mtab for umount");
@@ -257,8 +257,8 @@ void Mount::umountRecursive(libmnt_table* umount_table, libmnt_fs* umount_fs) {
     mnt_free_context(umount_cxt);
 }
 
-BindMount::BindMount(std::string mountpoint, unsigned long flags)
-    : Mount(mountpoint, flags | MS_BIND)
+BindMount::BindMount(std::string mountpoint, unsigned long flags, bool umount)
+    : Mount(mountpoint, flags | MS_BIND, umount)
 {
 }
 
@@ -269,8 +269,8 @@ void BindMount::mount(std::string prefix) {
     Mount::mount(prefix);
 }
 
-PropagatedBindMount::PropagatedBindMount(std::string mountpoint, unsigned long flags)
-    : BindMount(mountpoint, flags | MS_REC | MS_SLAVE)
+PropagatedBindMount::PropagatedBindMount(std::string mountpoint, unsigned long flags, bool umount)
+    : BindMount(mountpoint, flags | MS_REC | MS_SLAVE, umount)
 {
 }
 

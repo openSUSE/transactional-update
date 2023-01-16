@@ -18,7 +18,7 @@ namespace TransactionalUpdate {
 class Mount
 {
 public:
-    Mount(std::string mountpoint, unsigned long flags = 0);
+    Mount(std::string mountpoint, unsigned long flags = 0, bool umount = false);
     Mount(Mount&& other) noexcept;
     virtual ~Mount();
     std::string getFilesystem();
@@ -38,6 +38,7 @@ protected:
     std::string tabsource;
     std::string mountpoint;
     unsigned long flags;
+    bool umount;
     struct libmnt_fs* findFS();
     struct libmnt_fs* getTabEntry();
     struct libmnt_fs* newFS();
@@ -47,14 +48,14 @@ protected:
 class BindMount : public Mount
 {
 public:
-    BindMount(std::string mountpoint, unsigned long flags = 0);
+    BindMount(std::string mountpoint, unsigned long flags = 0, bool umount = false);
     void mount(std::string prefix = "/") override;
 };
 
 class PropagatedBindMount : public BindMount
 {
 public:
-    PropagatedBindMount(std::string mountpoint, unsigned long flags = 0);
+    PropagatedBindMount(std::string mountpoint, unsigned long flags = 0, bool umount = false);
 };
 
 class MountList
