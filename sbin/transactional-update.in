@@ -1294,11 +1294,10 @@ if [ ${DO_CLEANUP_OVERLAYS} -eq 1 ]; then
     # Clean up old unused overlays
     if [ ${RO_ROOT} == "true" ]; then
 	shopt -s nullglob
-	for overlay in /var/lib/overlay/[0-9]*/etc /var/lib/overlay/etc; do
+	for overlay in /var/lib/overlay/*; do
 	    if [ -e ${overlay} ] && ! grep -qs "${overlay}" /.snapshots/*/snapshot/etc/fstab{,.sys}; then
 		log_info "Deleting unused overlay ${overlay}"
-		rm -rf "${overlay}"
-		rmdir --ignore-fail-on-non-empty "$(dirname "${overlay}")"
+		rm -r "${overlay}"
 	    fi
 	done
 	shopt -u nullglob
