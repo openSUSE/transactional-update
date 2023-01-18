@@ -2,6 +2,19 @@ transactional-update NEWS -- history of user-visible changes.
 
 Copyright (C) 2016-2022 Thorsten Kukuk, Ignaz Forster et al.
 
+Version 4.1.1
+* Mount user specific binddirs last: Prevously the internal mounts would
+  potentially overwrite user bind mounts [boo#1205011]
+* selinux: Relabel shadowed /var files during update to make sure they
+  don't interfere with the update [boo#1205937]
+* Clean up /var/lib/overlay more aggressively [boo#1206947]
+* tukit: Merge /etc overlay into parent if --discard is used together
+  with --continue - previously the files were incorrectly always merged
+  with the currently running system
+* status: do not execute the status command if experimental
+* Don't delete created mount point dirs any more
+* Small code optimizations
+
 Version 4.1.0
 * t-u: Add a "setup-kdump" command; implements [jsc#PED-1441]
 * Add support for ULP (Userspace Live Patching) [jsc#PED-1078]:
