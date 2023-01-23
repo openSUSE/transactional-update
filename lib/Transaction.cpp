@@ -204,7 +204,10 @@ void Transaction::impl::snapMount() {
 
     std::vector<std::string> customDirs = config.getArray("BINDDIRS");
     for (auto it = customDirs.begin(); it != customDirs.end(); ++it) {
-        dirsToMount.push_back(std::make_unique<BindMount>(*it));
+        if (fs::is_directory(*it))
+            dirsToMount.push_back(std::make_unique<BindMount>(*it));
+        else
+            tulog.info("Not bind mounting directory '" + *it + "' as it doesn't exist.");
     }
 
     dirsToMount.push_back(std::make_unique<BindMount>("/.snapshots"));
