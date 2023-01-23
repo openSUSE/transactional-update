@@ -2,6 +2,9 @@ transactional-update NEWS -- history of user-visible changes.
 
 Copyright (C) 2016-2022 Thorsten Kukuk, Ignaz Forster et al.
 
+Version 4.1.2
+* Don't try to mount user mounts if they don't exist [boo#1207366]
+
 Version 4.1.1
 * Mount user specific binddirs last: Prevously the internal mounts would
   potentially overwrite user bind mounts [boo#1205011]
