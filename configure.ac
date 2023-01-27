@@ -35,6 +35,7 @@ PKG_CHECK_VAR([DBUSSYSTEMBUSSERVICEDIR], [dbus-1], [system_bus_services_dir], []
 UDEVRULESDIR=${UDEVDIR}/rules.d
 LOGROTATEDDIR=${sysconfdir}/logrotate.d
 DBUSCONFDIR=${DBUSDATADIR}/dbus-1/system.d
+BASHCOMPLETIONDIR=${datadir}/bash-completion/completions
 
 AC_SUBST(TMPFILESDIR)
 AC_SUBST(UDEVRULESDIR)
@@ -45,6 +46,7 @@ AC_SUBST(LOGROTATEDDIR)
 AC_SUBST(DBUSCONFDIR)
 AC_SUBST(DBUSINTERFACESDIR)
 AC_SUBST(DBUSSYSTEMBUSSERVICEDIR)
+AC_SUBST(BASHCOMPLETIONDIR)
 
 AC_PROG_CXX
 AX_CXX_COMPILE_STDCXX_17(, mandatory)
@@ -113,4 +115,4 @@ AM_CONDITIONAL(ENABLE_REGENERATE_MAN,
 
 AC_OUTPUT([Makefile lib/Makefile tukit/Makefile sbin/Makefile man/Makefile \
 	systemd/Makefile logrotate/Makefile dracut/Makefile doc/Makefile \
-	etc/Makefile dbus/Makefile sbin/transactional-update])
+	etc/Makefile bash-completion/Makefile dbus/Makefile sbin/transactional-update])
