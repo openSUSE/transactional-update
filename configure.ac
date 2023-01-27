@@ -37,6 +37,7 @@ PKG_CHECK_VAR([DBUSSYSTEMBUSSERVICEDIR], [dbus-1], [system_bus_services_dir], []
 UDEVRULESDIR=${UDEVDIR}/rules.d
 LOGROTATEDDIR=${sysconfdir}/logrotate.d
 DBUSCONFDIR=${DBUSDATADIR}/dbus-1/system.d
+BASHCOMPLETIONDIR=${datadir}/bash-completion/completions
 
 AC_SUBST(TMPFILESDIR)
 AC_SUBST(UDEVRULESDIR)
@@ -47,6 +48,7 @@ AC_SUBST(LOGROTATEDDIR)
 AC_SUBST(DBUSCONFDIR)
 AC_SUBST(DBUSINTERFACESDIR)
 AC_SUBST(DBUSSYSTEMBUSSERVICEDIR)
+AC_SUBST(BASHCOMPLETIONDIR)
 
 AC_PROG_CXX
 AC_PROG_AWK
@@ -124,6 +126,6 @@ AS_IF([test -z "$BATS" -o -z "$ROOTLESSKIT"], [AC_MSG_WARN([To run tests please 
 
 AC_CONFIG_FILES([Makefile lib/Makefile tukit/Makefile sbin/Makefile man/Makefile \
 	systemd/Makefile logrotate/Makefile dracut/Makefile doc/Makefile \
-	etc/Makefile dbus/Makefile snapper/Makefile tests/Makefile \
+	etc/Makefile bash-completion/Makefile dbus/Makefile snapper/Makefile tests/Makefile \
 	sbin/transactional-update])
 AC_OUTPUT
