@@ -45,8 +45,8 @@
 	is an application that allows to update a Linux system and its
 	applications in an <emphasis>atomic</emphasis> way: The update will
 	be performed in the background, not influencing the currently
-	running system. The update will be activated by	a reboot instead,
-	similar to
+	running system. The update will be activated by	a reboot. This concept
+	is similar to
 	<ulink url="https://rpm-ostree.readthedocs.io/en/latest/">rpm-ostree</ulink>
 	or CoreOS' previous Container OS. However
 	<emphasis remap='B'>transactional-update</emphasis> is not another
@@ -100,7 +100,8 @@
 	      <para>
 		The machine can be powered off at any time. When powered on
 		again either the unmodified old state or the new state is
-		active, but no state in between.
+		active. It is not possible to have a running system in an
+                intermediate state.
 	      </para>
 	    </listitem>
 	  </itemizedlist>
@@ -125,10 +126,10 @@
     <section id="tu-introduction-reason">
       <title>Use Cases</title>
       <para>
-	As Linux distributions are evolving over the years, new concepts are
-	appearing such rolling releases, containers, embedded systems or long
+	As Linux distributions are evolving, new concepts are
+	emerging, such rolling releases, containers, embedded systems or long
 	time support releases. While the classical update mechanisms are
-	probably perfectly fine for a regular desktop user or a conventional
+	probably perfectly fine for a regular desktop users or a conventional
 	server system, the following example use cases may give an indication
 	why an even more error-proof system may be desirable:
       </para>
@@ -163,8 +164,8 @@
 	For these systems transactional-updates provides automatic
 	updates; snapshots with failed updates will be automatically removed.
 	Automatic reboots can be triggered using a variety of different reboot
-	methods (e.g. rebootmgr, notify, kured or systemd), making the appliance of
-	the updates cluster aware.
+	methods (e.g. rebootmgr, notify, kured or systemd), making the
+        application of the updates cluster aware.
       </para>
       <para>
 	To summarize: The update should only be applied if there were no
@@ -523,7 +524,7 @@ lowerdir2 (/etc of snapshot x-2)     | file1 | file2 | file3 |       |       | f
         <para>
 	  Let's have another look from the perspective while an update is
 	  running. <replaceable>x</replaceable> is the id of the new snapshot
-	  where the update is currently be performed in,
+	  where the update is currently being performed.
 	  <replaceable>x-1</replaceable> is the id of the currently running
 	  snapshot, and <replaceable>x-2</replaceable> is the id of the
 	  snapshot before the currently running one.
@@ -545,7 +546,7 @@ lowerdir2 (/etc of snapshot x-2)     | file1 | file2 | file3 |       |       | f
 	</para>
 	<para>
 	  <filename>file4</filename> was only added in the new snapshot
-	  and will be only available there. The currently running system doesn't
+	  and will only be available there. The currently running system doesn't
 	  know anything about it.
 	</para>
 	<para>
@@ -583,7 +584,8 @@ lowerdir2 (/etc of snapshot x-2)     | file1 | file2 | file3 |       |       | f
 	</para>
       </warning>
       <para>
-	If the <option>--continue</option> is used multiple times to extend a
+	If the <option>--continue</option> option is used multiple times to
+        extend a
 	new snapshot while the system has not been rebooted, and if that
 	snapshot is based on the currently active system, then the
 	merge will only run for the first snapshot; the additional
@@ -598,7 +600,8 @@ lowerdir2 (/etc of snapshot x-2)     | file1 | file2 | file3 |       |       | f
 	indicates the snapshot which was used as a base. As the
 	<option>lowerdir</option> contains a second entry with number
 	<emphasis>81</emphasis> it means that the <option>--continue</option>
-	has been used before the system was rebooted. Gaps in the number such
+	option has been used before the system was rebooted. Gaps in the
+        numbers such
 	as seen here may indicate that those snapshots were discarded or a
 	rollback to snapshot 76 was performed. The lowest snapshot is always
 	<filename class='directory'>/sysroot/etc</filename>, containing the
@@ -608,7 +611,7 @@ lowerdir2 (/etc of snapshot x-2)     | file1 | file2 | file3 |       |       | f
 	As <filename class='directory'>/etc</filename> is mounted by
 	<application>dracut</application> during early boot the options have to
 	be prefixed with <emphasis>/sysroot</emphasis>. The
-	<command>x-systemd.</command> options are setting up the volume's
+	<command>x-systemd</command> options are setting up the volume's
 	<application>systemd</application> dependencies correctly.
       </para>
       <para>
@@ -669,7 +672,8 @@ lowerdir2 (/etc of snapshot x-2)     | file1 | file2 | file3 |       |       | f
     <title>Porting to other systems</title>
     <para>
       Currently <emphasis>snapper</emphasis> is the only supported snapshot
-      implementation, however it is prepared to support other (file) systems
+      implementation, however the code base is prepared to support other
+      (file) systems
       as long as they provide snapshot functionality and the ability to boot
       from specific snapshots.
     </para>
