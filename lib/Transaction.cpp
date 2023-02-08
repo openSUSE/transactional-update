@@ -143,7 +143,10 @@ void Transaction::impl::snapMount() {
                     tulog.error("Chrooting to " + bindDir + " for SELinux relabelling failed: " + std::string(strerror(errno)));
                     _exit(errno);
                 }
-                if (selinux_restorecon("/var", SELINUX_RESTORECON_RECURSE | SELINUX_RESTORECON_VERBOSE | SELINUX_RESTORECON_IGNORE_DIGEST) < 0) {
+                unsigned int restoreconOptions = SELINUX_RESTORECON_RECURSE | SELINUX_RESTORECON_IGNORE_DIGEST;
+                if (tulog.level >= TULogLevel::Info)
+                    restoreconOptions |= SELINUX_RESTORECON_VERBOSE;
+                if (selinux_restorecon("/var", restoreconOptions) < 0) {
                     tulog.error("Relabelling of snapshot /var failed: " + std::string(strerror(errno)));
                     _exit(errno);
                 }
