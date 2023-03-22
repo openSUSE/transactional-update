@@ -74,6 +74,11 @@ TMPDIR=${TMPDIR:-/tmp}
 if [ -r ${SYSTEMCONFFILE} ]; then
     . ${SYSTEMCONFFILE}
 fi
+for snippet in "${SYSTEMCONFFILE}.d"/*; do
+    if [ -f "${snippet}" ]; then
+	. "${snippet}"
+    fi
+done
 if [ -r ${CONFFILE} ]; then
     . ${CONFFILE}
 fi

@@ -42,26 +42,37 @@
 
   <refnamediv>
     <refname>transactional-update.conf</refname>
-    <refpurpose>transactional-update configuration file</refpurpose>
+    <refpurpose>transactional-update configuration files</refpurpose>
   </refnamediv>
 
   <refsynopsisdiv>
-    <para><filename>%sysconfdir%/transactional-update.conf</filename></para>
+    <para><literallayout>
+<filename>%sysconfdir%/transactional-update.conf</filename>
+<filename>%prefix%%sysconfdir%/transactional-update.conf</filename>
+<filename>%prefix%%sysconfdir%/transactional-update.conf.d/*</filename>
+    </literallayout></para>
   </refsynopsisdiv>
 
   <refsect1>
     <title>Description</title>
 
-    <para>This configuration file controls and defines the behaviour of
+    <para>These configuration files control and define the behaviour of
     <citerefentry>
       <refentrytitle>transactional-update</refentrytitle>
       <manvolnum>8</manvolnum>
     </citerefentry>.</para>
-    <para>The <refname>transactional-update.conf</refname> file uses shell
+    <para>The configuration files use shell
     style assignments, e.g. <code>PARAMETER=value</code>.</para>
     <para>A reference file (also used for reading the default values) can be
     found in
-    <filename>%prefix%%sysconfdir%/transactional-update.conf</filename>.</para>
+    <filename>%prefix%%sysconfdir%/transactional-update.conf</filename>.
+    Additionally packages may overwrite these default values by putting
+    files into
+    <filename>%prefix%%sysconfdir%/transactional-update.conf.d/</filename>;
+    files in that directory will be read alphabetically, assignments in later
+    files will overwrite previous assignments. Admin settings in
+    <filename>%sysconfdir%/transactional-update.conf</filename> will
+    have the highest precedence.</para>
   </refsect1>
 
   <refsect1>
