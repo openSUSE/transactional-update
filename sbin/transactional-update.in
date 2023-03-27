@@ -1011,7 +1011,7 @@ exec {origstdout}>&1
 exec {origstderr}>&2
 
 # Log stderr to log file in case anything goes wrong within transactional-update
-exec 2> >(exec tee -a "${LOGFILE}" >&2)
+exec 2> >(exec tee -i -a "${LOGFILE}" >&2)
 if [ "${VERBOSITY}" -eq 1 ]; then
     exec 1>/dev/null
     if [ -n "${ZYPPER_ARG}" ]; then
