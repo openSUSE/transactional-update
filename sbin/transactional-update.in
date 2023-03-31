@@ -30,6 +30,7 @@ REWRITE_BOOTLOADER=0
 REWRITE_GRUB_CFG=0
 REWRITE_INITRD=0
 REBUILD_KDUMP_INITRD=0
+DO_APPLY=0
 DO_CLEANUP_OVERLAYS=0
 DO_CLEANUP_SNAPSHOTS=0
 DO_MIGRATION=0
@@ -91,6 +92,7 @@ SNAPSHOT_ID=""
 SNAPSHOT_DIR=""
 BASE_SNAPSHOT_ID=""
 TMPFILE=""
+APPLYWORKDIR=""
 DO_CALLEXT=0
 
 declare -A ROLES=()
@@ -137,6 +139,7 @@ usage() {
     echo "system."
     echo ""
     echo "General Commands:"
+    echo "apply                      Switch into default snapshot without reboot"
     echo "cleanup                    Run both cleanup-snapshots and cleanup-overlays"
     echo "cleanup-snapshots          Mark unused snapshots for snapper removal"
     echo "cleanup-overlays           Remove unused overlay layers"
@@ -291,6 +294,14 @@ quit() {
 teardown() {
     # Cleanup temporary files
     rm -f ${TMPFILE}
+
+    if [ -d "${APPLYWORKDIR}" ]; then
+	if mountpoint --quiet "${APPLYWORKDIR}/mount"; then
+	    umount --recursive "${APPLYWORKDIR}/mount"
+	fi
+	rmdir "${APPLYWORKDIR}/mount"
+	rmdir "${APPLYWORKDIR}"
+    fi
 
     # The following commands only make sense if snapshot dir is set already
     if [ "${SNAPSHOT_DIR}" = "" ]; then
@@ -892,6 +903,10 @@ while [ 1 ]; do
 		shift
 	    fi
 	    ;;
+	apply)
+	    DO_APPLY=1
+	    shift
+	    ;;
 	run)
 	    test -z "$TELEM_CLASS" && TELEM_CLASS="shell"
 	    DO_RUN=1
@@ -1065,7 +1080,7 @@ fi
 # If no commands were given, assume "up"
 if [ -z "${ZYPPER_ARG}" -a -z "${TELEM_CLASS}" -a "${REBOOT_AFTERWARDS}" -eq 0 \
 	-a "${DO_REGISTRATION}" -eq 0 -a "${DO_CLEANUP_OVERLAYS}" -eq 0 \
-	-a "${DO_CLEANUP_SNAPSHOTS}" -eq 0 ]; then
+	-a "${DO_CLEANUP_SNAPSHOTS}" -eq 0 -a "${DO_APPLY}" -eq 0 ]; then
     ZYPPER_ARG="up"
     TELEM_CLASS="update"
 fi
@@ -1155,7 +1170,8 @@ if [ -n "${ZYPPER_ARG}" -a "${DO_MIGRATION}" -eq 0 -a ${ZYPPER_AUTO_IMPORT_KEYS}
     ZYPPER_ARG="--gpg-auto-import-keys ${ZYPPER_ARG}"
 fi
 
-CURRENT_SNAPSHOT_ID=`grep subvol=/@/.snapshots/ /proc/mounts | grep "/ btrfs" | sed -e 's|.*.snapshots/\(.*\)/snapshot.*|\1|g'`
+BOOTED_SNAPSHOT_ID=`grep subvol=/@/.snapshots/ /proc/mounts | grep "/ btrfs" | sed -e 's|.*.snapshots/\(.*\)/snapshot.*|\1|g'`
+CURRENT_SNAPSHOT_ID=`findmnt --target /usr --raw --noheadings --output FSROOT | tail -n 1 | sed -e 's|.*.snapshots/\(.*\)/snapshot.*|\1|g'`
 DEFAULT_SNAPSHOT_ID=`btrfs subvolume get-default / | sed -e 's|.*.snapshots/\(.*\)/snapshot|\1|g'`
 RO_ROOT=`btrfs property get / ro | sed -e 's|ro=||'`
 
@@ -1228,10 +1244,11 @@ fi
 #
 if [ ${DO_CLEANUP_SNAPSHOTS} -eq 1 ]; then
     # If there is a list of working snapshots, go through it and mark any snapshot for deletion, if it is
-    # not the currently used one or the active one.
+    # not the currently used one, the booted one (still required for health-checker rollbacks) or the
+    # active one.
     if [ -n "${LAST_WORKING_SNAPSHOTS}" ]; then
 	for snap in ${LAST_WORKING_SNAPSHOTS}; do
-	    if [ ${CURRENT_SNAPSHOT_ID} -ne ${snap} ]; then
+	    if [ ${CURRENT_SNAPSHOT_ID} -ne ${snap} -a ${BOOTED_SNAPSHOT_ID} -ne ${snap} ]; then
 		log_info "Adding cleanup algorithm to snapshot #${snap}"
 		snapper modify -c number ${snap} |& tee -a ${LOGFILE}
 		if [ ${PIPESTATUS[0]} -ne 0 ]; then
@@ -1264,13 +1281,15 @@ if [ ${DO_CLEANUP_SNAPSHOTS} -eq 1 ]; then
 	UNUSED_SNAPSHOTS="${UNUSED_SNAPSHOTS} ${snap}"
     done
 
-    # Always try to cleanup all snapshots; only the current snapshot and an
-    # eventual new default one needs to be kept.
+    # Always try to cleanup all snapshots; only the current snapshot, the
+    # one which the system was booted from and some parts of the system
+    # may still use, and an eventual new default one needs to be kept.
     if [ -n "${UNUSED_SNAPSHOTS}" ]; then
 	_new_unused=""
 	for snap in ${UNUSED_SNAPSHOTS}; do
 	    # Don't mark our current in use snapshot for deletion
 	    if [ ${snap} -ne ${CURRENT_SNAPSHOT_ID} ] && \
+		[ ${snap} -ne ${BOOTED_SNAPSHOT_ID} ] && \
 		[ ${snap} -ne ${DEFAULT_SNAPSHOT_ID} ]; then
 		log_info "Mark unused snapshot #${snap} for deletion"
 		snapper modify -c number ${snap} |& tee -a ${LOGFILE}
@@ -1282,7 +1301,7 @@ if [ ${DO_CLEANUP_SNAPSHOTS} -eq 1 ]; then
 			_new_unused="${snap} ${_new_unused}"
 		    fi
 		fi
-	    elif [ ${snap} -ne ${CURRENT_SNAPSHOT_ID} ]; then
+	    elif [ ${snap} -ne ${CURRENT_SNAPSHOT_ID} -a ${snap} -ne ${BOOTED_SNAPSHOT_ID} ]; then
 		# This is the snapshot which is currently in use, so keep it in
 		# the list. We would probably never clean it up later otherwise.
 		_new_unused="${snap} ${_new_unused}"
@@ -1567,7 +1586,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 
     if [ ${EXITCODE} -ne 0 ]; then
 	quit ${EXITCODE}
-    elif [ $REBOOT_AFTERWARDS -eq 0 ]; then
+    elif [ $REBOOT_AFTERWARDS -eq 0 -a $DO_APPLY -ne 1 ]; then
 	log_info ""
 	log_info "Please reboot your machine to activate the changes and avoid data loss."
 	touch "${NEEDS_RESTARTING_FILE}"
@@ -1582,6 +1601,97 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
     fi
 
     log_info "New default snapshot is #${SNAPSHOT_ID} (${SNAPSHOT_DIR})."
+fi
+
+if [ $DO_APPLY -eq 1 ]; then
+    if [ -n "${SNAPSHOT_ID}" -o "${DEFAULT_SNAPSHOT_ID}" != "${CURRENT_SNAPSHOT_ID}" ]; then
+	NEW_DEFAULT_SNAPSHOT_ID=`btrfs subvolume get-default / | sed -e 's|.*.snapshots/\(.*\)/snapshot|\1|g'`
+	if ! APPLYWORKDIR="$(mktemp -d /tmp/transactional-update.apply.XXXXXXXX)"; then
+	    log_error "ERROR during apply: Temporary directory template failed."
+	fi
+	if ! mkdir "${APPLYWORKDIR}/mount"; then
+	    log_error "ERROR during apply: Couldn't create mount directory."
+	fi
+
+	sourcedevice="$(findmnt --target /usr --raw --noheadings --output SOURCE --nofsroot | tail -n 1)"
+	# Mount new snapshot as base
+	if ! mount "${sourcedevice}" "${APPLYWORKDIR}/mount"; then
+	    log_error "ERROR during apply: Mounting ${sourcedevice} to ${APPLYWORKDIR}/mount failed."
+	    quit 2
+	fi
+	# Mount /etc overlay
+	if [ "$(findmnt --noheadings --nofsroot --output FSTYPE /etc | tail -n 1)" == "overlay" ]; then
+	    if ! mount overlay -t overlay -o "$(findmnt --tab-file "${APPLYWORKDIR}/mount/etc/fstab" --noheadings --nofsroot --output OPTIONS /etc | sed 's/\/sysroot//g' | sed 's/:\/etc,/:\/.snapshots\/'${NEW_DEFAULT_SNAPSHOT_ID}'\/snapshot\/etc,/g')" "${APPLYWORKDIR}/mount/etc"; then
+		log_error "ERROR during apply: Mounting /etc overlay failed."
+		quit 2
+	    fi
+	fi
+	# Find and mount potential submounts
+	VISIBLEMOUNTS=(/usr /etc /boot)
+	for line in $(findmnt --raw --noheadings --nofsroot --output TARGET -d forward | grep -E "^/(usr|etc|boot)"); do
+	    for i in ${!VISIBLEMOUNTS[@]}; do
+		if [[ $line == ${VISIBLEMOUNTS[$i]} ]]; then
+		    while [ $i -lt ${#VISIBLEMOUNTS[@]} ]; do
+			if [[ ${VISIBLEMOUNTS[$i]} == ${line}* ]]; then
+			    unset -v VISIBLEMOUNTS[$i]
+			    VISIBLEMOUNTS=("${VISIBLEMOUNTS[@]}")
+			else
+			    ((i++))
+			fi
+		    done
+		    break
+		fi
+	    done
+	    VISIBLEMOUNTS+=(${line})
+	done
+	for dir in ${VISIBLEMOUNTS[@]}; do
+	    if [[ $dir =~ ^/(usr|etc|boot)$ ]]; then
+		continue;
+	    fi
+	    dir="$(echo -e ${dir})"
+	    if ! mount --bind "${dir}" "${APPLYWORKDIR}/mount/${dir}"; then
+		log_error "ERROR during apply: Bind-mounting ${dir} failed."
+		quit 2
+	    fi
+	done
+	if ! mount --make-rprivate "${APPLYWORKDIR}/mount"; then
+	    log_error "ERROR during apply: make-rprivate failed."
+	    quit 2
+	fi
+
+	log_info ""
+	log_info "Using default snapshot ${NEW_DEFAULT_SNAPSHOT_ID} to replace running system..."
+
+	# Mount new snapshot into running system
+	for rbinddir in usr etc boot; do
+	    log_info "Applying /${rbinddir}..."
+	    if ! mount --rbind "${APPLYWORKDIR}/mount/${rbinddir}" "/${rbinddir}"; then
+		log_error "ERROR during apply: Mounting /${rbinddir} failed!"
+		for dir in ${rbinddir_done}; do
+		    umount "/${dir}"
+		done
+		quit 2
+	    fi
+	    rbinddir_done="${rbinddir_done} ${rbinddir}"
+	done
+
+	umount --lazy "${APPLYWORKDIR}/mount"
+	rmdir "${APPLYWORKDIR}/mount"
+	rmdir "${APPLYWORKDIR}"
+
+	log_info "Executing systemctl daemon-reexec..."
+	systemctl daemon-reexec
+	log_info "Executing create_dirs_from_rpmdb..."
+	create_dirs_from_rpmdb
+	log_info "Executing systemd-tmpfiles --create..."
+	systemd-tmpfiles --create
+
+	log_info "=> Applied default snapshot as new base for running system!"
+	log_info "   Running processes will not be restarted automatically."
+    else
+	log_info ""
+	log_info "The default snapshot is active already."
+    fi
 fi
 
 log_info "transactional-update finished"

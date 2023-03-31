@@ -155,6 +155,29 @@ for more information.
 </para>
 <variablelist remap='TP'>
   <varlistentry>
+    <term><option>apply</option></term>
+    <listitem>
+      <para>
+      Mounts <filename class='directory'>/usr</filename>,
+      <filename class='directory'>/etc</filename> and
+      <filename class='directory'>/boot</filename> of the (new) default
+      snapshot into the currently running system. This is mostly useful for
+      using newly installed packages directly without a reboot. When using
+      apply on a system where existing files will be replaced (e.g. when doing
+      a system update) this behaves similarly to a regular zypper update where
+      files of currently running applications will also be replaced, but with
+      the additional advantage that the update itself was finished successfully
+      as a whole, avoiding inconsistent states on update failures.
+      </para>
+      <para>
+      Note that - in contrast to regular zypper updates - services will not be
+      restarted automatically. Additionally mounting the three directories is
+      not one atomic operation, so there will be a short timespan where the
+      directories visible to the system will not be in sync.
+      </para>
+    </listitem>
+  </varlistentry>
+  <varlistentry>
     <term><option>cleanup</option></term>
     <listitem>
       <para>Identical to calling both <option>cleanup-snapshots</option> and
@@ -608,6 +631,33 @@ for more information.
 </variablelist>
 </refsect1>
 
+<refsect1 id='exitstatus'><title>EXIT STATUS</title>
+<variablelist>
+  <varlistentry>
+    <term><option>0</option></term>
+    <listitem>
+      <para>All commands were executed successfully.</para>
+    </listitem>
+  </varlistentry>
+  <varlistentry>
+    <term><option>1</option></term>
+    <listitem>
+      <para>One of the commands returned with an error. Due to that a
+      potential new snapshot has been deleted again.</para>
+    </listitem>
+  </varlistentry>
+  <varlistentry>
+    <term><option>2</option></term>
+    <listitem>
+      <para>The <option>apply</option> command was not successfull.
+      If called together with another commands, these commands were completed
+      successfully, but the new default snapshot will not be set in the
+      live system.</para>
+    </listitem>
+  </varlistentry>
+</variablelist>
+</refsect1>
+
 <refsect1 id='important'><title>IMPORTANT</title>
 <para>
   Only RPMs which are fully part of the root filesystem and
@@ -630,7 +680,9 @@ for more information.
   system</emphasis>.
   Calling <command>transactional-update</command> multiple times without
   rebooting will <emphasis>not</emphasis> include the changes of the previous
-  snapshot, thus effectively discarding all previous changes.
+  snapshot, thus effectively discarding all previous changes (except when
+  using <option>--continue</option> to explicitly continue a previous snapshot
+  or when <option>apply</option> was called previously).
 </para>
 </refsect1>
 
