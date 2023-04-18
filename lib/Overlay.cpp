@@ -104,7 +104,7 @@ void Overlay::sync(string base, fs::path snapRoot) {
         tulog.info("Parent snapshot ", previousSnapId, " does not exist any more - skipping rsync");
         return;
     }
-    unique_ptr<Mount> previousEtc{new Mount("/etc")};
+    unique_ptr<Mount> previousEtc{new Mount("/etc", 0, true)};
     previousEtc->setTabSource(previousSnapshot->getRoot() / "etc" / "fstab");
 
     // Mount read-only, so mount everything as lowerdir
