@@ -141,14 +141,14 @@ bool Snapper::isReadOnly() {
 }
 
 void Snapper::setDefault() {
-    Util::exec("btrfs subvolume set-default " + std::string(getRoot()));
+    callSnapper("modify --default " + snapshotId);
 }
 
 void Snapper::setReadOnly(bool readonly) {
-    std::string boolstr = "true";
-    if (readonly == false)
-        boolstr = "false";
-    Util::exec("btrfs property set " + std::string(getRoot()) + " ro " + boolstr);
+    if (readonly)
+	    callSnapper("modify --read-only " + snapshotId);
+    else
+	    callSnapper("modify --read-write " + snapshotId);
 }
 
 /* Helper methods */

@@ -1182,20 +1182,14 @@ if [ ${DO_ROLLBACK} -eq 1 ]; then
     log_info "Rollback to snapshot ${ROLLBACK_SNAPSHOT}..."
 
     if [ ${RO_ROOT} == "true" ]; then
-	BTRFS_ID=`btrfs subvolume list -o /.snapshots | grep /.snapshots/${ROLLBACK_SNAPSHOT}/snapshot | awk '{print $2}'`
-	if [ -z $BTRFS_ID ]; then
-	    log_error "ERROR: couldn't determine btrfs subvolume ID"
+	snapper modify --default "${ROLLBACK_SNAPSHOT}"
+	if [ $? -ne 0 ]; then
+	    log_error "ERROR: setting default snapshot $ROLLBACK_SNAPSHOT failed!"
 	    quit 1
-	else
-	    btrfs subvolume set-default $BTRFS_ID /.snapshots
-	    if [ $? -ne 0 ]; then
-		log_error "ERROR: btrfs set-default $BTRFS_ID failed!"
-		quit 1
-	    fi
-	    # Create the trigger to re-register the system as new version after next
-	    # reboot.
-	    check_registration_on_next_reboot
 	fi
+	# Create the trigger to re-register the system as new version after next
+	# reboot.
+	check_registration_on_next_reboot
 	# Remove possible cleanup algo and re-add to list
 	if ! \( echo "${LAST_WORKING_SNAPSHOTS} ${UNUSED_SNAPSHOTS}" | grep --word-regexp --quiet "${ROLLBACK_SNAPSHOT}" \); then
 	    UNUSED_SNAPSHOTS="${UNUSED_SNAPSHOTS} ${ROLLBACK_SNAPSHOT}"
