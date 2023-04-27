@@ -1,4 +1,4 @@
-#! /bin/bash
+#!/bin/bash
 #
 #  Copyright Thorsten Kukuk <kukuk@suse.com>
 #  Copyright Petr Tesarik <ptesarik@suse.com>
@@ -30,12 +30,12 @@ function rebuild_kdumprd()
 {
     local output=$(mkdumprd -K "$kdump_kernel" -I "$kdump_initrd" 2>&1)
     if [ $? -ne 0 ] ; then
-	echo "$output"
-	return 1
+        echo "$output"
+        return 1
     fi
     if [ ! -e "$kdump_kernel" ]; then
         echo "$kdump_kernel does not exist!"
-	return 1
+        return 1
     fi
     if [ ! -e "$kdump_initrd" ]; then
         echo "$kdump_initrd does not exist!"
