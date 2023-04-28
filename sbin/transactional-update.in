@@ -1197,7 +1197,7 @@ if [ ${DO_ROLLBACK} -eq 1 ]; then
 	    check_registration_on_next_reboot
 	fi
 	# Remove possible cleanup algo and re-add to list
-	if ! \( echo "${LAST_WORKING_SNAPSHOTS} ${UNUSED_SNAPSHOTS}" | grep --word-regexp --quiet "${ROLLBACK_SNAPSHOT}" \); then
+	if ! ( echo "${LAST_WORKING_SNAPSHOTS} ${UNUSED_SNAPSHOTS}" | grep --word-regexp --quiet "${ROLLBACK_SNAPSHOT}" ); then
 	    UNUSED_SNAPSHOTS="${UNUSED_SNAPSHOTS} ${ROLLBACK_SNAPSHOT}"
 	    save_state_file 0
 	fi
