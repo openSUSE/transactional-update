@@ -500,6 +500,10 @@ for more information.
 	<option>last</option>. <option>last</option> will try to reset to the
 	latest working snapshot.
       </para>
+      <para>
+	This command can be combind with the <option>apply</option> command
+	to make the snapshot effective immediately.
+      </para>
     </listitem>
   </varlistentry>
   <varlistentry>

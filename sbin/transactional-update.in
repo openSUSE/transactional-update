@@ -312,6 +312,97 @@ teardown() {
     rm -rf ${SNAPSHOT_DIR}/run/*
 }
 
+do_apply() {
+    if [ -n "${SNAPSHOT_ID}" -o -n "${ROLLBACK_SNAPSHOT}" -o "${DEFAULT_SNAPSHOT_ID}" != "${CURRENT_SNAPSHOT_ID}" ]; then
+	NEW_DEFAULT_SNAPSHOT_ID=`btrfs subvolume get-default / | sed -e 's|.*.snapshots/\(.*\)/snapshot|\1|g'`
+	if ! APPLYWORKDIR="$(mktemp -d /tmp/transactional-update.apply.XXXXXXXX)"; then
+	    log_error "ERROR during apply: Temporary directory template failed."
+	fi
+	if ! mkdir "${APPLYWORKDIR}/mount"; then
+	    log_error "ERROR during apply: Couldn't create mount directory."
+	fi
+
+	sourcedevice="$(findmnt --target /usr --raw --noheadings --output SOURCE --nofsroot | tail -n 1)"
+	# Mount new snapshot as base
+	if ! mount "${sourcedevice}" "${APPLYWORKDIR}/mount"; then
+	    log_error "ERROR during apply: Mounting ${sourcedevice} to ${APPLYWORKDIR}/mount failed."
+	    quit 2
+	fi
+	# Mount /etc overlay
+	if [ "$(findmnt --noheadings --nofsroot --output FSTYPE /etc | tail -n 1)" == "overlay" ]; then
+	    if ! mount overlay -t overlay -o "$(findmnt --tab-file "${APPLYWORKDIR}/mount/etc/fstab" --noheadings --nofsroot --output OPTIONS /etc | sed 's/\/sysroot//g' | sed 's/:\/etc,/:\/.snapshots\/'${NEW_DEFAULT_SNAPSHOT_ID}'\/snapshot\/etc,/g')" "${APPLYWORKDIR}/mount/etc"; then
+		log_error "ERROR during apply: Mounting /etc overlay failed."
+		quit 2
+	    fi
+	fi
+	# Find and mount potential submounts
+	VISIBLEMOUNTS=(/usr /etc /boot)
+	for line in $(findmnt --raw --noheadings --nofsroot --output TARGET -d forward | grep -E "^/(usr|etc|boot)"); do
+	    for i in ${!VISIBLEMOUNTS[@]}; do
+		if [[ $line == ${VISIBLEMOUNTS[$i]} ]]; then
+		    while [ $i -lt ${#VISIBLEMOUNTS[@]} ]; do
+			if [[ ${VISIBLEMOUNTS[$i]} == ${line}* ]]; then
+			    unset -v VISIBLEMOUNTS[$i]
+			    VISIBLEMOUNTS=("${VISIBLEMOUNTS[@]}")
+			else
+			    ((i++))
+			fi
+		    done
+		    break
+		fi
+	    done
+	    VISIBLEMOUNTS+=(${line})
+	done
+	for dir in ${VISIBLEMOUNTS[@]}; do
+	    if [[ $dir =~ ^/(usr|etc|boot)$ ]]; then
+		continue;
+	    fi
+	    dir="$(echo -e ${dir})"
+	    if ! mount --bind "${dir}" "${APPLYWORKDIR}/mount/${dir}"; then
+		log_error "ERROR during apply: Bind-mounting ${dir} failed."
+		quit 2
+	    fi
+	done
+	if ! mount --make-rprivate "${APPLYWORKDIR}/mount"; then
+	    log_error "ERROR during apply: make-rprivate failed."
+	    quit 2
+	fi
+
+	log_info ""
+	log_info "Using default snapshot ${NEW_DEFAULT_SNAPSHOT_ID} to replace running system..."
+
+	# Mount new snapshot into running system
+	for rbinddir in usr etc boot; do
+	    log_info "Applying /${rbinddir}..."
+	    if ! mount --rbind "${APPLYWORKDIR}/mount/${rbinddir}" "/${rbinddir}"; then
+		log_error "ERROR during apply: Mounting /${rbinddir} failed!"
+		for dir in ${rbinddir_done}; do
+		    umount "/${dir}"
+		done
+		quit 2
+	    fi
+	    rbinddir_done="${rbinddir_done} ${rbinddir}"
+	done
+
+	umount --lazy "${APPLYWORKDIR}/mount"
+	rmdir "${APPLYWORKDIR}/mount"
+	rmdir "${APPLYWORKDIR}"
+
+	log_info "Executing systemctl daemon-reexec..."
+	systemctl daemon-reexec
+	log_info "Executing create_dirs_from_rpmdb..."
+	create_dirs_from_rpmdb
+	log_info "Executing systemd-tmpfiles --create..."
+	systemd-tmpfiles --create
+
+	log_info "=> Applied default snapshot as new base for running system!"
+	log_info "   Running processes will not be restarted automatically."
+    else
+	log_info ""
+	log_info "The default snapshot is active already."
+    fi
+}
+
 reboot_via_rebootmgr() {
     TELEM_PAYLOAD="${TELEM_PAYLOAD}\nreboot=rebootmgr"
     tukit reboot rebootmgr |& tee -a ${LOGFILE}
@@ -1221,8 +1312,13 @@ if [ ${DO_ROLLBACK} -eq 1 ]; then
 	NEED_REBOOT_WARNING=1
     fi
     if [ ${NEED_REBOOT_WARNING} -eq 1 ]; then
-	log_error "Please reboot to finish rollback!"
+	if [ ${DO_APPLY} -eq 1 ]; then
+	    do_apply
+	else
+	    log_error "Please reboot to finish rollback!"
+	fi
     fi
+    log_info "transactional-update finished"
     telem_finish 0
     exit 0
 fi
@@ -1603,95 +1699,8 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
     log_info "New default snapshot is #${SNAPSHOT_ID} (${SNAPSHOT_DIR})."
 fi
 
-if [ $DO_APPLY -eq 1 ]; then
-    if [ -n "${SNAPSHOT_ID}" -o "${DEFAULT_SNAPSHOT_ID}" != "${CURRENT_SNAPSHOT_ID}" ]; then
-	NEW_DEFAULT_SNAPSHOT_ID=`btrfs subvolume get-default / | sed -e 's|.*.snapshots/\(.*\)/snapshot|\1|g'`
-	if ! APPLYWORKDIR="$(mktemp -d /tmp/transactional-update.apply.XXXXXXXX)"; then
-	    log_error "ERROR during apply: Temporary directory template failed."
-	fi
-	if ! mkdir "${APPLYWORKDIR}/mount"; then
-	    log_error "ERROR during apply: Couldn't create mount directory."
-	fi
-
-	sourcedevice="$(findmnt --target /usr --raw --noheadings --output SOURCE --nofsroot | tail -n 1)"
-	# Mount new snapshot as base
-	if ! mount "${sourcedevice}" "${APPLYWORKDIR}/mount"; then
-	    log_error "ERROR during apply: Mounting ${sourcedevice} to ${APPLYWORKDIR}/mount failed."
-	    quit 2
-	fi
-	# Mount /etc overlay
-	if [ "$(findmnt --noheadings --nofsroot --output FSTYPE /etc | tail -n 1)" == "overlay" ]; then
-	    if ! mount overlay -t overlay -o "$(findmnt --tab-file "${APPLYWORKDIR}/mount/etc/fstab" --noheadings --nofsroot --output OPTIONS /etc | sed 's/\/sysroot//g' | sed 's/:\/etc,/:\/.snapshots\/'${NEW_DEFAULT_SNAPSHOT_ID}'\/snapshot\/etc,/g')" "${APPLYWORKDIR}/mount/etc"; then
-		log_error "ERROR during apply: Mounting /etc overlay failed."
-		quit 2
-	    fi
-	fi
-	# Find and mount potential submounts
-	VISIBLEMOUNTS=(/usr /etc /boot)
-	for line in $(findmnt --raw --noheadings --nofsroot --output TARGET -d forward | grep -E "^/(usr|etc|boot)"); do
-	    for i in ${!VISIBLEMOUNTS[@]}; do
-		if [[ $line == ${VISIBLEMOUNTS[$i]} ]]; then
-		    while [ $i -lt ${#VISIBLEMOUNTS[@]} ]; do
-			if [[ ${VISIBLEMOUNTS[$i]} == ${line}* ]]; then
-			    unset -v VISIBLEMOUNTS[$i]
-			    VISIBLEMOUNTS=("${VISIBLEMOUNTS[@]}")
-			else
-			    ((i++))
-			fi
-		    done
-		    break
-		fi
-	    done
-	    VISIBLEMOUNTS+=(${line})
-	done
-	for dir in ${VISIBLEMOUNTS[@]}; do
-	    if [[ $dir =~ ^/(usr|etc|boot)$ ]]; then
-		continue;
-	    fi
-	    dir="$(echo -e ${dir})"
-	    if ! mount --bind "${dir}" "${APPLYWORKDIR}/mount/${dir}"; then
-		log_error "ERROR during apply: Bind-mounting ${dir} failed."
-		quit 2
-	    fi
-	done
-	if ! mount --make-rprivate "${APPLYWORKDIR}/mount"; then
-	    log_error "ERROR during apply: make-rprivate failed."
-	    quit 2
-	fi
-
-	log_info ""
-	log_info "Using default snapshot ${NEW_DEFAULT_SNAPSHOT_ID} to replace running system..."
-
-	# Mount new snapshot into running system
-	for rbinddir in usr etc boot; do
-	    log_info "Applying /${rbinddir}..."
-	    if ! mount --rbind "${APPLYWORKDIR}/mount/${rbinddir}" "/${rbinddir}"; then
-		log_error "ERROR during apply: Mounting /${rbinddir} failed!"
-		for dir in ${rbinddir_done}; do
-		    umount "/${dir}"
-		done
-		quit 2
-	    fi
-	    rbinddir_done="${rbinddir_done} ${rbinddir}"
-	done
-
-	umount --lazy "${APPLYWORKDIR}/mount"
-	rmdir "${APPLYWORKDIR}/mount"
-	rmdir "${APPLYWORKDIR}"
-
-	log_info "Executing systemctl daemon-reexec..."
-	systemctl daemon-reexec
-	log_info "Executing create_dirs_from_rpmdb..."
-	create_dirs_from_rpmdb
-	log_info "Executing systemd-tmpfiles --create..."
-	systemd-tmpfiles --create
-
-	log_info "=> Applied default snapshot as new base for running system!"
-	log_info "   Running processes will not be restarted automatically."
-    else
-	log_info ""
-	log_info "The default snapshot is active already."
-    fi
+if [ ${DO_APPLY} -eq 1 -a ${EXITCODE} -eq 0 ]; then
+    do_apply
 fi
 
 log_info "transactional-update finished"
