@@ -1522,7 +1522,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	    # Rebuild grub.cfg if /etc/os-release changes, could change grub
 	    # menu output, too.
             cmp -s /etc/os-release ${SNAPSHOT_DIR}/etc/os-release
-	    if [ $? -ne 0 ]; then
+	    if [ $? -ne 0 -a -x /usr/sbin/grub2-mkconfig ]; then
 	        REWRITE_GRUB_CFG=1
 	    fi
 	    source <(grep VERSION_ID ${SNAPSHOT_DIR}/etc/os-release)

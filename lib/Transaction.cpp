@@ -185,10 +185,12 @@ void Transaction::impl::snapMount() {
     dirsToMount.push_back(std::move(mntVarTmp));
 
     // Mount platform specific GRUB directories for GRUB updates
-    for (auto& path: fs::directory_iterator("/boot/grub2")) {
-        if (fs::is_directory(path)) {
-            if (BindMount{path.path()}.isMount())
-                dirsToMount.push_back(std::make_unique<BindMount>(path.path()));
+    if (fs::exists("/boot/grub2")) {
+        for (auto& path: fs::directory_iterator("/boot/grub2")) {
+            if (fs::is_directory(path)) {
+                if (BindMount{path.path()}.isMount())
+                    dirsToMount.push_back(std::make_unique<BindMount>(path.path()));
+            }
         }
     }
     if (BindMount{"/boot/efi"}.isMount())
