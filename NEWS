@@ -2,6 +2,20 @@ transactional-update NEWS -- history of user-visible changes.
 
 Copyright (C) 2016-2022 Thorsten Kukuk, Ignaz Forster et al.
 
+Version 4.2.0
+* Implement "apply" command to switch into new snapshot directly
+* Use new snapper functionality to set default snapshot - this makes it
+  possible to execute hooks as requested in [poo#127160],
+  [gh#openSUSE/transactional-update#85] and
+  [gh#openSUSE/transactional-update#105].
+* Don't hardcode GRUB2 [gh#openSUSE/transactional-update#85] /
+  [poo#127154]
+* Fix cleanup handler
+* Fix unmounting temporary mounts
+* Prevent loosing track of snapshots in certain rollback scenarios - these
+  would not be marked for deletion otherwise
+* Document "notify" reboot method
+
 Version 4.1.5
 * Add support for configuration file snippets
 
