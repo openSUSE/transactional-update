@@ -141,14 +141,22 @@ bool Snapper::isReadOnly() {
 }
 
 void Snapper::setDefault() {
-    callSnapper("modify --default " + snapshotId);
+    try {
+        callSnapper("modify --default " + snapshotId);
+    } catch (const ExecutionException &e) {
+        Util::exec("btrfs subvolume set-default " + std::string(getRoot()));
+    }
 }
 
 void Snapper::setReadOnly(bool readonly) {
-    if (readonly == true)
-        callSnapper("modify --read-only " + snapshotId);
-    else
-        callSnapper("modify --read-write " + snapshotId);
+    try {
+        if (readonly == true)
+            callSnapper("modify --read-only " + snapshotId);
+        else
+            callSnapper("modify --read-write " + snapshotId);
+    } catch (const ExecutionException &e) {
+        Util::exec("btrfs property set " + std::string(getRoot()) + " ro " + (readonly ? "true" : "false"));
+    }
 }
 
 /* Helper methods */

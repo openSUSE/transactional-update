@@ -1288,12 +1288,12 @@ if [ ${DO_ROLLBACK} -eq 1 ]; then
 
     log_info "Rollback to snapshot ${ROLLBACK_SNAPSHOT}..."
 
+    snapper rollback "${ROLLBACK_SNAPSHOT}"
+    if [ $? -ne 0 ]; then
+	log_error "ERROR: Rollback to snapshot $ROLLBACK_SNAPSHOT failed!"
+	quit 1
+    fi
     if [ ${RO_ROOT} == "true" ]; then
-	snapper modify --default "${ROLLBACK_SNAPSHOT}"
-	if [ $? -ne 0 ]; then
-	    log_error "ERROR: setting default snapshot $ROLLBACK_SNAPSHOT failed!"
-	    quit 1
-	fi
 	# Create the trigger to re-register the system as new version after next
 	# reboot.
 	check_registration_on_next_reboot
@@ -1302,13 +1302,11 @@ if [ ${DO_ROLLBACK} -eq 1 ]; then
 	    UNUSED_SNAPSHOTS="${UNUSED_SNAPSHOTS} ${ROLLBACK_SNAPSHOT}"
 	    save_state_file 0
 	fi
-	snapper modify -c '' ${ROLLBACK_SNAPSHOT}
 
 	if [ ${NEED_REBOOT_WARNING} -eq 0 ]; then
 	    rm -f "${NEEDS_RESTARTING_FILE}"
 	fi
     else
-	snapper rollback ${ROLLBACK_SNAPSHOT}
 	NEED_REBOOT_WARNING=1
     fi
     if [ ${NEED_REBOOT_WARNING} -eq 1 ]; then
