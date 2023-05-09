@@ -2,6 +2,11 @@ transactional-update NEWS -- history of user-visible changes.
 
 Copyright (C) 2016-2022 Thorsten Kukuk, Ignaz Forster et al.
 
+Version 4.2.1
+* Add backwards compatibility with older snapper releases, otherwise
+  the selfupdate may break if the installed snapper version is too old;
+  requires snapper 0.8.10 as a minimal base (for rollbacks) now
+
 Version 4.2.0
 * Implement "apply" command to switch into new snapshot directly
 * Use new snapper functionality to set default snapshot - this makes it
