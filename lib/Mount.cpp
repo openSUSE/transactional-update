@@ -17,6 +17,7 @@ Mount::Mount(std::string mountpoint, unsigned long flags, bool umount)
     : mnt_table{mnt_new_table()}, mountpoint{std::move(mountpoint)},
       flags{std::move(flags)}, umount{std::move(umount)}
 {
+    mnt_init_debug(0);
 }
 
 Mount::Mount(Mount&& other) noexcept
