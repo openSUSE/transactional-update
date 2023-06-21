@@ -181,6 +181,10 @@ void Mount::mount(std::string prefix) {
         throw std::runtime_error{"Setting mount context for '" + mountpoint + "' failed: " + std::to_string(rc)};
     }
 
+    if ((rc = mnt_context_set_options(mnt_cxt, mnt_fs_get_options(mnt_fs))) != 0) {
+        throw std::runtime_error{"Setting options for '" + mountpoint + "' failed: " + std::to_string(rc)};
+    }
+
     if ((rc = mnt_context_set_mflags(mnt_cxt, flags)) != 0) {
         throw std::runtime_error{"Setting mount flags for '" + mountpoint + "' failed: " + std::to_string(rc)};
     }
