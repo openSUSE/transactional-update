@@ -2,6 +2,14 @@ transactional-update NEWS -- history of user-visible changes.
 
 Copyright (C) 2016-2022 Thorsten Kukuk, Ignaz Forster et al.
 
+Version 4.3.0
+* Replace custom tu-rebuild-kdump-initrd with call to mkdumprd
+  [gh#openSUSE/transactional-update#107].
+* Add support for libmount 2.39. The behaviour change was not intended
+  and will be changed in 2.39.1 (see [gh#util-linux/util-linux#2326],
+  but it was easy to fix it anyway.
+* Honor LIBMOUNT_DEBUG variable for additional output.
+
 Version 4.2.1
 * Add backwards compatibility with older snapper releases, otherwise
   the selfupdate may break if the installed snapper version is too old;
