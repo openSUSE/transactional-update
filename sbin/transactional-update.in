@@ -871,13 +871,13 @@ while [ 1 ]; do
 	    DO_CLEANUP_OVERLAYS=1
 	    shift
 	    ;;
-	dup)
+	dist-upgrade|dup)
 	    DO_DUP=1
 	    ZYPPER_ARG="--no-cd dup"
 	    shift
 	    TELEM_CLASS="upgrade"
 	    ;;
-        up)
+        update|up)
 	    ZYPPER_ARG=up
 	    shift
 	    TELEM_CLASS="update"
