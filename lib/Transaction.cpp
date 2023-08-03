@@ -370,15 +370,18 @@ int Transaction::impl::runCommand(char* argv[], bool inChroot, std::string* outp
         if (output != nullptr) {
             ret = dup2(pipefd[1], STDOUT_FILENO);
             if (ret < 0) {
-                throw std::runtime_error{"Redirecting stdout failed: " + std::string(strerror(errno))};
+                tulog.error("Redirecting stdout failed: " + std::string(strerror(errno)));
+                _exit(errno);
             }
             ret = dup2(pipefd[1], STDERR_FILENO);
             if (ret < 0) {
-                throw std::runtime_error{"Redirecting stderr failed: " + std::string(strerror(errno))};
+                tulog.error("Redirecting stderr failed: " + std::string(strerror(errno)));
+                _exit(errno);
             }
             ret = close(pipefd[0]);
             if (ret < 0) {
-                throw std::runtime_error{"Closing pipefd failed: " + std::string(strerror(errno))};
+                tulog.error("Closing pipefd failed: " + std::string(strerror(errno)));
+                _exit(errno);
             }
         }
 
@@ -387,28 +390,34 @@ int Transaction::impl::runCommand(char* argv[], bool inChroot, std::string* outp
                 tulog.info("Warning: Couldn't set working directory: ", std::string(strerror(errno)));
             }
             if (chroot(bindDir.c_str()) < 0) {
-                throw std::runtime_error{"Chrooting to " + bindDir + " failed: " + std::string(strerror(errno))};
+                tulog.error("Chrooting to " + bindDir + " failed: " + std::string(strerror(errno)));
+                _exit(errno);
             }
             // Prevent mounts from within the chroot environment influence the tukit organized mounts
             if (unshare(CLONE_NEWNS) < 0) {
-                throw std::runtime_error{"Creating new mount namespace failed: " + std::string(strerror(errno))};
+                tulog.error("Creating new mount namespace failed: " + std::string(strerror(errno)));
+                _exit(errno);
             }
             if (mount("none", "/", NULL, MS_REC|MS_PRIVATE, NULL) < 0) {
-                 throw std::runtime_error{"Setting private mount for command execution failed: " + std::string(strerror(errno))};
+                tulog.error("Setting private mount for command execution failed: " + std::string(strerror(errno)));
+                _exit(errno);
             }
         }
 
         // Set indicator for RPM pre/post sections to detect whether we run in a
         // transactional update
         if (setenv("TRANSACTIONAL_UPDATE", "true", 1) < 0) {
-            throw std::runtime_error{"Setting environment variable TRANSACTIONAL_UPDATE failed: " + std::string(strerror(errno))};
+            tulog.error("Setting environment variable TRANSACTIONAL_UPDATE failed: " + std::string(strerror(errno)));
+            _exit(errno);
         }
         if (setenv("TRANSACTIONAL_UPDATE_ROOT", snapshot->getRoot().c_str(), 1)) {
-            throw std::runtime_error{"Setting environment variable TRANSACTIONAL_UPDATE_ROOT failed: " + std::string(strerror(errno))};
+            tulog.error("Setting environment variable TRANSACTIONAL_UPDATE_ROOT failed: " + std::string(strerror(errno)));
+            _exit(errno);
         }
 
         if (execvp(argv[0], (char* const*)argv) < 0) {
-            throw std::runtime_error{"Calling " + std::string(argv[0]) + " failed: " + std::string(strerror(errno))};
+            tulog.error("Calling " + std::string(argv[0]) + " failed: " + std::string(strerror(errno)));
+            _exit(errno);
         }
         ret = -1;
     } else {
