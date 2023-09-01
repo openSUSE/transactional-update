@@ -37,7 +37,7 @@ Reboot::Reboot(std::string method) {
     } else if (method == "kured") {
         command  = "touch /var/run/reboot-required";
     } else if (method == "kexec") {
-        command  = "kexec -l /boot/vmlinuz --initrd=/boot/initrd --reuse-cmdline;";
+        command  = "kexec --kexec-syscall-auto -l /boot/vmlinuz --initrd=/boot/initrd --reuse-cmdline;";
         command += "sync;";
         command += "systemctl kexec;";
     } else if (method == "none") {
