@@ -359,6 +359,7 @@ for more information.
 <refsect3 id='ni_pkg_commands'><title>Non-interactive Package Commands</title>
 <variablelist>
   <varlistentry>
+    <term><option>dist-upgrade</option></term>
     <term><option>dup</option></term>
     <listitem>
       <para>
@@ -370,6 +371,7 @@ for more information.
     </listitem>
   </varlistentry>
   <varlistentry>
+    <term><option>update</option></term>
     <term><option>up</option></term>
     <listitem>
       <para>
