@@ -290,6 +290,20 @@ for more information.
     </listitem>
   </varlistentry>
   <varlistentry>
+    <term><option>setup-fips</option></term>
+    <listitem>
+      <para>
+	Install the FIPS pattern package and configure the kernel command
+	line parameter to activate FIPS mode.
+      </para>
+      <para>
+	This command can not be combined with any
+	<link linkend='pkg_commands'>Package Command</link> other than
+	<option>install</option>.
+      </para>
+    </listitem>
+  </varlistentry>
+  <varlistentry>
     <term><option>setup-kdump</option> <optional>--crashkernel=<replaceable>low</replaceable>,<replaceable>high</replaceable></optional></term>
     <listitem>
       <para>

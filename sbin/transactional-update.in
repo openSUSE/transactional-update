@@ -47,6 +47,7 @@ REBOOT_AFTERWARDS=0
 REBOOT_METHOD="auto"
 RUN_CMD=""
 RUN_SHELL=0
+SETUP_FIPS=0
 SETUP_KDUMP=0
 SETUP_SELINUX=0
 USE_TELEMETRICS=0
@@ -150,6 +151,7 @@ usage() {
     echo "shell                      Open rw shell in new snapshot before exiting"
     echo "reboot                     Reboot after update"
     echo "run <cmd>                  Run a command in a new snapshot"
+    echo "setup-fips                 Install and enable FIPS pattern package"
     echo "setup-kdump [--crashkernel=<low>,<high>]  Configure and enable kdump"
     echo "setup-selinux              Install targeted SELinux policy and enable it"
     echo ""
@@ -1011,6 +1013,11 @@ while [ 1 ]; do
 	    RUN_CMD=("$@")
 	    break
 	    ;;
+	setup-fips)
+	    test -z "$TELEM_CLASS" && TELEM_CLASS="fips"
+	    SETUP_FIPS=1
+	    shift
+	    ;;
 	setup-kdump)
 	    test -z "$TELEM_CLASS" && TELEM_CLASS="setup-kdump"
 	    SETUP_KDUMP=1
@@ -1123,6 +1130,24 @@ if [ "${VERBOSITY}" -eq 1 ]; then
     if [ -n "${ZYPPER_ARG}" ]; then
 	ZYPPER_ARG="--quiet ${ZYPPER_ARG}"
     fi
+fi
+
+# Setup FIPS
+if [ "${SETUP_FIPS}" -eq 1 ]; then
+    if [ -n "${ZYPPER_ARG}" -a "${ZYPPER_ARG}" != "install" ]; then
+	log_error "ERROR: Cannot combine 'setup-fips' with zypper command '${ZYPPER_ARG}'"
+	exit 1
+    fi
+    # Check if we need to install packages
+    fipspattern="$(rpm -q --whatprovides 'pattern()' --provides | grep '^pattern() = fips$')"
+    if [ -z "${fipspattern}" ]; then
+	ZYPPER_ARG_PKGS+=("pattern() = fips")
+    fi
+    if [ ${#ZYPPER_ARG_PKGS[@]} -ne 0 ]; then
+	ZYPPER_ARG="install"
+    fi
+    REWRITE_INITRD=1
+    REBUILD_KDUMP_INITRD=1
 fi
 
 # Setup SELinux
@@ -1538,6 +1563,14 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	ETC_BASE="/var/lib/overlay/${SNAPSHOT_ID}"
     else
 	ETC_BASE="${SNAPSHOT_DIR}"
+    fi
+    if [ ${SETUP_FIPS} -eq 1 ]; then
+	# Adjust grub configuration
+
+	# Check if we don't have selinux already enabled.
+	grep ^GRUB_CMDLINE_LINUX_DEFAULT /etc/default/grub | grep -q -w fips || \
+	    tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" sed -i -e 's|\(^GRUB_CMDLINE_LINUX_DEFAULT=.*\)"|\1 fips=1"|g' "/etc/default/grub"
+	REWRITE_GRUB_CFG=1
     fi
     if [ ${SETUP_SELINUX} -eq 1 ]; then
 	# Adjust grub configuration
