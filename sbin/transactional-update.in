@@ -1576,7 +1576,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	# Adjust grub configuration
 
 	# Check if we don't have selinux already enabled.
-	grep ^GRUB_CMDLINE_LINUX_DEFAULT /etc/default/grub | grep -q security=selinux || \
+	grep ^GRUB_CMDLINE_LINUX_DEFAULT /etc/default/grub | grep -q -w security=selinux || \
 	    tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" sed -i -e 's|\(^GRUB_CMDLINE_LINUX_DEFAULT=.*\)"|\1 security=selinux selinux=1"|g' "/etc/default/grub"
 	REWRITE_GRUB_CFG=1
 
