@@ -2,6 +2,20 @@ transactional-update NEWS -- history of user-visible changes.
 
 Copyright (C) 2016-2022 Thorsten Kukuk, Ignaz Forster et al.
 
+Version 4.4.0
+* t-u: Introduce setup-fips command [jsc#SMO-194]
+* libtukit: Always set a cleanup algorithm for snapshots - when using API,
+  D-Bus interface or tukit the snapshots will be automatically cleaned up
+  by snapper after some time now; in the past only snapshots created by
+  the transactional-update shell script would be cleanup after, and only
+  after a `t-u cleanup` run.
+* tukit: enable kexec's syscall detection feature
+* tukit: Don't throw exceptions from the child process after fork
+* tukitd: Rename service file to org.opensuse.tukit.service
+* tukitd: Allow querying DBus Properties [boo#1214707]
+* t-u: Add support for fully written-out update commands
+* t-u: Improve detection of existing kernel parameters
+
 Version 4.3.0
 * Replace custom tu-rebuild-kdump-initrd with call to mkdumprd
   [gh#openSUSE/transactional-update#107].
