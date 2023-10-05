@@ -17,6 +17,7 @@
 #include <selinux/selinux.h>
 #include <selinux/context.h>
 #include <sstream>
+#include <sys/stat.h>
 #include <unistd.h>
 
 using std::exception;
@@ -185,7 +186,16 @@ void Overlay::create(string base, string snapshot, fs::path snapRoot) {
 
     // Remove overlay directory if it already exists (e.g. after the snapshot was deleted)
     fs::remove_all(upperdir);
-    fs::create_directories(upperdir);
+    fs::create_directory(upperdir, "/etc");
+    // Explicitly copy the current /etc permissions, even if the umask was more restrictive
+    struct stat status;
+    tulog.info(parent.upperdir.string());
+    if (stat(parent.upperdir.c_str(), &status) != 0) {
+        throw std::runtime_error{"could not get permissions of /etc: " + std::string(strerror(errno))};
+    }
+    if (chmod(upperdir.c_str(), status.st_mode) != 0) {
+        throw std::runtime_error{"could not set permissions of " + upperdir.string() + ": " + std::string(strerror(errno))};
+    }
 
     char* context = NULL;
     if (getfilecon("/etc", &context) > 0) {
