@@ -2,6 +2,9 @@ transactional-update NEWS -- history of user-visible changes.
 
 Copyright (C) 2016-2022 Thorsten Kukuk, Ignaz Forster et al.
 
+Version 4.1.6
+* Use permissions of real /etc when creating overlay
+
 Version 4.1.5
 * Add support for configuration file snippets
 
