@@ -249,6 +249,7 @@ save_state_file() {
 rebuild_kdump_initrd() {
     if tukit -q call "$1" systemctl is-enabled --quiet kdump.service; then
 	tukit ${TUKIT_OPTS} call "$1" /sbin/mkdumprd |& tee -a ${LOGFILE} 1>&${origstdout}
+	return ${PIPESTATUS[0]}
     elif [ ${SETUP_KDUMP} -ge 1 ]; then
 	log_info "INFO: Requested rebuild of kdump initrd, but kdump is not enabled."
 	log_info "      Did you mean 'setup-kdump'?"
