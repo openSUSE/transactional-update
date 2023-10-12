@@ -144,8 +144,10 @@ for more information.
 
 <refsect1 id='commands'><title>COMMANDS</title>
 <para>
-  If none of the following commands is given <option>up</option> will be
-  assumed.
+  If none of the following commands is given, the value of
+  <option>UPDATE_METHOD</option> in
+  <citerefentry><refentrytitle>transactional-update.conf</refentrytitle><manvolnum>5</manvolnum></citerefentry>
+  will be assumed.
 </para>
 <refsect2 id='general_commands'><title>General Commands</title>
 <para>

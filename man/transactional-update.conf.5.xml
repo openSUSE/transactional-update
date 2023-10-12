@@ -165,7 +165,9 @@
         <listitem>
           <para>
 	    Specify the zypper update method to use. This value is used for
-	    <citerefentry><refentrytitle>transactional-update.service</refentrytitle><manvolnum>8</manvolnum></citerefentry>.
+	    <citerefentry><refentrytitle>transactional-update.service</refentrytitle><manvolnum>8</manvolnum></citerefentry>
+	    and in case no command is specified when calling
+	    <literal>transactional-update</literal>.
 	  </para>
           <variablelist>
             <varlistentry>

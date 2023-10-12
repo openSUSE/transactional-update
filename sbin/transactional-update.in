@@ -50,6 +50,7 @@ RUN_SHELL=0
 SETUP_FIPS=0
 SETUP_KDUMP=0
 SETUP_SELINUX=0
+UPDATE_METHOD="up"
 USE_TELEMETRICS=0
 TELEM_PAYLOAD="PACKAGE_NAME=transactional-update\nPACKAGE_VERSION=@VERSION@"
 TELEM_CLASS=""
@@ -857,271 +858,274 @@ show_snapshot_status() {
 
 ORIG_ARGS=("$@")
 
-while [ 1 ]; do
-    if [ $# -eq 0 ]; then
-	break
-    fi
-
-    case "$1" in
-	cleanup)
-	    DO_CLEANUP_OVERLAYS=1
-	    DO_CLEANUP_SNAPSHOTS=1
-	    shift
-	    ;;
-	cleanup-snapshots)
-	    DO_CLEANUP_SNAPSHOTS=1
-	    shift
-	    ;;
-	cleanup-overlays)
-	    DO_CLEANUP_OVERLAYS=1
-	    shift
-	    ;;
-	dist-upgrade|dup)
-	    DO_DUP=1
-	    ZYPPER_ARG="--no-cd dup"
-	    shift
-	    TELEM_CLASS="upgrade"
-	    ;;
-        update|up)
-	    ZYPPER_ARG=up
-	    shift
-	    TELEM_CLASS="update"
-	    ;;
-        patch)
-	    ZYPPER_ARG="--non-interactive-include-reboot-patches patch"
-	    shift
-	    TELEM_CLASS="patch"
-	    ;;
-	ptf|pkg|package)
-	    TELEM_CLASS="package"
-	    shift
-	    if [ $# -eq 0 ]; then
-		usage 1
-	    fi
-            # Interactively run installing PTFs
-            ZYPPER_NONINTERACTIVE="${FORCE_NONINTERACTIVE:-}"
-	    case "$1" in
-		install|in)
-		    ZYPPER_ARG="install"
-		    shift
-		    ;;
-		remove|rm)
-		    ZYPPER_ARG="remove"
-		    if [ -n "${ZYPPER_NONINTERACTIVE}" ]; then
-			ZYPPER_NONINTERACTIVE="-y"
-		    fi
-		    shift
-		    ;;
-		update|up)
-		    ZYPPER_ARG="up"
-		    shift
-		    ;;
-		*)
-		    usage 1;
-		    ;;
-	    esac
-	    DO_CALLEXT=1
-
-	    if [ $# -eq 0 ]; then
-		usage 1
-	    fi
-
-	    while [ 1 ]; do
-		if [ $# -eq 0 ]; then
-		    break;
-		else
-		    ZYPPER_ARG_PKGS+=("$1");
-		    shift
-		fi
-	    done
-	    ;;
-	migration)
-	    TELEM_CLASS="migration"
-	    __NO_RESET=0
-	    DO_MIGRATION=1
-	    ZYPPER_ARG="migration --no-snapshots --no-selfupdate"
-	    if [ -n "${FORCE_NONINTERACTIVE}" ]; then
-		# non interative option is named different for
-		# different commands ...
-		ZYPPER_NONINTERACTIVE="--non-interactive --auto-agree-with-licenses"
-	    else
-		ZYPPER_NONINTERACTIVE=""
-	    fi
-	    shift
-	    ;;
-	bootloader)
-	    test -z "$TELEM_CLASS" && TELEM_CLASS="bootloader"
-	    REWRITE_BOOTLOADER=1
-	    REWRITE_GRUB_CFG=1
-	    shift
-	    ;;
-	grub.cfg)
-	    test -z "$TELEM_CLASS" && TELEM_CLASS="bootloader"
-	    REWRITE_GRUB_CFG=1
-	    shift
-	    ;;
-	shell)
-	    test -z "$TELEM_CLASS" && TELEM_CLASS="shell"
-	    RUN_SHELL=1
-	    shift
-	    if [ "$1" = "-c" ]; then
-		if [ -z "$2" ]; then
-		    SHELL_CMD="-"
-		else
-		    SHELL_CMD="$2"
-		    shift
-		fi
-		shift
-	    fi
-	    ;;
-	initrd)
-	    test -z "$TELEM_CLASS" && TELEM_CLASS="initrd"
-	    REWRITE_INITRD=1
-	    REBUILD_KDUMP_INITRD=1
-	    shift
-	    ;;
-	kdump)
-	    test -z "$TELEM_CLASS" && TELEM_CLASS="kdump"
-	    REBUILD_KDUMP_INITRD=1
-	    SETUP_KDUMP=2
-	    shift
-	    ;;
-	reboot)
-	    REBOOT_AFTERWARDS=1
-	    shift
-	    ;;
-	rollback)
-	    TELEM_CLASS="rollback"
-	    DO_ROLLBACK=1
-	    DO_SELF_UPDATE=0
-	    shift
-	    if [ $# -eq 1 ]; then
-		ROLLBACK_SNAPSHOT=$1
-		shift
-	    fi
-	    ;;
-	apply)
-	    DO_APPLY=1
-	    shift
-	    ;;
-	run)
-	    test -z "$TELEM_CLASS" && TELEM_CLASS="shell"
-	    DO_RUN=1
-	    shift
-
-	    # Collect arguments for run
-	    if [ $# -eq 0 ]; then
-		usage 1
-	    fi
-
-	    RUN_CMD=("$@")
+parse_args() {
+    while [ 1 ]; do
+	if [ $# -eq 0 ]; then
 	    break
-	    ;;
-	setup-fips)
-	    test -z "$TELEM_CLASS" && TELEM_CLASS="fips"
-	    SETUP_FIPS=1
-	    shift
-	    ;;
-	setup-kdump)
-	    test -z "$TELEM_CLASS" && TELEM_CLASS="setup-kdump"
-	    SETUP_KDUMP=1
-	    shift
-	    if [[ $1 == --crashkernel* ]]; then
-		if ! [[ $1 =~ ^--crashkernel=[[:digit:]]+,[[:digit:]]+ ]]; then
-		    echo "Invalid --crashkernel syntax"
+	fi
+
+	case "$1" in
+	    cleanup)
+		DO_CLEANUP_OVERLAYS=1
+		DO_CLEANUP_SNAPSHOTS=1
+		shift
+		;;
+	    cleanup-snapshots)
+		DO_CLEANUP_SNAPSHOTS=1
+		shift
+		;;
+	    cleanup-overlays)
+		DO_CLEANUP_OVERLAYS=1
+		shift
+		;;
+	    dist-upgrade|dup)
+		DO_DUP=1
+		ZYPPER_ARG="--no-cd dup"
+		shift
+		TELEM_CLASS="upgrade"
+		;;
+	    update|up)
+		ZYPPER_ARG=up
+		shift
+		TELEM_CLASS="update"
+		;;
+	    patch)
+		ZYPPER_ARG="--non-interactive-include-reboot-patches patch"
+		shift
+		TELEM_CLASS="patch"
+		;;
+	    ptf|pkg|package)
+		TELEM_CLASS="package"
+		shift
+		if [ $# -eq 0 ]; then
 		    usage 1
 		fi
-		KDUMP_LOW="$(echo "$1" | cut -d '=' -f 2 | cut -d ',' -f 1)"
-		KDUMP_HIGH="$(echo "$1" | cut -d '=' -f 2 | cut -d ',' -f 2)"
-		shift
-	    fi
-	    ;;
-	setup-selinux)
-	    test -z "$TELEM_CLASS" && TELEM_CLASS="selinux"
-	    SETUP_SELINUX=1
-	    shift
-	    ;;
-	status)
-	    DO_STATUS=1
-	    DO_SELF_UPDATE=0
-	    shift
-	    while [ 1 ]; do
-		[ $# -eq 0 ] && break
+		# Interactively run installing PTFs
+		ZYPPER_NONINTERACTIVE="${FORCE_NONINTERACTIVE:-}"
 		case "$1" in
-		    last)
-			DO_STATUS_LAST=1
+		    install|in)
+			ZYPPER_ARG="install"
+			shift
+			;;
+		    remove|rm)
+			ZYPPER_ARG="remove"
+			if [ -n "${ZYPPER_NONINTERACTIVE}" ]; then
+		    ZYPPER_NONINTERACTIVE="-y"
+			fi
+			shift
+			;;
+		    update|up)
+			ZYPPER_ARG="up"
 			shift
 			;;
 		    *)
 			usage 1;
 			;;
 		esac
-	    done
-	    ;;
-	-i|--interactive)
-	    ZYPPER_NONINTERACTIVE=""
-	    shift
-	    ;;
-	-n|--non-interactive)
-	    FORCE_NONINTERACTIVE="${ZYPPER_NONINTERACTIVE}"
-	    shift
-	    ;;
-	-c|--continue)
-	    # Check whether we got an optional snapshot number argument
-	    if [[ $2 =~ ^[0-9]+$ ]]; then
-		BASE_SNAPSHOT_ID="$2"
+		DO_CALLEXT=1
+
+		if [ $# -eq 0 ]; then
+		    usage 1
+		fi
+
+		while [ 1 ]; do
+		    if [ $# -eq 0 ]; then
+			break;
+		    else
+			ZYPPER_ARG_PKGS+=("$1");
+			shift
+		    fi
+		done
+		;;
+	    migration)
+		TELEM_CLASS="migration"
+		__NO_RESET=0
+		DO_MIGRATION=1
+		ZYPPER_ARG="migration --no-snapshots --no-selfupdate"
+		if [ -n "${FORCE_NONINTERACTIVE}" ]; then
+		    # non interative option is named different for
+		    # different commands ...
+		    ZYPPER_NONINTERACTIVE="--non-interactive --auto-agree-with-licenses"
+		else
+		    ZYPPER_NONINTERACTIVE=""
+		fi
 		shift
-	    else
-		BASE_SNAPSHOT_ID="default"
-	    fi
-	    shift
-	    ;;
-	--no-selfupdate)
-	    DO_SELF_UPDATE=0
-	    shift
-	    ;;
-	-d|--drop-if-no-change)
-	    TUKIT_OPTS="${TUKIT_OPTS} --discard"
-	    shift
-	    ;;
-	--quiet)
-	    VERBOSITY=1
-	    TUKIT_OPTS="${TUKIT_OPTS} --quiet"
-	    DRACUT_OPTS="${DRACUT_OPTS} --quiet"
-	    # ZYPPER_ARG handled below
-	    shift
-	    ;;
-	register)
-	    DO_REGISTRATION=1
-	    shift
+		;;
+	    bootloader)
+		test -z "$TELEM_CLASS" && TELEM_CLASS="bootloader"
+		REWRITE_BOOTLOADER=1
+		REWRITE_GRUB_CFG=1
+		shift
+		;;
+	    grub.cfg)
+		test -z "$TELEM_CLASS" && TELEM_CLASS="bootloader"
+		REWRITE_GRUB_CFG=1
+		shift
+		;;
+	    shell)
+		test -z "$TELEM_CLASS" && TELEM_CLASS="shell"
+		RUN_SHELL=1
+		shift
+		if [ "$1" = "-c" ]; then
+		    if [ -z "$2" ]; then
+			SHELL_CMD="-"
+		    else
+			SHELL_CMD="$2"
+			shift
+		    fi
+		    shift
+		fi
+		;;
+	    initrd)
+		test -z "$TELEM_CLASS" && TELEM_CLASS="initrd"
+		REWRITE_INITRD=1
+		REBUILD_KDUMP_INITRD=1
+		shift
+		;;
+	    kdump)
+		test -z "$TELEM_CLASS" && TELEM_CLASS="kdump"
+		REBUILD_KDUMP_INITRD=1
+		SETUP_KDUMP=2
+		shift
+		;;
+	    reboot)
+		REBOOT_AFTERWARDS=1
+		shift
+		;;
+	    rollback)
+		TELEM_CLASS="rollback"
+		DO_ROLLBACK=1
+		DO_SELF_UPDATE=0
+		shift
+		if [ $# -eq 1 ]; then
+		    ROLLBACK_SNAPSHOT=$1
+		    shift
+		fi
+		;;
+	    apply)
+		DO_APPLY=1
+		shift
+		;;
+	    run)
+		test -z "$TELEM_CLASS" && TELEM_CLASS="shell"
+		DO_RUN=1
+		shift
 
-	    if [ $# -eq 0 ]; then
-		usage 1
-	    fi
-	    if ! command -v SUSEConnect >/dev/null; then
-		echo "SUSEConnect does not exist on this system."
-		exit 1
-	    fi
+		# Collect arguments for run
+		if [ $# -eq 0 ]; then
+		    usage 1
+		fi
 
-	    REGISTRATION_ARGS="$*";
-	    shift $#
+		RUN_CMD=("$@")
+		break
+		;;
+	    setup-fips)
+		test -z "$TELEM_CLASS" && TELEM_CLASS="fips"
+		SETUP_FIPS=1
+		shift
+		;;
+	    setup-kdump)
+		test -z "$TELEM_CLASS" && TELEM_CLASS="setup-kdump"
+		SETUP_KDUMP=1
+		shift
+		if [[ $1 == --crashkernel* ]]; then
+		    if ! [[ $1 =~ ^--crashkernel=[[:digit:]]+,[[:digit:]]+ ]]; then
+			echo "Invalid --crashkernel syntax"
+			usage 1
+		    fi
+		    KDUMP_LOW="$(echo "$1" | cut -d '=' -f 2 | cut -d ',' -f 1)"
+		    KDUMP_HIGH="$(echo "$1" | cut -d '=' -f 2 | cut -d ',' -f 2)"
+		    shift
+		fi
+		;;
+	    setup-selinux)
+		test -z "$TELEM_CLASS" && TELEM_CLASS="selinux"
+		SETUP_SELINUX=1
+		shift
+		;;
+	    status)
+		DO_STATUS=1
+		DO_SELF_UPDATE=0
+		shift
+		while [ 1 ]; do
+		    [ $# -eq 0 ] && break
+		    case "$1" in
+			last)
+		    DO_STATUS_LAST=1
+		    shift
+		    ;;
+			*)
+		    usage 1;
+		    ;;
+		    esac
+		done
+		;;
+	    -i|--interactive)
+		ZYPPER_NONINTERACTIVE=""
+		shift
+		;;
+	    -n|--non-interactive)
+		FORCE_NONINTERACTIVE="${ZYPPER_NONINTERACTIVE}"
+		shift
+		;;
+	    -c|--continue)
+		# Check whether we got an optional snapshot number argument
+		if [[ $2 =~ ^[0-9]+$ ]]; then
+		    BASE_SNAPSHOT_ID="$2"
+		    shift
+		else
+		    BASE_SNAPSHOT_ID="default"
+		fi
+		shift
+		;;
+	    --no-selfupdate)
+		DO_SELF_UPDATE=0
+		shift
+		;;
+	    -d|--drop-if-no-change)
+		TUKIT_OPTS="${TUKIT_OPTS} --discard"
+		shift
+		;;
+	    --quiet)
+		VERBOSITY=1
+		TUKIT_OPTS="${TUKIT_OPTS} --quiet"
+		DRACUT_OPTS="${DRACUT_OPTS} --quiet"
+		# ZYPPER_ARG handled below
+		shift
+		;;
+	    register)
+		DO_REGISTRATION=1
+		shift
 
-	    # A lot of commands won't change anything; discard snapshot then
-	    TUKIT_OPTS="${TUKIT_OPTS} --discard"
-	    ;;
-	-h|--help)
-	    usage 0
-	    ;;
-	--version)
-	    print_version
-	    ;;
-	*)
-	    if [ $# -ge 1 ]; then
-		usage 1;
-	    fi
-	    ;;
-    esac
-done
+		if [ $# -eq 0 ]; then
+		    usage 1
+		fi
+		if ! command -v SUSEConnect >/dev/null; then
+		    echo "SUSEConnect does not exist on this system."
+		    exit 1
+		fi
+
+		REGISTRATION_ARGS="$*";
+		shift $#
+
+		# A lot of commands won't change anything; discard snapshot then
+		TUKIT_OPTS="${TUKIT_OPTS} --discard"
+		;;
+	    -h|--help)
+		usage 0
+		;;
+	    --version)
+		print_version
+		;;
+	    *)
+		if [ $# -ge 1 ]; then
+		    usage 1;
+		fi
+		;;
+	esac
+    done
+}
+parse_args "${ORIG_ARGS[@]}"
 
 # Duplicate stdout before creating custom handlers
 exec {origstdout}>&1
@@ -1197,12 +1201,11 @@ if [ ${SETUP_KDUMP} -eq 1 ]; then
     REBUILD_KDUMP_INITRD=1
 fi
 
-# If no commands were given, assume "up"
+# If no commands were given, use default from config
 if [ -z "${ZYPPER_ARG}" -a -z "${TELEM_CLASS}" -a "${REBOOT_AFTERWARDS}" -eq 0 \
 	-a "${DO_REGISTRATION}" -eq 0 -a "${DO_CLEANUP_OVERLAYS}" -eq 0 \
 	-a "${DO_CLEANUP_SNAPSHOTS}" -eq 0 -a "${DO_APPLY}" -eq 0 ]; then
-    ZYPPER_ARG="up"
-    TELEM_CLASS="update"
+    parse_args "${UPDATE_METHOD}"
 fi
 
 # Prevent running transactional-update inside transactional-update
