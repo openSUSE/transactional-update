@@ -8,7 +8,7 @@ Version 4.4.0
   D-Bus interface or tukit the snapshots will be automatically cleaned up
   by snapper after some time now; in the past only snapshots created by
   the transactional-update shell script would be cleanup after, and only
-  after a `t-u cleanup` run.
+  after a `t-u cleanup` run. [gh#openSUSE/transactional-update#62]
 * tukit: enable kexec's syscall detection feature
 * tukit: Don't throw exceptions from the child process after fork
 * tukitd: Rename service file to org.opensuse.tukit.service
