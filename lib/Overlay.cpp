@@ -90,12 +90,12 @@ bool Overlay::references(string snapshot) {
     return false;
 }
 
-void Overlay::sync(string base, fs::path snapRoot) {
+bool Overlay::sync(string base, fs::path snapRoot) {
     Overlay baseOverlay = Overlay{base};
     auto previousSnapId = baseOverlay.getPreviousSnapshotOvlId();
     if (previousSnapId.empty()) {
         tulog.info("No previous snapshot to sync with - skipping");
-        return;
+        return false;
     }
 
     unique_ptr<Snapshot> previousSnapshot;
@@ -103,7 +103,7 @@ void Overlay::sync(string base, fs::path snapRoot) {
         previousSnapshot = snapMgr->open(previousSnapId);
     } catch (std::invalid_argument &e) {
         tulog.info("Parent snapshot ", previousSnapId, " does not exist any more - skipping rsync");
-        return;
+        return false;
     }
     unique_ptr<Mount> previousEtc{new Mount("/etc")};
     previousEtc->setTabSource(previousSnapshot->getRoot() / "etc" / "fstab");
@@ -131,6 +131,8 @@ void Overlay::sync(string base, fs::path snapRoot) {
         tulog.info("Retrying rsync without SELinux xattrs...");
         Util::exec("rsync --quiet --archive --inplace --xattrs --filter='-x security.selinux' --exclude='/fstab' --acls --delete " + syncSource + " " + string(snapRoot) + "/etc");
     }
+
+    return true;
 }
 
 void Overlay::setMountOptions(unique_ptr<Mount>& mount) {
@@ -223,8 +225,15 @@ void Overlay::create(string base, string snapshot, fs::path snapRoot) {
             lowerdirs.push_back(*it);
         }
     } else {
-        lowerdirs.push_back(parent.lowerdirs.back());
-        sync(base, snapRoot);
+        // Syncing copies the result of the parent's lowerdirs into the new snapshot.
+        // If that succeeded, use the coalesced result instead of all lowerdirs individually.
+        if (sync(base, snapRoot)) {
+            lowerdirs.push_back(parent.lowerdirs.back());
+        } else {
+            for (auto it = parent.lowerdirs.begin(); it != parent.lowerdirs.end(); it++) {
+                lowerdirs.push_back(*it);
+            }
+        }
     }
 }
 
