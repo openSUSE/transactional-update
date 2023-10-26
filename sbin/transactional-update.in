@@ -1320,7 +1320,7 @@ if [ ${DO_ROLLBACK} -eq 1 ]; then
 
     log_info "Rollback to snapshot ${ROLLBACK_SNAPSHOT}..."
 
-    snapper rollback "${ROLLBACK_SNAPSHOT}"
+    tukit rollback "${ROLLBACK_SNAPSHOT}"
     if [ $? -ne 0 ]; then
 	log_error "ERROR: Rollback to snapshot $ROLLBACK_SNAPSHOT failed!"
 	quit 1

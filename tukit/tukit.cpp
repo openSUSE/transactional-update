@@ -49,6 +49,8 @@ void TUKit::displayHelp() {
     cout << "\tCloses the given transaction and sets the snapshot as the new default snapshot\n";
     cout << "abort <ID>\n";
     cout << "\tDeletes the given snapshot again\n";
+    cout << "rollback <ID>\n";
+    cout << "\tRoll back to given snapshot\n";
     cout << "\n";
     cout << "Transaction Options:\n";
     cout << "--continue[=<ID>], -c[<ID>]  Use latest or given snapshot as base\n";
@@ -197,6 +199,15 @@ int TUKit::processCommand(char *argv[]) {
         }
         TransactionalUpdate::Transaction transaction{};
         transaction.resume(argv[1]);
+        return 0;
+    }
+    else if (arg == "rollback") {
+        if (argv[1] == nullptr) {
+            displayHelp();
+            throw invalid_argument{"Missing argument for 'rollback'"};
+        }
+        unique_ptr<TransactionalUpdate::SnapshotManager> snapshotMgr = TransactionalUpdate::SnapshotFactory::get();
+        snapshotMgr->rollbackTo(argv[1]);
         return 0;
     }
     else if (arg == "snapshots") {

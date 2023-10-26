@@ -125,6 +125,10 @@ void Snapper::deleteSnap(std::string id) {
     callSnapper("delete " + id);
 }
 
+void Snapper::rollbackTo(std::string id) {
+    callSnapper("rollback " + id);
+}
+
 bool Snapper::isInProgress() {
     std::string desc = callSnapper("--csvout list --columns number,userdata");
     std::smatch match;

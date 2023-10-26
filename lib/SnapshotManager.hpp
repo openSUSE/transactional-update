@@ -64,6 +64,12 @@ public:
      * @param id ID of the snapshot to be deleted.
      */
     virtual void deleteSnap(std::string id) = 0;
+
+    /**
+     * @brief Set the given snapshot ID as the default snapshot ID
+     * @param id ID of the snapshot to be rolled back to.
+     */
+    virtual void rollbackTo(std::string id) = 0;
 };
 
 class SnapshotFactory {
