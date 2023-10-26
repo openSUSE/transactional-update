@@ -8,11 +8,10 @@
      <doc:para>
       Retrieve a list of snapshots present on the system, including their properties. For
       performance reasons only the properties explicity requested via the "columns" arg
-      are queried. the desired snapshots's properties (such as the snapshot id,
-      description or whether it is the default snapshot) have to be queried explicitly.
+      are queried.
      </doc:para>
      <doc:example language="shell" title="Query some fields">
-      <doc:para>Request of common fields:</doc:para>
+      <doc:para>Request several common fields:</doc:para>
       <doc:code>busctl call org.opensuse.tukit /org/opensuse/tukit/Snapshot org.opensuse.tukit.Snapshot List "s" "number,description,default,active,userdata,cleanup,date,user"</doc:code>
       <doc:para>Example output on bus:</doc:para>
       <doc:code>
@@ -201,10 +200,10 @@
      <doc:error name="org.opensuse.tukit.Error">if an error occured.</doc:error>
    </doc:errors>
    <arg type="s" name="columns" direction="in">
-    <doc:doc><doc:summary>A comma separated list of fields to query such as the snapshot
+    <doc:doc><doc:summary>A comma separated list of fields to query, such as the snapshot
      id, the description or whether it is the default snapshot. The accepted field names
-     currently match the  ...   If the list is empty, an
-     empty map array will be returned; this can be used to query the number of
+     currently match the accepted fields of the "snapper list" command. If the list is
+     empty, an empty map array will be returned; this can be used to query the number of
      snapshots.</doc:summary></doc:doc>
    </arg>
    <arg type="aa{ss}" name="list" direction="out">

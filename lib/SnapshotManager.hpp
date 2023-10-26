@@ -58,7 +58,7 @@ public:
     virtual std::string getDefault() = 0;
 
     /**
-     * @brief deleteSnap Deletes the given snapshot; note that the method may not fail if the snapshot
+     * @brief deleteSnap Deletes the given snapshot; note that the method may fail if the snapshot
      * cannot be deleted because it is currently in use or set as the default snapshot, so
      * getCurrent() and getDefault() should be used beforehand.
      * @param id ID of the snapshot to be deleted.
