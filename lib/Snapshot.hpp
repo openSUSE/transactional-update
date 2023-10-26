@@ -10,7 +10,6 @@
 #define T_U_SNAPSHOT_H
 
 #include <filesystem>
-#include <memory>
 #include <string>
 
 namespace TransactionalUpdate {

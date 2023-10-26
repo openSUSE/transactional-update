@@ -17,7 +17,6 @@
 #include "Supplement.hpp"
 #include "Util.hpp"
 #include <cerrno>
-#include <chrono>
 #include <cstdlib>
 #include <cstring>
 #include <fstream>
