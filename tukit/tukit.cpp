@@ -181,12 +181,20 @@ int TUKit::processCommand(char *argv[]) {
         return status;
     }
     else if (arg == "close") {
+        if (argv[1] == nullptr) {
+            displayHelp();
+            throw invalid_argument{"Missing argument for 'close'"};
+        }
         TransactionalUpdate::Transaction transaction{};
         transaction.resume(argv[1]);
         transaction.finalize();
         return 0;
     }
     else if (arg == "abort") {
+        if (argv[1] == nullptr) {
+            displayHelp();
+            throw invalid_argument{"Missing argument for 'abort'"};
+        }
         TransactionalUpdate::Transaction transaction{};
         transaction.resume(argv[1]);
         return 0;
