@@ -763,6 +763,53 @@ finish_snapshotlist:
     return ret;
 }
 
+static int snapshot_delete(sd_bus_message *m, void *userdata, sd_bus_error *ret_error) {
+    char *snapshot;
+    int ret = 0;
+    sd_bus_message *message = NULL;
+
+    if (sd_bus_message_read(m, "s", &snapshot) < 0) {
+        sd_bus_error_set_const(ret_error, "org.opensuse.tukit.Error", "Could not read D-Bus parameters.");
+        return -1;
+    }
+
+    ret = lockSnapshot(userdata, snapshot, ret_error);
+    if (ret != 0) {
+        return ret;
+    }
+
+    fprintf(stdout, "Deleting snapshot %s...\n", snapshot);
+    if ((ret = tukit_sm_deletesnap(snapshot)) < 0) {
+        sd_bus_error_set_const(ret_error, "org.opensuse.tukit.Error", tukit_get_errmsg());
+        sd_bus_message_unref(message);
+        unlockSnapshot(userdata, snapshot);
+        return ret;
+    }
+
+    unlockSnapshot(userdata, snapshot);
+    return sd_bus_reply_method_return(m, "");
+}
+
+static int snapshot_rollback(sd_bus_message *m, void *userdata, sd_bus_error *ret_error) {
+    char *snapshot;
+    int ret = 0;
+    sd_bus_message *message = NULL;
+
+    if (sd_bus_message_read(m, "s", &snapshot) < 0) {
+        sd_bus_error_set_const(ret_error, "org.opensuse.tukit.Error", "Could not read D-Bus parameters.");
+        return -1;
+    }
+
+    if ((ret = tukit_sm_rollbackto(snapshot)) < 0) {
+        sd_bus_error_set_const(ret_error, "org.opensuse.tukit.Error", tukit_get_errmsg());
+        sd_bus_message_unref(message);
+        return ret;
+    }
+
+    fprintf(stdout, "Rollback to snapshot %s.\n", snapshot);
+    return sd_bus_reply_method_return(m, "");
+}
+
 int event_handler(sd_event_source *s, const struct signalfd_siginfo *si, void *userdata) {
     TransactionEntry* activeTransaction = userdata;
     if (activeTransaction->id != NULL) {
@@ -801,6 +848,8 @@ static const sd_bus_vtable tukit_transaction_vtable[] = {
 static const sd_bus_vtable tukit_snapshot_vtable[] = {
     SD_BUS_VTABLE_START(0),
     SD_BUS_METHOD_WITH_ARGS("List", SD_BUS_ARGS("s", columns), SD_BUS_RESULT("aa{ss}", list), snapshot_list, 0),
+    SD_BUS_METHOD_WITH_ARGS("Delete", SD_BUS_ARGS("s", snapshot), SD_BUS_NO_RESULT, snapshot_delete, 0),
+    SD_BUS_METHOD_WITH_ARGS("RollbackTo", SD_BUS_ARGS("s", snapshot), SD_BUS_NO_RESULT, snapshot_rollback, 0),
     SD_BUS_VTABLE_END
 };
 
@@ -843,7 +892,7 @@ int main() {
                                    "/org/opensuse/tukit/Snapshot",
                                    "org.opensuse.tukit.Snapshot",
                                    tukit_snapshot_vtable,
-                                   NULL);
+                                   activeTransactions);
     if (ret < 0) {
         fprintf(stderr, "Failed to issue method call: %s\n", strerror(-ret));
         goto finish;
