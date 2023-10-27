@@ -1,6 +1,5 @@
 # Tukit DBUS Service
-The tukitd service provides an DBUS interface which supports the same functionality as
-the command line interface "tukit".
+The tukitd service provides a DBUS interface for the libtukit API.
 
 ## Starting/Stopping Servive
 ### Starting
@@ -13,14 +12,18 @@ The status can also be checked via
 This `systemctl` call stops the service:
 > systemctl stop tukitd.service
 
+## Monitoring
+For debugging purposes the transferred messages can be monitored via
+> busctl --system monitor org.opensuse.tukit
+
 ## DBUS API
-The following sections describe each call which is available via DBUS.
-The command line program `busctl` can be used for demonstrating the API calls
-and showing the results.
+### API Documentation
+The complete API documentation can be found in the org.opensuse.tukit.Transaction.xml and
+org.opensuse.tukit.Snapshot.xml interface files.
 
-### Transaction
+### Examples
 
-#### open
+#### Open
 Creates a new transaction and returns its unique ID.
 
 Parameter:
@@ -37,9 +40,9 @@ Signal:
 
 `busctl` example:
 
-> busctl call org.opensuse.tukit /org/opensuse/tukit/Transaction org.opensuse.tukit.Transaction open "s" "default"
+> busctl call org.opensuse.tukit /org/opensuse/tukit/Transaction org.opensuse.tukit.Transaction Open "s" "default"
 
-### call
+### Call
 Executes the given command from within the transaction's **chroot environment**, resuming the
 transaction with the given ID; returns the exit status and the result of the given command.
 In case of errors the snapshot will not be deleted.
@@ -58,12 +61,12 @@ Signal:
 `busctl` example:
 
 * call `ls` in open transaction with ID `536`:
-  > busctl call org.opensuse.tukit /org/opensuse/tukit/Transaction org.opensuse.tukit.Transaction call "ss" "536" "bash -c 'ls'"
-  
+  > busctl call org.opensuse.tukit /org/opensuse/tukit/Transaction org.opensuse.tukit.Transaction Call "ss" "536" "bash -c 'ls'"
+
   The returned signal can be monitored by:
   > busctl --system --match "path\_namespace='/org/opensuse/tukit'" monitor
 
-### callext
+### CallExt
 Executes the given command. The command is **not** executed in a **chroot environment**, but instead runs
 in the current system, replacing '{}' with the mount directory of the given snapshot.
 In case of errors the snapshot will not be deleted.
@@ -82,33 +85,33 @@ Signal:
 `busctl` example:
 
 * copy file from active system into transaction with ID `536`:
-  > busctl call org.opensuse.tukit /org/opensuse/tukit/Transaction org.opensuse.tukit.Transaction callext "ss" "536" "bash -c 'mv /tmp/mylib {}/usr/lib'"
+  > busctl call org.opensuse.tukit /org/opensuse/tukit/Transaction org.opensuse.tukit.Transaction CallExt "ss" "536" "bash -c 'mv /tmp/mylib {}/usr/lib'"
 
   The returned signal can be monitored by:
   > busctl --system --match "path\_namespace='/org/opensuse/tukit'" monitor
 
-### close
+### Close
 Closes the given transaction and sets the snapshot as the new default snapshot.
 
 Parameter:
 * unique ID (string)
 
 Return value:
-* return integer; 0 on success
+* None
 
 `busctl` Example:
 
-> busctl call org.opensuse.tukit /org/opensuse/tukit/Transaction org.opensuse.tukit.Transaction close "s" "420"
+> busctl call org.opensuse.tukit /org/opensuse/tukit/Transaction org.opensuse.tukit.Transaction Close "s" "420"
 
-### abort
-Deletes the given snapshot.
+### Abort
+Cancel an open transaction so the snapshot will be deleted again.
 
 Parameter:
 * unique ID (string)
 
 Return value:
-* return integer; 0 on success
+* None
 
 `busctl` Example:
 
-> busctl call org.opensuse.tukit /org/opensuse/tukit/Transaction org.opensuse.tukit.Transaction abort "s" "420"
+> busctl call org.opensuse.tukit /org/opensuse/tukit/Transaction org.opensuse.tukit.Transaction Abort "s" "420"
