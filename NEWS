@@ -1,6 +1,20 @@
 transactional-update NEWS -- history of user-visible changes.
 
-Copyright (C) 2016-2022 Thorsten Kukuk, Ignaz Forster et al.
+Copyright (C) 2016-2023 Thorsten Kukuk, Ignaz Forster et al.
+
+Version 4.5.0 (2023-11-20)
+* libtukit: Use permissions of real /etc when creating overlay
+  [bsc#1215878]
+* libtukit, tukit: Support "rollback" via library now
+* tukitd: Implement Snapshot delete and rollback methods
+* tukit: Check for missing arguments with "close" and "abort" commands
+* t-u: Warn user when using "kdump" if it isn't configured to avoid
+  confusion with "setup-kdump" [boo#1215725]
+* t-u: Abort if mkdumprd run is not successful
+* t-u: Use defaut from config file if t-u is called without arguments
+  [gh#openSUSE/transactional-update#101]
+* Improved README.md [gh#openSUSE/transactional-update#59] and API docs
+* Code cleanup
 
 Version 4.4.0
 * t-u: Introduce setup-fips command [jsc#SMO-194]
