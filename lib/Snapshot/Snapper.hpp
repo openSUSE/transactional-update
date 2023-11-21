@@ -40,7 +40,6 @@ public:
     void rollbackTo(std::string id) override;
 private:
     std::string callSnapper(std::string);
-    inline static bool snapperNoDbus;
 };
 
 } // namespace TransactionalUpdate

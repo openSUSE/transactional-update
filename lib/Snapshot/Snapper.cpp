@@ -166,17 +166,11 @@ void Snapper::setReadOnly(bool readonly) {
 /* Helper methods */
 
 std::string Snapper::callSnapper(std::string opts) {
-    if (snapperNoDbus == false) {
-        try {
-            return Util::exec("snapper " + opts);
-        } catch (const ExecutionException &e) {
-            snapperNoDbus = true;
-        }
-    }
-    if (snapperNoDbus == true) {
+    if (std::filesystem::exists("/run/dbus/system_bus_socket")) {
+        return Util::exec("snapper " + opts);
+    } else {
         return Util::exec("snapper --no-dbus " + opts);
     }
-    return "false ";
 }
 
 } // namespace TransactionalUpdate
