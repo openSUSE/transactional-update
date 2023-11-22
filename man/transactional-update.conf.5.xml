@@ -113,8 +113,14 @@
               <term><literal>rebootmgr</literal></term>
               <listitem>
                 <para>
-                   <citerefentry project='rebootmgr'><refentrytitle>rebootmgrctl</refentrytitle><manvolnum>1</manvolnum></citerefentry>
-                   will be triggered to initiate a reboot.
+                  Triggers
+                  <citerefentry project='rebootmgr'><refentrytitle>rebootmgrctl</refentrytitle><manvolnum>1</manvolnum></citerefentry>
+                  to initiate a <literal>reboot</literal> or, if possible
+                  and that information is provided by
+                  <citerefentry project='zypp-boot-plugin'><refentrytitle>zypp-boot-plugin</refentrytitle><manvolnum>8</manvolnum></citerefentry>
+                  and it is allowed in
+                  <citerefentry><refentrytitle>tukit.conf</refentrytitle><manvolnum>5</manvolnum></citerefentry>,
+                  a faster <literal>soft-reboot</literal>.
                 </para>
               </listitem>
             </varlistentry>
@@ -122,8 +128,16 @@
               <term><literal>systemd</literal></term>
               <listitem>
                 <para>
-                   <citerefentry project='systemd'><refentrytitle>systemctl</refentrytitle><manvolnum>1</manvolnum></citerefentry>
-                   will be called to initiate a reboot.
+                  Uses
+                  <citerefentry project='systemd'><refentrytitle>systemctl</refentrytitle><manvolnum>1</manvolnum></citerefentry>
+                  to initiate a reboot. This can either be a full
+                  <literal>reboot</literal> or, if possible and that
+                  information is provided by
+                  <citerefentry project='zypp-boot-plugin'><refentrytitle>zypp-boot-plugin</refentrytitle><manvolnum>8</manvolnum></citerefentry>
+                  and it is allowed in
+                  <citerefentry><refentrytitle>tukit.conf</refentrytitle><manvolnum>5</manvolnum></citerefentry>,
+                  a faster <literal>soft-reboot</literal> or
+                  <literal>kexec</literal>.
                 </para>
               </listitem>
             </varlistentry>
@@ -135,6 +149,15 @@
                   initialization and thus boot faster than
                   <literal>systemd</literal>.
                 </para>
+                <note>
+                  <para>
+                    This option is deprecated, use <literal>systemd</literal>
+                    together with
+                    <citerefentry project='zypp-boot-plugin'><refentrytitle>zypp-boot-plugin</refentrytitle><manvolnum>8</manvolnum></citerefentry>
+                    to automatically detect whether <literal>kexec</literal>
+                    can be used.
+                  </para>
+                 </note>
               </listitem>
             </varlistentry>
             <varlistentry>

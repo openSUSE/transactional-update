@@ -17,10 +17,14 @@ class Reboot
 public:
     /**
      * @brief Reboot the system using the given reboot method
-     * @param method reboot method; possible values: auto|rebootmgr|systemd|kured|kexec
+     * @param method reboot method; possible values: auto|rebootmgr|systemd|notify|kured|kexec|none
      *
      * "auto" will either use rebootmgr if active, or systemd otherwise. Will throw an exception if
      * the requested method is not available.
+     *
+     * See `man 5 transactional-update.conf` for a description of the individual methods.
+     *
+     * The "kexec" reboot method is deprecated.
      */
     Reboot(std::string method);
 

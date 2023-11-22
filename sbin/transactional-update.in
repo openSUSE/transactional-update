@@ -44,7 +44,14 @@ DO_STATUS_LAST=0
 REGISTRATION_ARGS=""
 ROLLBACK_SNAPSHOT=0
 REBOOT_AFTERWARDS=0
+REBOOT_LEVEL="reboot"
+REBOOT_LEVEL_PREV=""
 REBOOT_METHOD="auto"
+declare -A REBOOT_ASSOCS
+declare -A REBOOT_PRIO
+REBOOT_PRIO[reboot]=3
+REBOOT_PRIO[kexec]=2
+REBOOT_PRIO[soft-reboot]=1
 RUN_CMD=""
 RUN_SHELL=0
 SETUP_FIPS=0
@@ -59,7 +66,7 @@ SYSTEMCONFFILE="@prefix@@sysconfdir@/transactional-update.conf"
 LOGFILE="/var/log/transactional-update.log"
 STATE_FILE="/var/lib/misc/transactional-update.state"
 NEW_SNAPSHOT_FLAG="/var/lib/overlay/transactional-update.newsnapshot"
-NEEDS_RESTARTING_FILE="/var/run/reboot-needed"
+NEEDS_RESTARTING_FILE="/run/reboot-needed"
 LOCKFILE="/var/run/transactional-update.pid"
 STATUS_FILE="@libdir@/sysimage/tu/transactional-update.status"
 EXPERIMENTAL_STATUS=0
@@ -96,6 +103,7 @@ BASE_SNAPSHOT_ID=""
 TMPFILE=""
 APPLYWORKDIR=""
 DO_CALLEXT=0
+LAST_BOOTED=""
 
 declare -A ROLES=()
 REPOS=()
@@ -236,6 +244,18 @@ save_state_file() {
     echo "LAST_WORKING_SNAPSHOTS=\"${LAST_WORKING_SNAPSHOTS}\"" > ${STATE_FILE}
     echo "UNUSED_SNAPSHOTS=\"${UNUSED_SNAPSHOTS}\"" >>  ${STATE_FILE}
 
+    if [ "${LAST_BOOTED}" != "${BOOTED_SNAPSHOT_ID}" ]; then
+	declare -A REBOOT_ASSOCS
+    fi
+    echo "LAST_BOOTED=\"${BOOTED_SNAPSHOT_ID}\"" >> ${STATE_FILE}
+
+    if [ -n "${SNAPSHOT_ID}" ]; then
+	REBOOT_ASSOCS[${SNAPSHOT_ID}]=${REBOOT_LEVEL}
+    fi
+    for key in "${!REBOOT_ASSOCS[@]}"; do
+	echo "REBOOT_ASSOCS[${key}]=${REBOOT_ASSOCS[${key}]}" >> ${STATE_FILE}
+    done
+
     if [ $1 -ne 0 -a ${HAS_SEPARATE_VAR} -eq 0 ]; then
 	# If /var/lib/misc is not a seperate partition / subvolume, copy the
 	# state file into the new snapshot as it will contain an outdated
@@ -285,6 +305,13 @@ telem_finish () {
 # Only called in error case; reverts everything to previous state.
 quit() {
     teardown
+
+    # Reset reboot level
+    if [ "${REBOOT_LEVEL_PREV}" == "none" ]; then
+	rm -f "${NEEDS_RESTARTING_FILE}"
+    else
+	echo -n "${REBOOT_LEVEL_PREV}" > "${NEEDS_RESTARTING_FILE}"
+    fi
 
     if [ -n "${SNAPSHOT_ID}" ] ; then
 	log_error "Removing snapshot #${SNAPSHOT_ID}..."
@@ -393,6 +420,9 @@ do_apply() {
 	umount --lazy "${APPLYWORKDIR}/mount"
 	rmdir "${APPLYWORKDIR}/mount"
 	rmdir "${APPLYWORKDIR}"
+	if [ -e "${NEEDS_RESTARTING_FILE}" ]; then
+	    grep -q soft-reboot "${NEEDS_RESTARTING_FILE}" && rm "${NEEDS_RESTARTING_FILE}"
+	fi
 
 	log_info "Executing systemctl daemon-reexec..."
 	systemctl daemon-reexec
@@ -406,6 +436,24 @@ do_apply() {
     else
 	log_info ""
 	log_info "The default snapshot is active already."
+    fi
+}
+
+write_needs_restarting() {
+    local prio1="${REBOOT_PRIO[${1}]}"
+    local prio2=0
+    local prio3=0
+    if [ -n "${2}" ]; then
+	prio2="${REBOOT_PRIO[${2}]}"
+    fi
+    if [ -e "${NEEDS_RESTARTING_FILE}" ]; then
+	prio3="${REBOOT_PRIO[$(cat "${NEEDS_RESTARTING_FILE}")]}"
+    fi
+
+    if [ "${prio1}" -ge "${prio2}" ] && [ "${prio1}" -gt "${prio3}" ]; then
+	echo -n "${1}" > "${NEEDS_RESTARTING_FILE}"
+    elif [ "${prio2}" -ge "${prio1}" ] && [ "${prio2}" -gt "${prio3}" ]; then
+	echo -n "${2}" > "${NEEDS_RESTARTING_FILE}"
     fi
 }
 
@@ -1214,6 +1262,14 @@ if [ -n "${TRANSACTIONAL_UPDATE}" ]; then
     exit 1
 fi
 
+# Store current reboot level for reset in case of failure and delete flag file
+if [ -e "${NEEDS_RESTARTING_FILE}" ]; then
+    REBOOT_LEVEL_PREV="$(cat "${NEEDS_RESTARTING_FILE}")"
+    rm "${NEEDS_RESTARTING_FILE}"
+else
+    REBOOT_LEVEL_PREV=none
+fi
+
 # Check if this is a self-updated transactional-update; if it isn't lock and
 # check for update
 if [ -z "${TA_UPDATE_TMPFILE}" ]; then
@@ -1305,7 +1361,7 @@ elif [ "${BASE_SNAPSHOT_ID}" = "default" ]; then
 fi
 
 if [ ${DO_ROLLBACK} -eq 1 ]; then
-    NEED_REBOOT_WARNING=1
+    NEED_REBOOT=1
 
     if [ "${ROLLBACK_SNAPSHOT}" = "last" ]; then
 	if [ -n "${LAST_WORKING_SNAPSHOTS}" ]; then
@@ -1315,7 +1371,7 @@ if [ ${DO_ROLLBACK} -eq 1 ]; then
 	fi
     elif [ ${ROLLBACK_SNAPSHOT} -eq 0 -o ${ROLLBACK_SNAPSHOT} -eq ${CURRENT_SNAPSHOT_ID} ]; then
 	ROLLBACK_SNAPSHOT=${CURRENT_SNAPSHOT_ID}
-	NEED_REBOOT_WARNING=0
+	NEED_REBOOT=0
     fi
 
     log_info "Rollback to snapshot ${ROLLBACK_SNAPSHOT}..."
@@ -1335,13 +1391,15 @@ if [ ${DO_ROLLBACK} -eq 1 ]; then
 	    save_state_file 0
 	fi
 
-	if [ ${NEED_REBOOT_WARNING} -eq 0 ]; then
+	if [ ${NEED_REBOOT} -eq 0 ]; then
 	    rm -f "${NEEDS_RESTARTING_FILE}"
+	else
+	    write_needs_restarting "${REBOOT_LEVEL}" "${REBOOT_ASSOCS[${ROLLBACK_SNAPSHOT}]}"
 	fi
     else
-	NEED_REBOOT_WARNING=1
+	NEED_REBOOT=1
     fi
-    if [ ${NEED_REBOOT_WARNING} -eq 1 ]; then
+    if [ ${NEED_REBOOT} -eq 1 ]; then
 	if [ ${DO_APPLY} -eq 1 ]; then
 	    do_apply
 	else
@@ -1484,6 +1542,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 
     if [ ${DO_REGISTRATION} -eq 1 ]; then
 	tukit ${TUKIT_OPTS} callext ${SNAPSHOT_ID} SUSEConnect --root {} ${REGISTRATION_ARGS} |& tee -a ${LOGFILE} 1>&${origstdout}
+	REBOOT_LEVEL="soft-reboot"
     fi
 
     if [ -n "${ZYPPER_ARG}" ]; then
@@ -1566,6 +1625,10 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	    fi
 	    EXITCODE=1
 	fi
+	# If zypp-boot-plugin is available and didn't return anything, then soft-reboot is enough
+	if rpm --quiet -q zypp-boot-plugin && [ ! -e "${NEEDS_RESTARTING_FILE}" ] ; then
+	    REBOOT_LEVEL="soft-reboot"
+	fi
     fi
 
     if [ -d /var/lib/overlay/${SNAPSHOT_ID} ]; then
@@ -1624,6 +1687,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	else
 	    REBUILD_KDUMP_INITRD=1
 	fi
+	REBOOT_LEVEL="kexec"
     fi
 
     if [ ${REBUILD_KDUMP_INITRD} -eq 1 ]; then
@@ -1633,6 +1697,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	    log_error "ERROR: kdump initrd creation failed!"
 	    EXITCODE=1
 	fi
+	REBOOT_LEVEL="soft-reboot"
     fi
 
     if [ ${REWRITE_GRUB_CFG} -eq 1 ]; then
@@ -1722,10 +1787,13 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 
     if [ ${EXITCODE} -ne 0 ]; then
 	quit ${EXITCODE}
-    elif [ $REBOOT_AFTERWARDS -eq 0 -a $DO_APPLY -ne 1 ]; then
+    fi
+
+    write_needs_restarting "${REBOOT_LEVEL}" "${REBOOT_ASSOCS[${BASE_SNAPSHOT_ID}]}"
+    rebootmethod="$(cat "${NEEDS_RESTARTING_FILE}")"
+    if ! { [ $REBOOT_AFTERWARDS -eq 1 ] || [ $DO_APPLY -eq 1 -a "${rebootmethod}" == "soft-reboot" ]; }; then
 	log_info ""
 	log_info "Please reboot your machine to activate the changes and avoid data loss."
-	touch "${NEEDS_RESTARTING_FILE}"
     fi
 
     if [ "${DEFAULT_SNAPSHOT_ID}" -ne "${BASE_SNAPSHOT_ID}" ]; then
@@ -1746,7 +1814,7 @@ fi
 log_info "transactional-update finished"
 
 if [ ${EXITCODE} -eq 0 ]; then
-    if [ $REBOOT_AFTERWARDS -eq 1 ]; then
+    if [ $REBOOT_AFTERWARDS -eq 1 -a -e "${NEEDS_RESTARTING_FILE}" ]; then
 	trap '-' HUP INT QUIT TERM
 	case "$REBOOT_METHOD" in
 	    auto)
