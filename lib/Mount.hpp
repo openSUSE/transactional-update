@@ -18,25 +18,25 @@ namespace TransactionalUpdate {
 class Mount
 {
 public:
-    Mount(std::string mountpoint, unsigned long flags = 0, bool umount = false);
+    Mount(std::filesystem::path mountpoint, unsigned long flags = 0, bool umount = false);
     Mount(Mount&& other) noexcept;
     virtual ~Mount();
     std::string getFilesystem();
     std::string getOption(std::string option);
     bool isMount();
-    virtual void mount(std::string prefix = "/");
+    virtual void mount(std::filesystem::path prefix = "/");
     void persist(std::filesystem::path file);
     void removeOption(std::string option);
     void setOption(std::string option, std::string value);
-    void setSource(std::string source);
-    void setTabSource(std::string source);
+    void setSource(std::filesystem::path source);
+    void setTabSource(std::filesystem::path source);
     void setType(std::string type);
 protected:
     struct libmnt_context* mnt_cxt = nullptr;
     struct libmnt_table* mnt_table = nullptr;
     struct libmnt_fs* mnt_fs = nullptr;
-    std::string tabsource;
-    std::string mountpoint;
+    std::filesystem::path tabsource;
+    std::filesystem::path mountpoint;
     unsigned long flags;
     bool umount;
     struct libmnt_fs* findFS();
@@ -48,14 +48,14 @@ protected:
 class BindMount : public Mount
 {
 public:
-    BindMount(std::string mountpoint, unsigned long flags = 0, bool umount = false);
-    void mount(std::string prefix = "/") override;
+    BindMount(std::filesystem::path mountpoint, unsigned long flags = 0, bool umount = false);
+    void mount(std::filesystem::path prefix = "/") override;
 };
 
 class PropagatedBindMount : public BindMount
 {
 public:
-    PropagatedBindMount(std::string mountpoint, unsigned long flags = 0, bool umount = false);
+    PropagatedBindMount(std::filesystem::path mountpoint, unsigned long flags = 0, bool umount = false);
 };
 
 class MountList

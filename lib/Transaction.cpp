@@ -47,7 +47,7 @@ public:
     int inotifyRead();
     std::unique_ptr<SnapshotManager> snapshotMgr;
     std::unique_ptr<Snapshot> snapshot;
-    std::string bindDir;
+    fs::path bindDir;
     std::vector<std::unique_ptr<Mount>> dirsToMount;
     Supplements supplements;
     pid_t pidCmd;
@@ -71,7 +71,7 @@ Transaction::~Transaction() {
     pImpl->dirsToMount.clear();
     if (!pImpl->bindDir.empty()) {
         try {
-            fs::remove(fs::path{pImpl->bindDir});
+            fs::remove(pImpl->bindDir);
         }  catch (const std::exception &e) {
             tulog.error("ERROR: ", e.what());
         }
@@ -139,7 +139,7 @@ void Transaction::impl::snapMount() {
                 throw std::runtime_error{"Forking for SELinux relabelling failed: " + std::string(strerror(errno))};
             } else if (childPid == 0) {
                 if (chroot(bindDir.c_str()) < 0) {
-                    tulog.error("Chrooting to " + bindDir + " for SELinux relabelling failed: " + std::string(strerror(errno)));
+                    tulog.error("Chrooting to " + bindDir.native() + " for SELinux relabelling failed: " + std::string(strerror(errno)));
                     _exit(errno);
                 }
                 unsigned int restoreconOptions = SELINUX_RESTORECON_RECURSE | SELINUX_RESTORECON_IGNORE_DIGEST;
@@ -389,7 +389,7 @@ int Transaction::impl::runCommand(char* argv[], bool inChroot, std::string* outp
                 tulog.info("Warning: Couldn't set working directory: ", std::string(strerror(errno)));
             }
             if (chroot(bindDir.c_str()) < 0) {
-                tulog.error("Chrooting to " + bindDir + " failed: " + std::string(strerror(errno)));
+                tulog.error("Chrooting to " + bindDir.native() + " failed: " + std::string(strerror(errno)));
                 _exit(errno);
             }
             // Prevent mounts from within the chroot environment influence the tukit organized mounts
@@ -508,7 +508,7 @@ void Transaction::finalize() {
                 targetRoot = previousOvl.upperdir.parent_path() / "sync";
                 previousEtc->mount(targetRoot);
             }
-            Util::exec("rsync --archive --inplace --xattrs --acls --exclude 'fstab' --delete --quiet '" + this->pImpl->bindDir + "/etc/' " + targetRoot.native() + "/etc");
+            Util::exec("rsync --archive --inplace --xattrs --acls --exclude 'fstab' --delete --quiet '" + this->pImpl->bindDir.native() + "/etc/' " + targetRoot.native() + "/etc");
         }
 
         return;

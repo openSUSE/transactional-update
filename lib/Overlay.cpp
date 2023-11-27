@@ -38,7 +38,7 @@ namespace TransactionalUpdate {
 Overlay::Overlay(string snapshot):
         workdir(fs::path{config.get("OVERLAY_DIR")} / snapshot / "work-etc")
 {
-    fs::create_directories(fs::path{workdir});
+    fs::create_directories(workdir);
 
     // Read lowerdirs
     // Always use the root file system for reading fstab, as the first snapshot overlay doesn't

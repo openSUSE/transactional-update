@@ -13,7 +13,7 @@
 
 namespace TransactionalUpdate {
 
-Mount::Mount(std::string mountpoint, unsigned long flags, bool umount)
+Mount::Mount(std::filesystem::path mountpoint, unsigned long flags, bool umount)
     : mnt_table{mnt_new_table()}, mountpoint{std::move(mountpoint)},
       flags{std::move(flags)}, umount{std::move(umount)}
 {
@@ -52,10 +52,10 @@ struct libmnt_fs* Mount::getTabEntry() {
     int rc;
     if (tabsource.empty()) {
         if ((rc = mnt_table_parse_fstab(mnt_table, nullptr)) != 0)
-            throw std::runtime_error{"Error reading " + mountpoint + " entry from fstab : " + std::to_string(rc)};
+            throw std::runtime_error{"Error reading " + mountpoint.native() + " entry from fstab : " + std::to_string(rc)};
     } else {
         if ((rc = mnt_table_parse_file(mnt_table, tabsource.c_str())) != 0)
-            throw std::runtime_error{"Error reading " + mountpoint + " entry from " + tabsource + ": " + std::to_string(rc)};
+            throw std::runtime_error{"Error reading " + mountpoint.native() + " entry from " + tabsource.native() + ": " + std::to_string(rc)};
     }
     return mnt_table_find_target(mnt_table, mountpoint.c_str(), MNT_ITER_BACKWARD);
 }
@@ -64,7 +64,7 @@ struct libmnt_fs* Mount::findFS() {
     struct libmnt_fs* mnt_fs = getTabEntry();
 
     if (mnt_fs == nullptr)
-        throw std::runtime_error{"File system " + mountpoint + " not found in fstab."};
+        throw std::runtime_error{"File system " + mountpoint.native() + " not found in fstab."};
 
     return mnt_fs;
 }
@@ -86,7 +86,7 @@ void Mount::removeOption(std::string option) {
     int rc;
     const char* current_opts;
     if ((current_opts = mnt_fs_get_options(mnt_fs)) == nullptr)
-        throw std::runtime_error{"Options for file system " + mountpoint + "not found."};
+        throw std::runtime_error{"Options for file system " + mountpoint.native() + "not found."};
 
     char* new_opts = strdup(current_opts);
     if ((rc = mnt_optstr_remove_option(&new_opts, option.c_str())) != 0) {
@@ -96,7 +96,7 @@ void Mount::removeOption(std::string option) {
     if ((rc = mnt_fs_set_options(mnt_fs, new_opts)) != 0) {
         std::string snew_opts = std::string(new_opts);
         free(new_opts);
-        throw std::runtime_error{"Could not set new options " + snew_opts + " for file system " + mountpoint + ": " + std::to_string(rc)};
+        throw std::runtime_error{"Could not set new options " + snew_opts + " for file system " + mountpoint.native() + ": " + std::to_string(rc)};
     }
     free(new_opts);
 }
@@ -108,9 +108,9 @@ std::string Mount::getOption(std::string option) {
     size_t len = 0;
     int rc = mnt_fs_get_option(mnt_fs, option.c_str(), &opt, &len);
     if (rc < 0)
-        throw std::runtime_error{"Error retrieving options for file system " + mountpoint + ": " + std::to_string(rc)};
+        throw std::runtime_error{"Error retrieving options for file system " + mountpoint.native() + ": " + std::to_string(rc)};
     else if (rc > 0)
-        throw std::range_error{"Option " + option + " not found for file system " + mountpoint + "."};
+        throw std::range_error{"Option " + option + " not found for file system " + mountpoint.native() + "."};
     else if (opt == nullptr)
         return "";
     return std::string(opt, len);
@@ -122,7 +122,7 @@ void Mount::setOption(std::string option, std::string value) {
     int rc;
     const char* current_opts;
     if ((current_opts = mnt_fs_get_options(mnt_fs)) == nullptr)
-        throw std::runtime_error{"Options for file system " + mountpoint + " not found."};
+        throw std::runtime_error{"Options for file system " + mountpoint.native() + " not found."};
 
     char* new_opts = strdup(current_opts);
     if ((rc = mnt_optstr_set_option(&new_opts, option.c_str(), value.c_str())) != 0) {
@@ -132,14 +132,14 @@ void Mount::setOption(std::string option, std::string value) {
     if ((rc = mnt_fs_set_options(mnt_fs, new_opts)) != 0) {
         std::string snew_opts = std::string(new_opts);
         free(new_opts);
-        throw std::runtime_error{"Could not set new options " + std::string(snew_opts) + " for file system " + mountpoint + ": " + std::to_string(rc)};
+        throw std::runtime_error{"Could not set new options " + std::string(snew_opts) + " for file system " + mountpoint.native() + ": " + std::to_string(rc)};
     }
     free(new_opts);
 }
 
-void Mount::setTabSource(std::string source) {
+void Mount::setTabSource(std::filesystem::path source) {
     if (mnt_fs != nullptr) {
-        throw std::logic_error{"Cannot set tab source for " + mountpoint + ": fs has been initialized already"};
+        throw std::logic_error{"Cannot set tab source for " + mountpoint.native() + ": fs has been initialized already"};
     }
     tabsource = source;
 }
@@ -149,12 +149,12 @@ bool Mount::isMount() {
     return mnt_fs != nullptr;
 }
 
-void Mount::setSource(std::string source) {
+void Mount::setSource(std::filesystem::path source) {
     mnt_fs = newFS();
 
     int rc;
     if ((rc = mnt_fs_set_source(mnt_fs, source.c_str())) != 0) {
-        throw std::runtime_error{"Setting source directory '" + source + "' for '" + mountpoint + "' failed: " + std::to_string(rc)};
+        throw std::runtime_error{"Setting source directory '" + source.native() + "' for '" + mountpoint.native() + "' failed: " + std::to_string(rc)};
     }
 }
 
@@ -163,30 +163,30 @@ void Mount::setType(std::string type) {
 
     int rc;
     if ((rc = mnt_fs_set_fstype(mnt_fs, type.c_str())) != 0) {
-        throw std::runtime_error{"Setting file system type '" + type + "' for '" + mountpoint + "' failed: " + std::to_string(rc)};
+        throw std::runtime_error{"Setting file system type '" + type + "' for '" + mountpoint.native() + "' failed: " + std::to_string(rc)};
     }
 }
 
-void Mount::mount(std::string prefix) {
+void Mount::mount(std::filesystem::path prefix) {
     tulog.debug("Mounting ", mountpoint, "...");
 
     int rc;
-    std::string mounttarget = prefix + mountpoint.c_str();
+    std::filesystem::path mounttarget = prefix / mountpoint.relative_path();
     if ((rc = mnt_fs_set_target(mnt_fs, mounttarget.c_str())) != 0) {
-        throw std::runtime_error{"Setting target '" + mounttarget + "' for mountpoint failed: " + std::to_string(rc)};
+        throw std::runtime_error{"Setting target '" + mounttarget.native() + "' for mountpoint failed: " + std::to_string(rc)};
     }
 
     mnt_cxt = mnt_new_context();
     if ((rc = mnt_context_set_fs(mnt_cxt, mnt_fs)) != 0) {
-        throw std::runtime_error{"Setting mount context for '" + mountpoint + "' failed: " + std::to_string(rc)};
+        throw std::runtime_error{"Setting mount context for '" + mountpoint.native() + "' failed: " + std::to_string(rc)};
     }
 
     if ((rc = mnt_context_set_options(mnt_cxt, mnt_fs_get_options(mnt_fs))) != 0) {
-        throw std::runtime_error{"Setting options for '" + mountpoint + "' failed: " + std::to_string(rc)};
+        throw std::runtime_error{"Setting options for '" + mountpoint.native() + "' failed: " + std::to_string(rc)};
     }
 
     if ((rc = mnt_context_set_mflags(mnt_cxt, flags)) != 0) {
-        throw std::runtime_error{"Setting mount flags for '" + mountpoint + "' failed: " + std::to_string(rc)};
+        throw std::runtime_error{"Setting mount flags for '" + mountpoint.native() + "' failed: " + std::to_string(rc)};
     }
 
     std::filesystem::create_directories(mounttarget);
@@ -195,7 +195,7 @@ void Mount::mount(std::string prefix) {
     char buf[BUFSIZ] = { 0 };
     mnt_context_get_excode(mnt_cxt, rc, buf, sizeof(buf));
     if (*buf)
-            throw std::runtime_error{"Mounting '" + mountpoint + "': " + buf};
+            throw std::runtime_error{"Mounting '" + mountpoint.native() + "': " + buf};
 }
 
 void Mount::persist(std::filesystem::path file) {
@@ -205,19 +205,19 @@ void Mount::persist(std::filesystem::path file) {
     struct libmnt_table* snap_table = mnt_new_table();
 
     if ((rc = mnt_table_parse_file(snap_table, file.c_str())) != 0)
-        err = "No mount table found in '" + std::string(file) + "': " + std::to_string(rc);
+        err = "No mount table found in '" + file.native() + "': " + std::to_string(rc);
     struct libmnt_fs* old_fs_entry = mnt_table_find_target(snap_table, mountpoint.c_str(), MNT_ITER_BACKWARD);
 
     struct libmnt_fs* new_fs = mnt_copy_fs(nullptr, mnt_fs);
     if (!rc && (rc = mnt_table_remove_fs(snap_table, old_fs_entry)) != 0)
-        err = "Removing old '" + mountpoint + "' from target table failed: " + std::to_string(rc);
+        err = "Removing old '" + mountpoint.native() + "' from target table failed: " + std::to_string(rc);
     if (!rc && (rc = mnt_table_add_fs(snap_table, new_fs)) != 0)
-        err = "Adding new '" + mountpoint + "' to target table failed: " + std::to_string(rc);
+        err = "Adding new '" + mountpoint.native() + "' to target table failed: " + std::to_string(rc);
 
     FILE *f = fopen(file.c_str(), "w");
     if (!rc && (rc = mnt_table_write_file(snap_table, f)) != 0) {
         fclose(f);
-        err = "Writing new mount table '" + std::string(file) + "' failed: " + std::to_string(rc);
+        err = "Writing new mount table '" + file.native() + "' failed: " + std::to_string(rc);
     }
     fclose(f);
 
@@ -262,19 +262,19 @@ void Mount::umountRecursive(libmnt_table* umount_table, libmnt_fs* umount_fs) {
     mnt_free_context(umount_cxt);
 }
 
-BindMount::BindMount(std::string mountpoint, unsigned long flags, bool umount)
+BindMount::BindMount(std::filesystem::path mountpoint, unsigned long flags, bool umount)
     : Mount(mountpoint, flags | MS_BIND, umount)
 {
 }
 
-void BindMount::mount(std::string prefix) {
+void BindMount::mount(std::filesystem::path prefix) {
     if (mnt_fs == nullptr) {
         setSource(mountpoint);
     }
     Mount::mount(prefix);
 }
 
-PropagatedBindMount::PropagatedBindMount(std::string mountpoint, unsigned long flags, bool umount)
+PropagatedBindMount::PropagatedBindMount(std::filesystem::path mountpoint, unsigned long flags, bool umount)
     : BindMount(mountpoint, flags | MS_REC | MS_SLAVE, umount)
 {
 }
