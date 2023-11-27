@@ -461,8 +461,8 @@ int Transaction::callExt(char* argv[], std::string* output) {
         std::string from = "{}";
         // replacing all {} by bindDir
         for(size_t pos = 0;
-           (pos = s.find(from, pos)) != std::string::npos;
-           pos += getRoot().string().length())
+            (pos = s.find(from, pos)) != std::string::npos;
+            pos += getRoot().string().length())
             s.replace(pos, from.size(), this->pImpl->bindDir);
         argv[i] = strdup(s.c_str());
     }

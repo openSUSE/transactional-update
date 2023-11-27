@@ -10,6 +10,7 @@
 #include "Configuration.hpp"
 #include "Log.hpp"
 #include "Mount.hpp"
+#include "Snapshot.hpp"
 #include "Util.hpp"
 #include <cstring>
 #include <filesystem>
