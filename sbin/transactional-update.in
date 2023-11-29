@@ -1441,14 +1441,16 @@ fi
 if [ ${DO_CLEANUP_OVERLAYS} -eq 1 ]; then
     # Clean up old unused overlays
     if [ ${RO_ROOT} == "true" ]; then
-	shopt -s nullglob
+	snapshots="$(ls /.snapshots/*/snapshot/etc/fstab{,.sys} 2>/dev/null)"
 	for overlay in /var/lib/overlay/*; do
-	    if [ -e ${overlay} ] && ! grep -qs "${overlay}" /.snapshots/*/snapshot/etc/fstab{,.sys}; then
-		log_info "Deleting unused overlay ${overlay}"
-		rm -r "${overlay}"
+	    if [ -e ${overlay} ] && [ -n "${snapshots}" ]; then
+		grep -q "${overlay}" ${snapshots}
+		if [ $? -eq 1 ]; then
+		    log_info "Deleting unused overlay ${overlay}"
+		    rm -r "${overlay}"
+		fi
 	    fi
 	done
-	shopt -u nullglob
     fi
 fi
 
