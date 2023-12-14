@@ -101,11 +101,76 @@ declare -A ROLES=()
 REPOS=()
 declare -A BUILDTIME=()
 
+# This should make TU more resilient in systems that have sleep/suspension ON,
+# as some systems with deep sleep capable network chipsets won't have their
+# internet connection back soon enough and the system update will fail while
+# trying to refresh repositories metadata. Also, this should short-circuit
+# Zypper transactions bound to fail, because Zypper will only know there's no
+# working internet connection after trying... and trying, for the most cases.
+check_internet_connection() {
+    # check_internet_connection() accepts up to two arguments:
+    # ARG1 NUMBER_OF_TIMES_TO_TRY (6, by default)
+    # ARG2 TIME_TO_WAIT_BETWEEN_TRIES (in seconds and 5, by default)
+
+    log_info "Trying to establish whether system can resolve domain names..."
+
+    if ! command -v nslookup > /dev/null; then
+        log_info "nslookup tool is needed, but wasn't found in PATH." \
+                 "Skipping internet connection check!"
+    else
+        # Use domains known to be resilient worldwide
+        lookup_sites=(www.google.com www.bing.com duckduckgo.com)
+        nslookup_status="failure"
+        # Retrying 6 times while waiting 5 secs, in between, means a total of
+        # 30 secs of waiting (total sleep time).
+        retries="${1:-6}"
+        default_retries="$retries"
+        sleep_time="${2:-5}"
+
+        run_nslookup() {
+            # We start with nslookup_status=failure, settting it to "succes" in
+            # case any of the domain lookup is successful to break out of the
+            # loop.
+            for domain in "${lookup_sites[@]}"; do
+                if nslookup $domain > /dev/null; then
+                    nslookup_status="success"
+                    return
+                fi
+            done
+            return 1
+        }
+
+        while [[ $nslookup_status == failure ]]; do
+            # On nslookup succeess, break out of the loop
+            if run_nslookup; then
+                log_info "System can resolve domain names. Proceeding!"
+                break
+            fi
+
+            # After running out of retries, bail out
+            if ! [[ $retries -gt 0 ]]; then
+                log_error "ERROR: System is either offline or cannot resolve" \
+                          "domain names. Aborting transaction!"
+                quit 1
+            fi
+
+            if [[ $retries -eq $default_retries ]]; then
+                log_info "Retrying up to $retries more times, waiting" \
+                         "$sleep_time secs in between."
+            fi
+
+            retries=$((retries-1))
+            sleep $sleep_time
+        done
+    fi
+}
+
 self_update() {
     if [ ${DO_SELF_UPDATE} == 0 ]; then
 	return
     fi
 
+    check_internet_connection
     log_info "Checking for newer version."
     if zypper --non-interactive info transactional-update | grep -q '^Status *: out-of-date'; then
 	log_info "New version found - updating..."
@@ -1226,6 +1291,7 @@ if [ -z "${TA_UPDATE_TMPFILE}" ]; then
 else # Set exit handler to clean up artifacts of the self-update
     trap 'rm -f "$LOCKFILE" && rm -rf "${TA_UPDATE_TMPFILE}" && unset TA_UPDATE_TMPFILE' EXIT
     pushd "${TA_UPDATE_TMPFILE}" >/dev/null
+    check_internet_connection
     zypper --non-interactive --pkg-cache-dir "${TA_UPDATE_TMPFILE}" download libtukit4 tukit
     find . -name *.rpm -exec sh -c 'rpm2cpio {} | cpio -idmv 2>/dev/null' \;
     popd >/dev/null
@@ -1490,6 +1556,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	if [ ${DO_MIGRATION} -eq 1 ]; then
 	    # transactional-update migration
 	    export DISABLE_RESTART_ON_UPDATE=yes
+        check_internet_connection
 	    tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" zypper ${ZYPPER_ARG} ${ZYPPER_NONINTERACTIVE} "${ZYPPER_ARG_PKGS[@]}" |& tee -a ${LOGFILE} 1>&${origstdout}
 	    RETVAL=${PIPESTATUS[0]}
 	else
@@ -1499,6 +1566,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 		zypper_cmd="tukit ${TUKIT_OPTS} call ${SNAPSHOT_ID} zypper"
 	    fi
 	    # Check if there are updates at all.
+        check_internet_connection
 	    TMPFILE=`mktemp ${TMPDIR}/transactional-update.XXXXXXXXXX`
 	    ${zypper_cmd} --xmlout ${ZYPPER_ARG} -y --auto-agree-with-product-licenses --dry-run "${ZYPPER_ARG_PKGS[@]}" > ${TMPFILE}
 	    PACKAGE_UPDATES=`grep "install-summary download-size" ${TMPFILE} | sed -e 's|.*install-summary download-size=\"\(.*\)\" space-usage-diff.*|\1|g'`
