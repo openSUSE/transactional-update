@@ -148,6 +148,14 @@
               BINDDIRS[2]="/usr/local/extra"
               BINDDIRS[3]="/var/lib/images"
             </programlisting>
+            Instead of numbers it is also possible to use names for the
+            array:
+            <programlisting>
+              BINDDIRS[0]="/opt"
+              BINDDIRS[usrlocal]="/usr/local"
+              BINDDIRS[extra]="/usr/local/extra"
+              BINDDIRS[images]="/var/lib/images"
+            </programlisting>
           </para>
           <para>
             Note that in some situations one may be tempted to expose
