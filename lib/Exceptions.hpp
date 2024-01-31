@@ -14,17 +14,27 @@
 class ExecutionException : public std::exception
 {
 public:
-    ExecutionException(const std::string& reason, const int returncode) : reason{reason}, returncode{returncode} {
+    ExecutionException(const std::string& reason, const int returncode, const std::string& output)
+        : reason{reason}, returncode{returncode}, output{output} {
     }
     const char* what() const noexcept override {
         return reason.c_str();
     }
-    int getReturnCode() {
-        return returncode;
+    const std::string reason;
+    const int returncode;
+    const std::string output;
+};
+
+class VersionException : public std::exception
+{
+public:
+    VersionException(const std::string& reason) : reason{reason} {
+    }
+    const char* what() const noexcept override {
+        return reason.c_str();
     }
 private:
     const std::string reason;
-    const int returncode;
 };
 
 #endif // T_U_EXCEPTIONS_H

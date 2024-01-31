@@ -146,8 +146,8 @@ bool Snapper::isReadOnly() {
 
 void Snapper::setDefault() {
     try {
-        callSnapper("modify --default " + snapshotId);
-    } catch (const ExecutionException &e) {
+        callSnapper("modify --default " + snapshotId + " 2>&1");
+    } catch (const VersionException &e) {
         Util::exec("btrfs subvolume set-default " + std::string(getRoot()));
     }
 }
@@ -155,10 +155,10 @@ void Snapper::setDefault() {
 void Snapper::setReadOnly(bool readonly) {
     try {
         if (readonly == true)
-            callSnapper("modify --read-only " + snapshotId);
+            callSnapper("modify --read-only " + snapshotId + " 2>&1");
         else
-            callSnapper("modify --read-write " + snapshotId);
-    } catch (const ExecutionException &e) {
+            callSnapper("modify --read-write " + snapshotId + " 2>&1");
+    } catch (const VersionException &e) {
         Util::exec("btrfs property set " + std::string(getRoot()) + " ro " + (readonly ? "true" : "false"));
     }
 }
@@ -166,11 +166,23 @@ void Snapper::setReadOnly(bool readonly) {
 /* Helper methods */
 
 std::string Snapper::callSnapper(std::string opts) {
-    if (std::filesystem::exists("/run/dbus/system_bus_socket")) {
-        return Util::exec("snapper " + opts);
-    } else {
-        return Util::exec("snapper --no-dbus " + opts);
+    std::string output;
+    try {
+        if (std::filesystem::exists("/run/dbus/system_bus_socket")) {
+            output = Util::exec("snapper " + opts);
+        } else {
+            output = Util::exec("snapper --no-dbus " + opts);
+        }
+    } catch (const ExecutionException &e) {
+        if (e.output.rfind("Unknown option", 0) == 0) {
+            std::string message;
+            std::getline(std::istringstream(e.output), message);
+            throw VersionException{"snapper: " + message};
+        } else {
+            throw;
+        }
     }
+    return output;
 }
 
 } // namespace TransactionalUpdate
