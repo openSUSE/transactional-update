@@ -11,7 +11,7 @@ Version 4.5.0 (2023-11-20)
 * t-u: Warn user when using "kdump" if it isn't configured to avoid
   confusion with "setup-kdump" [boo#1215725]
 * t-u: Abort if mkdumprd run is not successful
-* t-u: Use defaut from config file if t-u is called without arguments
+* t-u: Use default from config file if t-u is called without arguments
   [gh#openSUSE/transactional-update#101]
 * Improved README.md [gh#openSUSE/transactional-update#59] and API docs
 * Code cleanup
