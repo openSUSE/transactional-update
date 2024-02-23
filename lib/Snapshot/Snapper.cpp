@@ -136,9 +136,12 @@ bool Snapper::isInProgress() {
 }
 
 bool Snapper::isReadOnly() {
-    std::string ro = Util::exec("btrfs property get " + std::string(getRoot()) + " ro");
-    Util::rtrim(ro);
-    if (ro == "ro=true")
+    std::string ro = callSnapper("--csvout list --columns number,read-only");
+    std::smatch match;
+    bool found = std::regex_search(ro, match, std::regex(snapshotId + ",(.*)"));
+    if (!found)
+        throw std::runtime_error{"Couldn't determine read-only state"};
+    if (match[1].str() == "yes")
         return true;
     else
         return false;

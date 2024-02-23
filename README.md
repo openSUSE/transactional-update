@@ -22,7 +22,7 @@ Or in a more formal way: A transactional update is an update that
   * A failed or incompatible update can be quickly discarded to restore the previous system condition
 
 ## Supported Systems
-* **Btrfs with Snapper**: Creates a new snapshot of the system and applies the update there. In contrast to classical A/B partitioning mechanisms snapper can handle a large number of snapshots, and snapshot handling of Btrfs is very fast and space efficient.
+* **Snapper**: Uses snapper to create new snapshots (with support for BTRFS and bcachefs). In contrast to classical A/B partitioning mechanisms snapper can handle a large number of snapshots, and snapshot handling of BTRFS is very fast and space efficient.
 * The API is intentionally generic and able to support a wider range of backends for atomic / transactional systems.
 
 ## How does this work?
