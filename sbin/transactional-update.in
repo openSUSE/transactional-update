@@ -59,8 +59,6 @@ SETUP_KDUMP=0
 SETUP_SELINUX=0
 UPDATE_METHOD="up"
 USE_TELEMETRICS=0
-TELEM_PAYLOAD="PACKAGE_NAME=transactional-update\nPACKAGE_VERSION=@VERSION@"
-TELEM_CLASS=""
 CONFFILE="@sysconfdir@/transactional-update.conf"
 SYSTEMCONFFILE="@prefix@@sysconfdir@/transactional-update.conf"
 LOGFILE="/var/log/transactional-update.log"
@@ -213,7 +211,6 @@ log_info() {
 }
 
 log_error() {
-    TELEM_PAYLOAD="${TELEM_PAYLOAD}\nmessage=$@"
     log_to_file "$@"
     echo -e "$@" 1>&2
 }
@@ -278,30 +275,6 @@ rebuild_kdump_initrd() {
     return 0;
 }
 
-# start telemetry system if installed
-telem_start() {
-    if [ -x /usr/bin/telem-record-gen ]; then
-	USE_TELEMETRICS=1
-	TELEM_START_TIME=`echo $(($(date +%s%N)/1000000))`
-	source <(grep VERSION_ID /etc/os-release)
-	TELEM_PAYLOAD="${TELEM_PAYLOAD}\noptions=${ORIG_ARGS[@]}\ncurrent_version=${VERSION_ID}"
-    fi
-}
-
-telem_finish () {
-    if [ ${USE_TELEMETRICS} -eq 1 ]; then
-	TELEM_END_TIME=`echo $(($(date +%s%N)/1000000))`
-	ELAPSED_TIME=`echo "scale=3; ($TELEM_END_TIME - $TELEM_START_TIME)/1000" | bc -l`
-	TELEM_PAYLOAD="${TELEM_PAYLOAD}\ntime=${ELAPSED_TIME} Seconds"
-	if [ $1 -gt 0 ]; then
-	  TELEM_SEVERITY=3
-	else
-	  TELEM_SEVERITY=1
-	fi
-	echo -e "${TELEM_PAYLOAD}" | telem-record-gen -s ${TELEM_SEVERITY} -c "org.opensuse/txupdate/$TELEM_CLASS"
-    fi
-}
-
 # Only called in error case; reverts everything to previous state.
 quit() {
     teardown
@@ -317,7 +290,6 @@ quit() {
 	log_error "Removing snapshot #${SNAPSHOT_ID}..."
 	tukit ${TUKIT_OPTS} abort ${SNAPSHOT_ID} |& tee -a ${LOGFILE}
     fi
-    telem_finish $1
     log_info "transactional-update finished"
     exit $1
 }
@@ -458,32 +430,26 @@ write_needs_restarting() {
 }
 
 reboot_via_rebootmgr() {
-    TELEM_PAYLOAD="${TELEM_PAYLOAD}\nreboot=rebootmgr"
     tukit reboot rebootmgr |& tee -a ${LOGFILE}
 }
 
 reboot_via_notify() {
-    TELEM_PAYLOAD="${TELEM_PAYLOAD}\nreboot=transactional-update-notify client"
     tukit reboot notify |& tee -a ${LOGFILE}
 }
 
 reboot_via_systemd() {
-    TELEM_PAYLOAD="${TELEM_PAYLOAD}\nreboot=systemctl reboot"
     tukit reboot systemd |& tee -a ${LOGFILE}
 }
 
 reboot_via_kured() {
-    TELEM_PAYLOAD="${TELEM_PAYLOAD}\nreboot=kured"
     tukit reboot kured |& tee -a ${LOGFILE}
 }
 
 reboot_via_kexec() {
-    TELEM_PAYLOAD="${TELEM_PAYLOAD}\nreboot=kexec"
     tukit reboot kexec |& tee -a ${LOGFILE}
 }
 
 reboot_autodetect() {
-    TELEM_PAYLOAD="${TELEM_PAYLOAD}\nreboot=auto"
     tukit reboot auto |& tee -a ${LOGFILE}
 }
 
@@ -1310,27 +1276,22 @@ fi
 log_info "transactional-update @VERSION@ started"
 log_info "Options: ${ORIG_ARGS[@]}"
 
-telem_start
-
 SNAPPER_VERSION=`snapper --version | head -1 | cut -d ' ' -f 2`
 if [ -n "${BASE_SNAPSHOT_ID}" -a $(zypper --terse versioncmp $SNAPPER_VERSION 0.8.4) -lt 0 ]; then
     log_error "ERROR: snapper >= 0.8.4 required for --continue option!"
     log_info "transactional-update finished"
-    telem_finish 1
     exit 1
 fi
 
 if [ "`stat -f -c %T /`" != "btrfs" ]; then
   log_error "ERROR: not using btrfs as root file system!"
   log_info "transactional-update finished"
-  telem_finish 1
   exit 1
 fi
 
 if [ ! -d /.snapshots ]; then
   log_error "ERROR: no snapshots for root file system configured!"
   log_info "transactional-update finished"
-  telem_finish 1
   exit 1
 fi
 
@@ -1407,7 +1368,6 @@ if [ ${DO_ROLLBACK} -eq 1 ]; then
 	fi
     fi
     log_info "transactional-update finished"
-    telem_finish 0
     exit 0
 fi
 
@@ -1572,7 +1532,6 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 		tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" rpm -e --justdb --nodeps libfdisk1
 	    fi
 	    rm -f ${TMPFILE}
-	    TELEM_PAYLOAD="${TELEM_PAYLOAD}\npackages=${NUM_OF_UPDATES}\ndownload_size=${PACKAGE_UPDATES}\nspace-usage=${SIZE_OF_UPDATES}"
 	    if [ "${NUM_OF_UPDATES}" = "0" ] || [ -z "${NUM_OF_UPDATES}" -a "${PACKAGE_UPDATES}" = "0" -a "${SIZE_OF_UPDATES}" = "0" ]; then
 		log_info "zypper: nothing to update"
 		quit 0
@@ -1617,7 +1576,6 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	        REWRITE_GRUB_CFG=1
 	    fi
 	    source <(grep VERSION_ID ${SNAPSHOT_DIR}/etc/os-release)
-	    TELEM_PAYLOAD="${TELEM_PAYLOAD}\nnext_version=${VERSION_ID}"
 	else
 	    log_error "ERROR: zypper ${ZYPPER_ARG} on ${SNAPSHOT_DIR} failed with exit code ${RETVAL}!"
 	    if [ -n "${ZYPPER_NONINTERACTIVE}" ]; then
@@ -1845,7 +1803,5 @@ if [ ${EXITCODE} -eq 0 ]; then
 	esac
     fi
 fi
-
-telem_finish $EXITCODE
 
 exit $EXITCODE
