@@ -37,7 +37,7 @@ Applications can integrate support directly (such as dnf or Cockpit - see [Known
 
 ## API Documentation
 Developers that want to integrate support for transactional updates may be interested in the following official API ressources:
-* C++: [Transaction.hpp](lib/Transaction.hpp) / [SnapshotManager.hpp](lib/SnapshotManager.hpp)
+* C++: [Transaction.hpp](lib/Transaction.hpp) / [SnapshotManager.hpp](lib/SnapshotManager.hpp) / [Reboot.hpp](lib/Reboot.hpp)
 * C: [libtukit.h](lib/Bindings/libtukit.h) (C binding - see the C++ header files for documentation)
 * D-Bus interface: [org.opensuse.tukit.Transaction.xml](dbus/org.opensuse.tukit.Transaction.xml) / [org.opensuse.tukit.Snapshot.xml](dbus/org.opensuse.tukit.Snapshot.xml)
 

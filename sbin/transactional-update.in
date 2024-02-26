@@ -429,30 +429,6 @@ write_needs_restarting() {
     fi
 }
 
-reboot_via_rebootmgr() {
-    tukit reboot rebootmgr |& tee -a ${LOGFILE}
-}
-
-reboot_via_notify() {
-    tukit reboot notify |& tee -a ${LOGFILE}
-}
-
-reboot_via_systemd() {
-    tukit reboot systemd |& tee -a ${LOGFILE}
-}
-
-reboot_via_kured() {
-    tukit reboot kured |& tee -a ${LOGFILE}
-}
-
-reboot_via_kexec() {
-    tukit reboot kexec |& tee -a ${LOGFILE}
-}
-
-reboot_autodetect() {
-    tukit reboot auto |& tee -a ${LOGFILE}
-}
-
 add_unique_id() {
     local NEW_ID="$1"
 
@@ -1776,29 +1752,30 @@ if [ ${EXITCODE} -eq 0 ]; then
 	trap '-' HUP INT QUIT TERM
 	case "$REBOOT_METHOD" in
 	    auto)
-		reboot_autodetect
+		tukit reboot auto |& tee -a ${LOGFILE}
 		;;
 	    kured)
-		reboot_via_kured
+		tukit reboot kured |& tee -a ${LOGFILE}
 		;;
 	    rebootmgr)
-		reboot_via_rebootmgr
+		tukit reboot rebootmgr |& tee -a ${LOGFILE}
 		;;
 	    notify)
-		reboot_via_notify
+		tukit reboot notify |& tee -a ${LOGFILE}
 		;;
 	    systemd)
-		reboot_via_systemd
+		tukit reboot systemd |& tee -a ${LOGFILE}
 		;;
 	    kexec)
-		reboot_via_kexec
+		tukit reboot kexec |& tee -a ${LOGFILE}
 		;;
 	    none)
+		tukit reboot none |& tee -a ${LOGFILE}
 		;;
 	    *)
 	        log_info "Unsupported reboot method, falling back to 'auto'; please"
 	        log_info "check your configuration in ${CONFFILE}."
-	        reboot_autodetect
+		tukit reboot auto |& tee -a ${LOGFILE}
 	        ;;
 	esac
     fi
