@@ -9,6 +9,7 @@
 #include "Configuration.hpp"
 #include "Exceptions.hpp"
 #include "Log.hpp"
+#include "Mount.hpp"
 #include "Snapshot.hpp"
 #include "SnapshotManager.hpp"
 #include "Util.hpp"
@@ -48,9 +49,9 @@ Reboot::Reboot(std::string method) {
     if (type == "soft-reboot" && config.get("REBOOT_ALLOW_SOFT_REBOOT") == "true") {
         auto sf = SnapshotFactory::get();
         std::unique_ptr<Snapshot> newSnap = sf->open(sf->getDefault());
-        if (std::filesystem::is_symlink("/run/nextroot"))
-            std::filesystem::remove("/run/nextroot");
-        std::filesystem::create_directory_symlink(newSnap->getRoot(), "/run/nextroot");
+        auto nextroot = new BindMount("/run/nextroot");
+        nextroot->setSource(newSnap->getRoot());
+        nextroot->mount();
     }
 
     if (method == "rebootmgr") {
