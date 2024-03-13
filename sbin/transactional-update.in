@@ -100,7 +100,7 @@ SNAPSHOT_DIR=""
 BASE_SNAPSHOT_ID=""
 TMPFILE=""
 APPLYWORKDIR=""
-DO_CALLEXT=0
+DO_CALLEXT=1
 LAST_BOOTED=""
 
 declare -A ROLES=()
@@ -912,7 +912,6 @@ parse_args() {
 			usage 1;
 			;;
 		esac
-		DO_CALLEXT=1
 
 		if [ $# -eq 0 ]; then
 		    usage 1
@@ -1487,7 +1486,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	if [ ${DO_MIGRATION} -eq 1 ]; then
 	    # transactional-update migration
 	    export DISABLE_RESTART_ON_UPDATE=yes
-	    tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" zypper ${ZYPPER_ARG} ${ZYPPER_NONINTERACTIVE} "${ZYPPER_ARG_PKGS[@]}" |& tee -a ${LOGFILE} 1>&${origstdout}
+	    tukit ${TUKIT_OPTS} callext "${SNAPSHOT_ID}" zypper ${ZYPPER_ARG} --root {} ${ZYPPER_NONINTERACTIVE} "${ZYPPER_ARG_PKGS[@]}" |& tee -a ${LOGFILE} 1>&${origstdout}
 	    RETVAL=${PIPESTATUS[0]}
 	else
 	    if [ ${DO_CALLEXT} -eq 1 ]; then
