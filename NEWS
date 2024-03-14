@@ -2,6 +2,9 @@ transactional-update NEWS -- history of user-visible changes.
 
 Copyright (C) 2016-2022 Thorsten Kukuk, Ignaz Forster et al.
 
+Version 4.1.7
+* Always use zypper of installed system [bsc#1221346]
+
 Version 4.1.6
 * Use permissions of real /etc when creating overlay
 
