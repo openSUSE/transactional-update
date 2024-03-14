@@ -58,7 +58,6 @@ SETUP_FIPS=0
 SETUP_KDUMP=0
 SETUP_SELINUX=0
 UPDATE_METHOD="up"
-USE_TELEMETRICS=0
 CONFFILE="@sysconfdir@/transactional-update.conf"
 SYSTEMCONFFILE="@prefix@@sysconfdir@/transactional-update.conf"
 LOGFILE="/var/log/transactional-update.log"
@@ -102,6 +101,7 @@ TMPFILE=""
 APPLYWORKDIR=""
 DO_CALLEXT=1
 LAST_BOOTED=""
+HAS_COMMAND=0
 
 declare -A ROLES=()
 REPOS=()
@@ -854,6 +854,10 @@ parse_args() {
 	    break
 	fi
 
+	if [[ $1 != --* ]]; then
+	    HAS_COMMAND=1
+	fi
+
 	case "$1" in
 	    cleanup)
 		DO_CLEANUP_OVERLAYS=1
@@ -872,20 +876,16 @@ parse_args() {
 		DO_DUP=1
 		ZYPPER_ARG="--no-cd dup"
 		shift
-		TELEM_CLASS="upgrade"
 		;;
 	    update|up)
 		ZYPPER_ARG=up
 		shift
-		TELEM_CLASS="update"
 		;;
 	    patch)
 		ZYPPER_ARG="--non-interactive-include-reboot-patches patch"
 		shift
-		TELEM_CLASS="patch"
 		;;
 	    ptf|pkg|package)
-		TELEM_CLASS="package"
 		shift
 		if [ $# -eq 0 ]; then
 		    usage 1
@@ -900,7 +900,7 @@ parse_args() {
 		    remove|rm)
 			ZYPPER_ARG="remove"
 			if [ -n "${ZYPPER_NONINTERACTIVE}" ]; then
-		    ZYPPER_NONINTERACTIVE="-y"
+			    ZYPPER_NONINTERACTIVE="-y"
 			fi
 			shift
 			;;
@@ -927,8 +927,6 @@ parse_args() {
 		done
 		;;
 	    migration)
-		TELEM_CLASS="migration"
-		__NO_RESET=0
 		DO_MIGRATION=1
 		ZYPPER_ARG="migration --no-snapshots --no-selfupdate"
 		if [ -n "${FORCE_NONINTERACTIVE}" ]; then
@@ -941,18 +939,15 @@ parse_args() {
 		shift
 		;;
 	    bootloader)
-		test -z "$TELEM_CLASS" && TELEM_CLASS="bootloader"
 		REWRITE_BOOTLOADER=1
 		REWRITE_GRUB_CFG=1
 		shift
 		;;
 	    grub.cfg)
-		test -z "$TELEM_CLASS" && TELEM_CLASS="bootloader"
 		REWRITE_GRUB_CFG=1
 		shift
 		;;
 	    shell)
-		test -z "$TELEM_CLASS" && TELEM_CLASS="shell"
 		RUN_SHELL=1
 		shift
 		if [ "$1" = "-c" ]; then
@@ -966,13 +961,11 @@ parse_args() {
 		fi
 		;;
 	    initrd)
-		test -z "$TELEM_CLASS" && TELEM_CLASS="initrd"
 		REWRITE_INITRD=1
 		REBUILD_KDUMP_INITRD=1
 		shift
 		;;
 	    kdump)
-		test -z "$TELEM_CLASS" && TELEM_CLASS="kdump"
 		REBUILD_KDUMP_INITRD=1
 		SETUP_KDUMP=2
 		shift
@@ -982,7 +975,6 @@ parse_args() {
 		shift
 		;;
 	    rollback)
-		TELEM_CLASS="rollback"
 		DO_ROLLBACK=1
 		DO_SELF_UPDATE=0
 		shift
@@ -996,7 +988,6 @@ parse_args() {
 		shift
 		;;
 	    run)
-		test -z "$TELEM_CLASS" && TELEM_CLASS="shell"
 		DO_RUN=1
 		shift
 
@@ -1009,12 +1000,10 @@ parse_args() {
 		break
 		;;
 	    setup-fips)
-		test -z "$TELEM_CLASS" && TELEM_CLASS="fips"
 		SETUP_FIPS=1
 		shift
 		;;
 	    setup-kdump)
-		test -z "$TELEM_CLASS" && TELEM_CLASS="setup-kdump"
 		SETUP_KDUMP=1
 		shift
 		if [[ $1 == --crashkernel* ]]; then
@@ -1028,7 +1017,6 @@ parse_args() {
 		fi
 		;;
 	    setup-selinux)
-		test -z "$TELEM_CLASS" && TELEM_CLASS="selinux"
 		SETUP_SELINUX=1
 		shift
 		;;
@@ -1191,9 +1179,7 @@ if [ ${SETUP_KDUMP} -eq 1 ]; then
 fi
 
 # If no commands were given, use default from config
-if [ -z "${ZYPPER_ARG}" -a -z "${TELEM_CLASS}" -a "${REBOOT_AFTERWARDS}" -eq 0 \
-	-a "${DO_REGISTRATION}" -eq 0 -a "${DO_CLEANUP_OVERLAYS}" -eq 0 \
-	-a "${DO_CLEANUP_SNAPSHOTS}" -eq 0 -a "${DO_APPLY}" -eq 0 ]; then
+if [ "${HAS_COMMAND}" -eq 0 ]; then
     parse_args "${UPDATE_METHOD}"
 fi
 
