@@ -44,7 +44,7 @@ DO_STATUS_LAST=0
 REGISTRATION_ARGS=""
 ROLLBACK_SNAPSHOT=0
 REBOOT_AFTERWARDS=0
-REBOOT_LEVEL="reboot"
+REBOOT_LEVEL="none"
 REBOOT_LEVEL_PREV=""
 REBOOT_METHOD="auto"
 declare -A REBOOT_ASSOCS
@@ -52,6 +52,7 @@ declare -A REBOOT_PRIO
 REBOOT_PRIO[reboot]=3
 REBOOT_PRIO[kexec]=2
 REBOOT_PRIO[soft-reboot]=1
+REBOOT_PRIO[none]=0
 RUN_CMD=""
 RUN_SHELL=0
 SETUP_FIPS=0
@@ -411,22 +412,20 @@ do_apply() {
     fi
 }
 
-write_needs_restarting() {
-    local prio1="${REBOOT_PRIO[${1}]}"
-    local prio2=0
-    local prio3=0
-    if [ -n "${2}" ]; then
-	prio2="${REBOOT_PRIO[${2}]}"
+set_reboot_level() {
+    if [ "${REBOOT_PRIO[${1}]}" -gt "${REBOOT_PRIO[${REBOOT_LEVEL}]}" ]; then
+	REBOOT_LEVEL="${1}"
     fi
+}
+
+write_needs_restarting() {
     if [ -e "${NEEDS_RESTARTING_FILE}" ]; then
-	prio3="${REBOOT_PRIO[$(cat "${NEEDS_RESTARTING_FILE}")]}"
+	if [ "${REBOOT_PRIO[${REBOOT_LEVEL}]}" -lt "${REBOOT_PRIO[$(cat "${NEEDS_RESTARTING_FILE}")]}" ]; then
+	    REBOOT_LEVEL="$(cat "${NEEDS_RESTARTING_FILE}")"
+	fi
     fi
 
-    if [ "${prio1}" -ge "${prio2}" ] && [ "${prio1}" -gt "${prio3}" ]; then
-	echo -n "${1}" > "${NEEDS_RESTARTING_FILE}"
-    elif [ "${prio2}" -ge "${prio1}" ] && [ "${prio2}" -gt "${prio3}" ]; then
-	echo -n "${2}" > "${NEEDS_RESTARTING_FILE}"
-    fi
+    echo -n "${REBOOT_LEVEL}" > "${NEEDS_RESTARTING_FILE}"
 }
 
 add_unique_id() {
@@ -1189,14 +1188,6 @@ if [ -n "${TRANSACTIONAL_UPDATE}" ]; then
     exit 1
 fi
 
-# Store current reboot level for reset in case of failure and delete flag file
-if [ -e "${NEEDS_RESTARTING_FILE}" ]; then
-    REBOOT_LEVEL_PREV="$(cat "${NEEDS_RESTARTING_FILE}")"
-    rm "${NEEDS_RESTARTING_FILE}"
-else
-    REBOOT_LEVEL_PREV=none
-fi
-
 # Check if this is a self-updated transactional-update; if it isn't lock and
 # check for update
 if [ -z "${TA_UPDATE_TMPFILE}" ]; then
@@ -1228,6 +1219,14 @@ fi
 
 # Clean up in case the application is interrupted
 trap 'log_error "Received termination signal..." && quit 1' HUP INT QUIT TERM
+
+# Store current reboot level for reset in case of failure and delete flag file
+if [ -e "${NEEDS_RESTARTING_FILE}" ]; then
+    REBOOT_LEVEL_PREV="$(cat "${NEEDS_RESTARTING_FILE}")"
+    rm "${NEEDS_RESTARTING_FILE}"
+else
+    REBOOT_LEVEL_PREV=none
+fi
 
 # Load old state file
 if [ -f ${STATE_FILE} ]; then
@@ -1316,7 +1315,8 @@ if [ ${DO_ROLLBACK} -eq 1 ]; then
 	if [ ${NEED_REBOOT} -eq 0 ]; then
 	    rm -f "${NEEDS_RESTARTING_FILE}"
 	else
-	    write_needs_restarting "${REBOOT_LEVEL}" "${REBOOT_ASSOCS[${ROLLBACK_SNAPSHOT}]}"
+	    REBOOT_LEVEL="reboot"
+	    write_needs_restarting
 	fi
     else
 	NEED_REBOOT=1
@@ -1463,7 +1463,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 
     if [ ${DO_REGISTRATION} -eq 1 ]; then
 	tukit ${TUKIT_OPTS} callext ${SNAPSHOT_ID} SUSEConnect --root {} ${REGISTRATION_ARGS} |& tee -a ${LOGFILE} 1>&${origstdout}
-	REBOOT_LEVEL="soft-reboot"
+	set_reboot_level "soft-reboot"
     fi
 
     if [ -n "${ZYPPER_ARG}" ]; then
@@ -1546,7 +1546,9 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	fi
 	# If zypp-boot-plugin is available and didn't return anything, then soft-reboot is enough
 	if rpm --quiet -q zypp-boot-plugin && [ ! -e "${NEEDS_RESTARTING_FILE}" ] ; then
-	    REBOOT_LEVEL="soft-reboot"
+	    set_reboot_level "soft-reboot"
+	else
+	    set_reboot_level "reboot"
 	fi
     fi
 
@@ -1606,7 +1608,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	else
 	    REBUILD_KDUMP_INITRD=1
 	fi
-	REBOOT_LEVEL="kexec"
+	set_reboot_level "kexec"
     fi
 
     if [ ${REBUILD_KDUMP_INITRD} -eq 1 ]; then
@@ -1616,7 +1618,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	    log_error "ERROR: kdump initrd creation failed!"
 	    EXITCODE=1
 	fi
-	REBOOT_LEVEL="soft-reboot"
+	set_reboot_level "soft-reboot"
     fi
 
     if [ ${REWRITE_GRUB_CFG} -eq 1 ]; then
@@ -1630,6 +1632,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
                 chcon --reference /boot/grub2/grub.cfg "${SNAPSHOT_DIR}/boot/grub2/grub.cfg"
             fi
 	fi
+	set_reboot_level "reboot"
     fi
 
     if [ ${REWRITE_BOOTLOADER} -eq 1 ]; then
@@ -1639,16 +1642,19 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	    log_error "ERROR: /sbin/pbl --install failed!"
 	    EXITCODE=1;
 	fi
+	set_reboot_level "reboot"
     fi
 
     if [ ${DO_RUN} -eq 1 ]; then
 	tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" "${RUN_CMD[@]}" |& tee -a ${LOGFILE} 1>&${origstdout}
+	set_reboot_level "reboot"
     fi
 
     if [ ${RUN_SHELL} -eq 1 ]; then
 	log_to_stdout "Opening chroot in snapshot ${SNAPSHOT_ID}, continue with 'exit'"
         export PS1="transactional update # "
 	tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" bash 1>&${origstdout} 2>&${origstderr}
+	set_reboot_level "reboot"
     fi
 
     if [ -x /usr/sbin/selinuxenabled ] && /usr/sbin/selinuxenabled ; then
@@ -1708,8 +1714,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	quit ${EXITCODE}
     fi
 
-    write_needs_restarting "${REBOOT_LEVEL}" "${REBOOT_ASSOCS[${BASE_SNAPSHOT_ID}]}"
-    rebootmethod="$(cat "${NEEDS_RESTARTING_FILE}")"
+    write_needs_restarting
     if ! { [ $REBOOT_AFTERWARDS -eq 1 ] || [ $DO_APPLY -eq 1 -a "${rebootmethod}" == "soft-reboot" ]; }; then
 	log_info ""
 	log_info "Please reboot your machine to activate the changes and avoid data loss."
