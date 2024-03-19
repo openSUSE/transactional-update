@@ -245,7 +245,7 @@ int TUKit::processCommand(char *argv[]) {
 class Lock {
 public:
     Lock(){
-        lockfile = open(config.get("LOCKFILE").c_str(), O_CREAT|O_WRONLY, 0600);
+        lockfile = open(config.get("LOCKFILE").c_str(), O_CREAT|O_WRONLY|O_CLOEXEC, 0600);
         if (lockfile < 0) {
             throw runtime_error{"Could not create lock file '" + config.get("LOCKFILE") + "': " + strerror(errno)};
         }
