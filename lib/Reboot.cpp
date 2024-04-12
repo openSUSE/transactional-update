@@ -66,8 +66,12 @@ Reboot::Reboot(std::string method) {
         command  = "sync;";
         if (type == "soft-boot" && config.get("REBOOT_ALLOW_SOFT_REBOOT") == "true") {
             command += "systemctl soft-reboot;";
-        } else if (type == "force-kexec" || ((type == "kexec" || type == "soft-boot") && config.get("REBOOT_ALLOW_KEXEC") == "true")) {
-            command  = "kexec --kexec-syscall-auto -l /boot/vmlinuz --initrd=/boot/initrd --reuse-cmdline;";
+        } else if (type == "force-kexec" || ((type == "kexec" || type == "soft-reboot") && config.get("REBOOT_ALLOW_KEXEC") == "true")) {
+            auto sm = SnapshotFactory::get();
+            sm->getDefault();
+            std::unique_ptr<Snapshot> defaultSnap = sm->open(sm->getDefault());
+
+            command  = "kexec --kexec-syscall-auto -l " + std::string(defaultSnap->getRoot() / "boot" / "vmlinuz") + " --initrd=" + std::string(defaultSnap->getRoot() / "boot" / "initrd") + " --reuse-cmdline;";
             command += "systemctl kexec;";
         } else {
             command += "systemctl reboot;";
