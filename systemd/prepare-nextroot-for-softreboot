@@ -1,0 +1,25 @@
+#!/bin/sh -eu
+
+# By default a systemd soft-reboot will stay within the current snapshot. On
+# a regular r/w system this is not a problem because updates will change the
+# existing snapshot. On a transactional system however the default snapshot
+# will be changed, and the user probably wants to boot into that new snapshot.
+# In general this problem also exists when doing a rollback on a conventional
+# system, but we left systemd's default behavior there.
+
+# Someone prepared a nextroot mount already
+[ -e /run/nextroot/etc/fstab ] && exit 0
+
+# Don't do anything if in default snapshot already
+snapper --csvout list --columns default,active | grep -q 'yes,yes' || exit 0
+
+# Mount default subvolume into /run/nextroot
+mkdir -p /run/nextroot
+DEFAULT_SUBVOL="$(btrfs subvolume get-default /)"
+findmnt --noheadings / | awk '{ sub("subvol=/@/[^,]*", "", $4); sub("subvolid=[^,]*", "", $4); sub("\\[.*\\]", "", $2); system("mount -o \x27" $4 "\x27 " $2 " /run/nextroot") }'
+
+# Perform all mounts marked with x-initrd.mount inside /run/nextroot
+awk '$1 !~ /^#/ && $4 ~ /(\<|,)x-initrd\.mount(\>|,)/ {
+	gsub(/sysroot\//,"run/nextroot/", $4); # The /etc overlay mount hardcodes /sysroot paths in options
+	if(system("findmnt /run/nextroot" $2 " >/dev/null || mount --target-prefix /run/nextroot --fstab /run/nextroot/etc/fstab --options-mode ignore -o \x27" $4 "\x27 " $2) != 0) exit 1;
+	}' /run/nextroot/etc/fstab

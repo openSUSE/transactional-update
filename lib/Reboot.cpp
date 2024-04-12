@@ -9,7 +9,6 @@
 #include "Configuration.hpp"
 #include "Exceptions.hpp"
 #include "Log.hpp"
-#include "Mount.hpp"
 #include "Snapshot.hpp"
 #include "SnapshotManager.hpp"
 #include "Util.hpp"
@@ -46,16 +45,8 @@ Reboot::Reboot(std::string method) {
         type = "force-kexec";
     }
 
-    if (type == "soft-reboot" && config.get("REBOOT_ALLOW_SOFT_REBOOT") == "true") {
-        auto sf = SnapshotFactory::get();
-        std::unique_ptr<Snapshot> newSnap = sf->open(sf->getDefault());
-        auto nextroot = new BindMount("/run/nextroot");
-        nextroot->setSource(newSnap->getRoot());
-        nextroot->mount();
-    }
-
     if (method == "rebootmgr") {
-        if (type == "soft-boot" && config.get("REBOOT_ALLOW_SOFT_REBOOT") == "true") {
+        if (type == "soft-reboot" && config.get("REBOOT_ALLOW_SOFT_REBOOT") == "true") {
             command  = "/usr/sbin/rebootmgrctl soft-reboot";
         } else {
             command  = "/usr/sbin/rebootmgrctl reboot";
@@ -64,7 +55,7 @@ Reboot::Reboot(std::string method) {
         command  = "/usr/bin/transactional-update-notifier client";
     } else if (method == "systemd") {
         command  = "sync;";
-        if (type == "soft-boot" && config.get("REBOOT_ALLOW_SOFT_REBOOT") == "true") {
+        if (type == "soft-reboot" && config.get("REBOOT_ALLOW_SOFT_REBOOT") == "true") {
             command += "systemctl soft-reboot;";
         } else if (type == "force-kexec" || ((type == "kexec" || type == "soft-reboot") && config.get("REBOOT_ALLOW_KEXEC") == "true")) {
             auto sm = SnapshotFactory::get();

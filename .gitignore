@@ -37,6 +37,7 @@ tukit.pc
 tukitd
 sbin/transactional-update
 src/transactional-update
+systemd/prepare-nextroot-for-softreboot.service
 systemd/transactional-update.service
 systemd/transactional-update-cleanup.service
 man/transactional-update.8

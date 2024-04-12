@@ -394,7 +394,7 @@ do_apply() {
 	rmdir "${APPLYWORKDIR}/mount"
 	rmdir "${APPLYWORKDIR}"
 	if [ -e "${NEEDS_RESTARTING_FILE}" ]; then
-	    grep -q soft-reboot "${NEEDS_RESTARTING_FILE}" && rm "${NEEDS_RESTARTING_FILE}"
+	    grep -q soft-reboot "${NEEDS_RESTARTING_FILE}" && rm "${NEEDS_RESTARTING_FILE}" && REBOOT_AFTERWARDS=0
 	fi
 
 	log_info "Executing systemctl daemon-reexec..."
@@ -1731,6 +1731,11 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
     log_info "New default snapshot is #${SNAPSHOT_ID} (${SNAPSHOT_DIR})."
 fi
 
+# No command changing the reboot level given - restore potential previous one
+if [ "${REBOOT_LEVEL}" == "none" -a "${REBOOT_LEVEL_PREV}" != "none" ]; then
+    echo -n "${REBOOT_LEVEL_PREV}" > "${NEEDS_RESTARTING_FILE}"
+fi
+
 if [ ${DO_APPLY} -eq 1 -a ${EXITCODE} -eq 0 ]; then
     do_apply
 fi
@@ -1738,7 +1743,7 @@ fi
 log_info "transactional-update finished"
 
 if [ ${EXITCODE} -eq 0 ]; then
-    if [ $REBOOT_AFTERWARDS -eq 1 -a -e "${NEEDS_RESTARTING_FILE}" ]; then
+    if [ $REBOOT_AFTERWARDS -eq 1 ]; then
 	trap '-' HUP INT QUIT TERM
 	case "$REBOOT_METHOD" in
 	    auto)
