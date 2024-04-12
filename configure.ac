@@ -1,11 +1,11 @@
 dnl Process this file with autoconf to produce a configure script.
-AC_INIT(transactional-update, 4.6.0)
+AC_INIT(transactional-update, 4.6.5)
 # Increase on any interface change and reset revision
 LIBTOOL_CURRENT=5
 # On interface change increase if backwards compatible, reset otherwise
 LIBTOOL_AGE=1
 # Increase on *any* C/C++ library code change, reset at interface change
-LIBTOOL_REVISION=1
+LIBTOOL_REVISION=2
 AC_CANONICAL_SYSTEM
 AM_INIT_AUTOMAKE([foreign])
 AC_CONFIG_FILES([tukit.pc])

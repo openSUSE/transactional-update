@@ -2,6 +2,22 @@ transactional-update NEWS -- history of user-visible changes.
 
 Copyright (C) 2016-2023 Thorsten Kukuk, Ignaz Forster et al.
 
+Version 4.6.5 (2024-04-12)
+* Rework soft-reboot support introduced in 4.6.0:
+  * On transactional systems with systemd 254 the system could hang with with
+    a soft-reboot, as /var and /etc have to be mounted in /run/nextroot
+    explicitly. As a soft-reboot can also be triggered by an admin the
+    mounting of the corresponding mount points was moved to a systemd service
+    to be independent of t-u itself.
+  * Support for systemd 255
+  * Don't decrease reboot level on multiple commands
+  * Various other bugfixes
+  * soft-reboot support is disabled by default now to gather more feedback
+* libtukit: Fix kexec reboot method to boot kernel / initrd of next snapshot
+* tukit: Don't clone lock file handle on exec [boo#1222411]
+* t-u: Always use zypper of installed system [bsc#1221346]
+* t-u: Remove remaining telemetrics references
+
 Version 4.6.0 (2024-03-04)
 * tukit / t-u: Implement support for systemd soft-reboot, but needs package
   manager support (provided by zypp-boot-plugin on openSUSE) to determine which
