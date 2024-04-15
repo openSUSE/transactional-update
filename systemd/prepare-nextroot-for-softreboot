@@ -15,7 +15,6 @@ snapper --csvout list --columns default,active | grep -q 'yes,yes' || exit 0
 
 # Mount default subvolume into /run/nextroot
 mkdir -p /run/nextroot
-DEFAULT_SUBVOL="$(btrfs subvolume get-default /)"
 findmnt --noheadings / | awk '{ sub("subvol=/@/[^,]*", "", $4); sub("subvolid=[^,]*", "", $4); sub("\\[.*\\]", "", $2); system("mount -o \x27" $4 "\x27 " $2 " /run/nextroot") }'
 
 # Perform all mounts marked with x-initrd.mount inside /run/nextroot
