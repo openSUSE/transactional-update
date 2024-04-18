@@ -46,13 +46,16 @@
   </refnamediv>
 
   <refsynopsisdiv>
-    <para><filename>%sysconfdir%/tukit.conf</filename></para>
+    <para><literallayout>
+<filename>%sysconfdir%/tukit.conf</filename>
+<filename>%sysconfdir%/tukit.d/*.conf</filename>
+    </literallayout></para>
   </refsynopsisdiv>
 
   <refsect1>
     <title>Description</title>
 
-    <para>This configuration file controls and defines the behaviour of
+    <para>These configuration files control and define the behavior of
     <citerefentry>
       <refentrytitle>tukit</refentrytitle>
       <manvolnum>8</manvolnum>
@@ -62,6 +65,9 @@
     <para>A reference file (also used for reading the default values) can be
     found in
     <filename>%prefix%%sysconfdir%/tukit.conf</filename>.</para>
+    <para>Configuration file snippets (to overwrite only parts of the
+    configuration) can also be used in
+    <filename>%sysconfdir%/tukit.d/*.conf</filename>.</para>
   </refsect1>
 
   <refsect1>
