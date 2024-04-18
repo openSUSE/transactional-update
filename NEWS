@@ -2,6 +2,11 @@ transactional-update NEWS -- history of user-visible changes.
 
 Copyright (C) 2016-2023 Thorsten Kukuk, Ignaz Forster et al.
 
+Version 4.6.6 (2024-04-18)
+* soft-reboot: Fix inverted logic of soft-reboot detection
+* soft-reboot: Remove unused variable
+* doc: Document configuration file snippets for tukit.conf
+
 Version 4.6.5 (2024-04-12)
 * Rework soft-reboot support introduced in 4.6.0:
   * On transactional systems with systemd 254 the system could hang with with
