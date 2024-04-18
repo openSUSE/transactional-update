@@ -11,7 +11,7 @@
 [ -e /run/nextroot/etc/fstab ] && exit 0
 
 # Don't do anything if in default snapshot already
-snapper --csvout list --columns default,active | grep -q 'yes,yes' || exit 0
+snapper --no-dbus --csvout list --columns default,active | grep -q 'yes,yes' && exit 0
 
 # Mount default subvolume into /run/nextroot
 mkdir -p /run/nextroot
