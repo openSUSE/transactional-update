@@ -1380,9 +1380,7 @@ if [ ${DO_CLEANUP_SNAPSHOTS} -eq 1 ]; then
     # process, forced shutdown or similar uncommon conditions).
     # As snapper list output differs between versions search for the correct
     # rows first
-    for snap in $(snapper list | awk -F '|' '
-	    NR==1 { for(i=1; i<=NF; i++) { gsub(/^ +/, "", $i); gsub(/ +$/, "", $i); fields[$i]=i }}
-	    NR>2 { if($fields["Userdata"] ~ "transactional-update-in-progress=yes") { print $fields["#"] }}'); do
+    for snap in $(snapper --csvout list --columns number,userdata | grep 'transactional-update-in-progress=yes' | cut -d , -f 1); do
 	UNUSED_SNAPSHOTS="${UNUSED_SNAPSHOTS} ${snap}"
     done
 
