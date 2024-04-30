@@ -2,6 +2,10 @@ transactional-update NEWS -- history of user-visible changes.
 
 Copyright (C) 2016-2023 Thorsten Kukuk, Ignaz Forster et al.
 
+Version 4.6.7 (2024-04-30)
+* Add support for snapper 0.11.0; also significantly decreases cleanup time
+  [boo#1223504]
+
 Version 4.6.6 (2024-04-18)
 * soft-reboot: Fix inverted logic of soft-reboot detection
 * soft-reboot: Remove unused variable
