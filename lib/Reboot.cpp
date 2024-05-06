@@ -30,14 +30,14 @@ Reboot::Reboot(std::string method) {
         }
     }
 
-    tulog.info("Triggering reboot using " + method);
-
     if (std::filesystem::exists("/run/reboot-needed")) {
         std::ifstream rebootfile;
         rebootfile.open("/run/reboot-needed");
         rebootfile >> type;
         rebootfile.close();
     }
+
+    tulog.info("Requesting reboot using " + method + " (" + type + " required).");
 
     // Deprecated
     if (method == "kexec") {
