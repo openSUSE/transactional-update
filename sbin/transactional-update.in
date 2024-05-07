@@ -28,6 +28,7 @@ ZYPPER_NONINTERACTIVE="-y --auto-agree-with-product-licenses"
 ZYPPER_ARG_PKGS=()
 REWRITE_BOOTLOADER=0
 REWRITE_GRUB_CFG=0
+REWRITE_GRUB_CFG_NO_REBOOT=0
 REWRITE_INITRD=0
 REBUILD_KDUMP_INITRD=0
 DO_APPLY=0
@@ -1532,7 +1533,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	    # menu output, too.
             cmp -s /etc/os-release ${SNAPSHOT_DIR}/etc/os-release
 	    if [ $? -ne 0 -a -x /usr/sbin/grub2-mkconfig ]; then
-	        REWRITE_GRUB_CFG=1
+	        REWRITE_GRUB_CFG_NO_REBOOT=1
 	    fi
 	    source <(grep VERSION_ID ${SNAPSHOT_DIR}/etc/os-release)
 	else
@@ -1619,7 +1620,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	set_reboot_level "soft-reboot"
     fi
 
-    if [ ${REWRITE_GRUB_CFG} -eq 1 ]; then
+    if [ ${REWRITE_GRUB_CFG} -eq 1 -o ${REWRITE_GRUB_CFG_NO_REBOOT} -eq 1 ]; then
 	log_info "Creating a new grub2 config"
 	tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" bash -c "/usr/sbin/grub2-mkconfig > /boot/grub2/grub.cfg" |& tee -a ${LOGFILE} 1>&${origstdout}
 	if [ $? -ne 0 ]; then
@@ -1630,7 +1631,9 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
                 chcon --reference /boot/grub2/grub.cfg "${SNAPSHOT_DIR}/boot/grub2/grub.cfg"
             fi
 	fi
-	set_reboot_level "reboot"
+	if [ ${REWRITE_GRUB_CFG} -eq 1 ]; then
+	    set_reboot_level "reboot"
+	fi
     fi
 
     if [ ${REWRITE_BOOTLOADER} -eq 1 ]; then
