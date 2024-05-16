@@ -840,7 +840,9 @@ show_snapshot_status() {
 	. "${1}snapshot${STATUS_FILE}"
 	echo "Report date:       ${DATE}"
 	echo "Version:           ${PRODUCT} ${VERSION_ID}"
+	# shellcheck disable=SC2153
 	echo "Base OS hash:      ${BASE_MANIFEST_DIGEST}"
+	# shellcheck disable=SC2153
 	echo "Effective OS hash: ${SYSTEM_MANIFEST_DIGEST}"
 	[ -n "${ADDED_PATTERNS}" ] && echo "Added patterns:    ${ADDED_PATTERNS}"
 	[ -n "${REMOVED_PATTERNS}" ] && echo "Removed patterns:  ${REMOVED_PATTERNS}"
