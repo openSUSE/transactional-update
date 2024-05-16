@@ -496,7 +496,7 @@ load_roles() {
     xpath="//*[local-name()='system_role']"
     xpath+="/*[local-name()='id']/text()"
     local role patterns
-    while read role; do
+    while read -r role; do
 	xpath="//*[local-name()='system_role'][*[local-name()='id']='"$role"']"
 	xpath+="/*[local-name()='software']"
 	xpath+="/*[local-name()='default_patterns']/text()"
@@ -516,7 +516,7 @@ load_repo_alias() {
     # Get the repositories, remove the ones that have duplicated URL,
     # and sort by priority
     local line
-    while read line; do
+    while read -r line; do
 	line=($line)
 	[ "${line[2]}" != "0" ] && REPOS+=("${line[0]} ${line[1]}")
     done <<< $(callext zypper --root {} --xmlout lr | re_findall "$regex" | xargs -n4 | LC_COLLATE=C sort -k4 | uniq -f3 | LC_COLLATE=C sort -k2 -r)
@@ -531,10 +531,10 @@ load_buildtime_for_repo() {
     regex+='|(?<=<time ).*?(?=/>)'
 
     local name arch line epoch ver rel file build
-    while read name; do
-	read arch
-	read line; eval "$line"
-	read line; eval "$line"
+    while read -r name; do
+	read -r arch
+	read -r line; eval "$line"
+	read -r line; eval "$line"
 	[ ! -z "$name" ] && echo "${name}-${ver}-${rel}.${arch} $build" >> "$2"
     done <<< $(zcat "$file" | re_findall "$regex")
 }
@@ -542,7 +542,7 @@ load_buildtime_for_repo() {
 # Read all the build time of installed packages
 load_buildtime() {
     local line
-    while read line; do
+    while read -r line; do
 	line=($line)
 	BUILDTIME["${line[0]}"]="${line[1]}"
     done <<< $(callext rpm --root {} --query --all --queryformat='%{NVRA} %{BUILDTIME}\n')
@@ -613,7 +613,7 @@ load_packages_for_role() {
 # Calculate the manifest document using the repository information
 base_manifest() {
     local pkg
-    while read pkg; do
+    while read -r pkg; do
 	grep "^$pkg " "$1" || echo "$pkg"
     done <"$2"
 }
@@ -621,7 +621,7 @@ base_manifest() {
 # Calculate the manifest document from the current system
 system_manifest() {
     local pkg
-    while read pkg; do
+    while read -r pkg; do
 	if [ "${BUILDTIME["$pkg"]+_}" ]; then
 	    echo "$pkg ${BUILDTIME["$pkg"]}"
 	else
