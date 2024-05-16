@@ -818,8 +818,6 @@ show_snapshot_status() {
 	ss_id+="+"
     fi
 
-    local ss_date="$(snapshot_date "$1")"
-    local ss_description="$(snapshot_description "$1")"
     echo "Snapshot:          ${ss_id} [$(snapshot_date "$1")]"
     echo "Description:       $(snapshot_description "$1")"
     if [ -f "${1}snapshot${STATUS_FILE}" ]; then
