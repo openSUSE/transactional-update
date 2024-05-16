@@ -322,7 +322,7 @@ teardown() {
 }
 
 do_apply() {
-    if [ -n "${SNAPSHOT_ID}" -o -n "${ROLLBACK_SNAPSHOT}" -o "${DEFAULT_SNAPSHOT_ID}" != "${CURRENT_SNAPSHOT_ID}" ]; then
+    if [ -n "${SNAPSHOT_ID}" ] || [ -n "${ROLLBACK_SNAPSHOT}" ] || [ "${DEFAULT_SNAPSHOT_ID}" != "${CURRENT_SNAPSHOT_ID}" ]; then
 	NEW_DEFAULT_SNAPSHOT_ID=$(btrfs subvolume get-default / | sed -e 's|.*.snapshots/\(.*\)/snapshot|\1|g')
 	if ! APPLYWORKDIR="$(mktemp -d /tmp/transactional-update.apply.XXXXXXXX)"; then
 	    log_error "ERROR during apply: Temporary directory template failed."
@@ -1276,7 +1276,7 @@ if [ ${DO_ROLLBACK} -eq 1 ]; then
 	else
 	    log_error "No last working snapshot saved; please use 'snapper list' for manual selection"
 	fi
-    elif [ "${ROLLBACK_SNAPSHOT}" -eq 0 -o "${ROLLBACK_SNAPSHOT}" -eq "${CURRENT_SNAPSHOT_ID}" ]; then
+    elif [ "${ROLLBACK_SNAPSHOT}" -eq 0 ] || [ "${ROLLBACK_SNAPSHOT}" -eq "${CURRENT_SNAPSHOT_ID}" ]; then
 	ROLLBACK_SNAPSHOT=${CURRENT_SNAPSHOT_ID}
 	NEED_REBOOT=0
     fi
@@ -1416,10 +1416,10 @@ if [ ${DO_CLEANUP_OVERLAYS} -eq 1 ]; then
     fi
 fi
 
-if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
-    -o ${REWRITE_INITRD} -eq 1 -o ${REBUILD_KDUMP_INITRD} -eq 1 \
-    -o ${RUN_SHELL} -eq 1 -o ${DO_RUN} -eq 1 \
-    -o ${REWRITE_BOOTLOADER} -eq 1 -o ${DO_REGISTRATION} -eq 1 ]; then
+if [ -n "${ZYPPER_ARG}" ] || [ ${REWRITE_GRUB_CFG} -eq 1 ] \
+    || [ ${REWRITE_INITRD} -eq 1 ] || [ ${REBUILD_KDUMP_INITRD} -eq 1 ] \
+    || [ ${RUN_SHELL} -eq 1 ] || [ ${DO_RUN} -eq 1 ] \
+    || [ ${REWRITE_BOOTLOADER} -eq 1 ] || [ ${DO_REGISTRATION} -eq 1 ]; then
 
     if [ -z "${ZYPPER_NONINTERACTIVE}" ] && [ "${DEFAULT_SNAPSHOT_ID}" -ne "${BASE_SNAPSHOT_ID}" ]; then
 	log_info "WARNING: You are creating a snapshot from a different base (${BASE_SNAPSHOT_ID}) than the"
@@ -1481,7 +1481,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 		tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" rpm -e --justdb --nodeps libfdisk1
 	    fi
 	    rm -f "${TMPFILE}"
-	    if [ "${NUM_OF_UPDATES}" = "0" ] || [ -z "${NUM_OF_UPDATES}" -a "${PACKAGE_UPDATES}" = "0" -a "${SIZE_OF_UPDATES}" = "0" ]; then
+	    if [ "${NUM_OF_UPDATES}" = "0" ] || { [ -z "${NUM_OF_UPDATES}" ] && [ "${PACKAGE_UPDATES}" = "0" ] && [ "${SIZE_OF_UPDATES}" = "0" ]; } then
 		log_info "zypper: nothing to update"
 		quit 0
 	    fi
@@ -1490,7 +1490,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	    # shellcheck disable=SC2086
 	    ${zypper_cmd} ${ZYPPER_ARG} ${ZYPPER_NONINTERACTIVE} "${ZYPPER_ARG_PKGS[@]}" |& tee -a ${LOGFILE} 1>&${origstdout}
 	    RETVAL=${PIPESTATUS[0]}
-	    if [ \( "$RETVAL" -eq 0 -o "$RETVAL" -eq 102 -o "$RETVAL" -eq 103 \) -a -n "${INCLUDES_KERNEL_PACKAGES}" ]; then
+	    if { [ "$RETVAL" -eq 0 ] || [ "$RETVAL" -eq 102 ] || [ "$RETVAL" -eq 103 ]; } && [ -n "${INCLUDES_KERNEL_PACKAGES}" ]; then
 		${zypper_cmd} -n purge-kernels |& tee -a ${LOGFILE}
 	    fi
 	fi
@@ -1511,7 +1511,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	    create_status_file
 	fi
 
-	if [ "$RETVAL" -eq 0 -o "$RETVAL" -eq 102 -o "$RETVAL" -eq 103 -o \( $DO_DUP -eq 0 -a "$RETVAL" -eq 106 \) ]; then
+	if [ "$RETVAL" -eq 0 ] || [ "$RETVAL" -eq 102 ] || [ "$RETVAL" -eq 103 ] || { [ $DO_DUP -eq 0 ] && [ "$RETVAL" -eq 106 ]; } then
 	    REBUILD_KDUMP_INITRD=1
 	    # check if products are updated and we need to re-register
 	    # at next boot.
@@ -1614,7 +1614,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	set_reboot_level "soft-reboot"
     fi
 
-    if [ ${REWRITE_GRUB_CFG} -eq 1 -o ${REWRITE_GRUB_CFG_NO_REBOOT} -eq 1 ]; then
+    if [ ${REWRITE_GRUB_CFG} -eq 1 ] || [ ${REWRITE_GRUB_CFG_NO_REBOOT} -eq 1 ]; then
 	log_info "Creating a new grub2 config"
 	# shellcheck disable=SC2086
 	if ! tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" bash -c "/usr/sbin/grub2-mkconfig > /boot/grub2/grub.cfg" |& tee -a ${LOGFILE} 1>&${origstdout}; then
@@ -1713,7 +1713,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
     fi
 
     write_needs_restarting
-    if ! { [ $REBOOT_AFTERWARDS -eq 1 ] || [ $DO_APPLY -eq 1 -a "${rebootmethod}" == "soft-reboot" ]; }; then
+    if ! { [ $REBOOT_AFTERWARDS -eq 1 ] || { [ $DO_APPLY -eq 1 ] && [ "${rebootmethod}" == "soft-reboot" ]; } } then
 	log_info ""
 	log_info "Please reboot your machine to activate the changes and avoid data loss."
     fi
