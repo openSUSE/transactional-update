@@ -491,7 +491,8 @@ load_roles() {
     xpath+="/*[local-name()='software']"
     xpath+="/*[local-name()='default_patterns']/text()"
 
-    local default_patterns=$(xmllint --xpath "$xpath" "${SNAPSHOT_DIR}${file}")
+    local default_patterns
+    default_patterns=$(xmllint --xpath "$xpath" "${SNAPSHOT_DIR}${file}")
 
     xpath="//*[local-name()='system_role']"
     xpath+="/*[local-name()='id']/text()"
@@ -570,7 +571,8 @@ allow_vendor_change() {
 
 # Create a libsolv testcase for a role
 testcase_for_role() {
-    local arch="$(uname -m)"
+    local arch
+    arch="$(uname -m)"
 
     echo "system $arch rpm"
 
@@ -596,7 +598,8 @@ testcase_for_role() {
 # Given a role, calculate the list of all packages and store it in a
 # file
 load_packages_for_role() {
-    local testcase_file="$(mktemp)"
+    local testcase_file
+    testcase_file="$(mktemp)"
 
     testcase_for_role "$1" > "$testcase_file"
 
@@ -659,16 +662,20 @@ all_installed_packages() {
 added_patterns() {
     # TODO The selinux one should be detected
     local exclude='microos_selinux'
-    local inst_patterns="$(installed_patterns | grep --invert-match --extended-regexp "$exclude")"
-    local role_patterns="$(echo "${ROLES[$1]}" | tr ' ' '\n' | LC_COLLATE=C sort)"
+    local inst_patterns role_patterns
+    inst_patterns="$(installed_patterns | grep --invert-match --extended-regexp "$exclude")"
+    role_patterns="$(echo "${ROLES[$1]}" | tr ' ' '\n' | LC_COLLATE=C sort)"
 
     LC_COLLATE=C comm -23 <(echo "${inst_patterns}") <(echo "${role_patterns}")
 }
 
 # List the patterns from the role that are not installed
 removed_patterns() {
-    local inst_patterns="$(all_installed_patterns)"
-    local role_patterns="$(echo "${ROLES[$1]}" | tr ' ' '\n' | LC_COLLATE=C sort)"
+    local inst_patterns role_patterns inst_patterns role_patterns
+    inst_patterns="$(all_installed_patterns)"
+    role_patterns="$(echo "${ROLES[$1]}" | tr ' ' '\n' | LC_COLLATE=C sort)"
+    inst_patterns="$(all_installed_patterns)"
+    role_patterns="$(echo "${ROLES[$1]}" | tr ' ' '\n' | LC_COLLATE=C sort)"
 
     LC_COLLATE=C comm -23 <(echo "${role_patterns}") <(echo "${inst_patterns}")
 }
@@ -679,8 +686,9 @@ added_packages() {
     # TODO Maybe add them into packages_for_role_extended, or add them
     # in the configuration file
     local exclude='patterns-|kernel-|snapper|grub2|btrfsprogs'
-    local inst_packages="$(installed_packages | grep --invert-match --extended-regexp "$exclude")"
-    local role_packages="$(cat "$1" | rev | cut -d"-" -f3- | rev | LC_COLLATE=C sort)"
+    local inst_packages role_packages
+    inst_packages="$(installed_packages | grep --invert-match --extended-regexp "$exclude")"
+    role_packages="$(cat "$1" | rev | cut -d"-" -f3- | rev | LC_COLLATE=C sort)"
 
     LC_COLLATE=C comm -23 <(echo "${inst_packages}") <(echo "${role_packages}")
 }
@@ -688,26 +696,29 @@ added_packages() {
 # List the packages from the role that are not installed
 removed_packages() {
     local exclude='pattern:|product:'
-    local inst_packages="$(all_installed_packages)"
-    local role_packages="$(cat "$1" | grep --invert-match --extended-regexp "$exclude" | rev | cut -d"-" -f3- | rev | LC_COLLATE=C sort)"
+    local inst_packages role_packages
+    inst_packages="$(all_installed_packages)"
+    role_packages="$(cat "$1" | grep --invert-match --extended-regexp "$exclude" | rev | cut -d"-" -f3- | rev | LC_COLLATE=C sort)"
 
     LC_COLLATE=C comm -23 <(echo "${role_packages}") <(echo "${inst_packages}")
 }
 
 # Calculate the Jaccard index for two sets
 jaccard() {
-    local union_card=$(echo "$1 $2" | tr ' ' '\n' | LC_COLLATE=C sort | uniq | wc -l)
-    local intersection_card=$(echo "$1 $2" | tr ' ' '\n' | LC_COLLATE=C sort | uniq -D | uniq | wc -l)
+    local union_card intersection_card
+    union_card=$(echo "$1 $2" | tr ' ' '\n' | LC_COLLATE=C sort | uniq | wc -l)
+    intersection_card=$(echo "$1 $2" | tr ' ' '\n' | LC_COLLATE=C sort | uniq -D | uniq | wc -l)
     echo $((100 * intersection_card / union_card))
 }
 
 # Based on the installed patterns, find the installed role
 find_closer_role() {
-    local patterns="$(installed_patterns)"
+    local patterns
     local max_index=0
     local max_role=
     local index=
 
+    patterns="$(installed_patterns)"
     for role in "${!ROLES[@]}"; do
 	index="$(jaccard "$patterns" "${ROLES["$role"]}")"
 	if [ "$index" -gt "$max_index" ]; then
@@ -739,14 +750,15 @@ create_status_file() {
     grep VERSION_ID "${SNAPSHOT_DIR}/etc/os-release" >> "${SNAPSHOT_DIR}${STATUS_FILE}"
 
     load_roles
-    local role="$(find_closer_role)"
+    local role
+    role="$(find_closer_role)"
     echo "ROLE=\"$role\"" >> "${SNAPSHOT_DIR}${STATUS_FILE}"
 
     load_repo_alias
 
-    local repo_buildtime_file="$(mktemp)"
-    local repo
+    local repo_buildtime_file repo
     local pids=()
+    repo_buildtime_file="$(mktemp)"
     for repo in "${REPOS[@]}"; do
 	repo=($repo)
 	log_info "Parsing repo ${repo[0]}"
@@ -758,14 +770,16 @@ create_status_file() {
     load_buildtime
     wait_all "${pids[@]}"
 
-    local packages_for_role_file="$(mktemp)"
+    local packages_for_role_file
+    packages_for_role_file="$(mktemp)"
     load_packages_for_role "$role" "$packages_for_role_file"
 
     base_manifest "$repo_buildtime_file" "$packages_for_role_file" > "${SNAPSHOT_DIR}${BASE_MANIFEST_FILE}"
     system_manifest "$packages_for_role_file" > "${SNAPSHOT_DIR}${SYSTEM_MANIFEST_FILE}"
 
-    local base_manifest_digest="$(sha256sum "${SNAPSHOT_DIR}${BASE_MANIFEST_FILE}" | cut -d' ' -f1)"
-    local system_manifest_digest="$(sha256sum "${SNAPSHOT_DIR}${SYSTEM_MANIFEST_FILE}" | cut -d' ' -f1)"
+    local base_manifest_digest system_manifest_digest
+    base_manifest_digest="$(sha256sum "${SNAPSHOT_DIR}${BASE_MANIFEST_FILE}" | cut -d' ' -f1)"
+    system_manifest_digest="$(sha256sum "${SNAPSHOT_DIR}${SYSTEM_MANIFEST_FILE}" | cut -d' ' -f1)"
 
     echo "BASE_MANIFEST_DIGEST=\"$base_manifest_digest\"" >> "${SNAPSHOT_DIR}${STATUS_FILE}"
     echo "SYSTEM_MANIFEST_DIGEST=\"$system_manifest_digest\"" >> "${SNAPSHOT_DIR}${STATUS_FILE}"
@@ -774,7 +788,8 @@ create_status_file() {
     gzip "${SNAPSHOT_DIR}${BASE_MANIFEST_FILE}" & pids+=($!)
     gzip "${SNAPSHOT_DIR}${SYSTEM_MANIFEST_FILE}" & pids+=($!)
 
-    local items=$(added_patterns "$role" | xargs)
+    local items
+    items=$(added_patterns "$role" | xargs)
     echo "ADDED_PATTERNS=\"$items\"" >> "${SNAPSHOT_DIR}${STATUS_FILE}"
     items=$(removed_patterns "$role" | xargs)
     echo "REMOVED_PATTERNS=\"$items\"" >> "${SNAPSHOT_DIR}${STATUS_FILE}"
@@ -811,7 +826,8 @@ snapshot_description() {
 show_snapshot_status() {
     printf "%0.s-" $(seq 1 $(tput cols)); echo
 
-    local ss_id=$(snapshot_num "$1")
+    local ss_id
+    ss_id=$(snapshot_num "$1")
     if [ "$CURRENT_SNAPSHOT_ID" -eq "$ss_id" ]; then
 	ss_id+="*"
     elif [ "$DEFAULT_SNAPSHOT_ID" -eq "$ss_id" ]; then
