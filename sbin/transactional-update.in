@@ -535,7 +535,7 @@ load_buildtime_for_repo() {
 	read -r arch
 	read -r line; eval "$line"
 	read -r line; eval "$line"
-	[ ! -z "$name" ] && echo "${name}-${ver}-${rel}.${arch} $build" >> "$2"
+	[ -n "$name" ] && echo "${name}-${ver}-${rel}.${arch} $build" >> "$2"
     done <<< $(zcat "$file" | re_findall "$regex")
 }
 
@@ -583,7 +583,7 @@ testcase_for_role() {
     local flags=""
     only_requires && flags="ignorerecommended"
     allow_vendor_change && flags+=" allowvendorchange"
-    [ ! -z "$flags" ] && echo "solverflags $flags"
+    [ -n "$flags" ] && echo "solverflags $flags"
 
     echo "job install name product:$(baseproduct)"
 
@@ -826,10 +826,10 @@ show_snapshot_status() {
 	echo "Version:           ${PRODUCT} ${VERSION_ID}"
 	echo "Base OS hash:      ${BASE_MANIFEST_DIGEST}"
 	echo "Effective OS hash: ${SYSTEM_MANIFEST_DIGEST}"
-	[ ! -z "${ADDED_PATTERNS}" ] && echo "Added patterns:    ${ADDED_PATTERNS}"
-	[ ! -z "${REMOVED_PATTERNS}" ] && echo "Removed patterns:  ${REMOVED_PATTERNS}"
-	[ ! -z "${ADDED_PACKAGES}" ] && echo "Added packages:    ${ADDED_PACKAGES}"
-	[ ! -z "${REMOVED_PACKAGES}" ] && echo "Removed packages:  ${REMOVED_PACKAGES}"
+	[ -n "${ADDED_PATTERNS}" ] && echo "Added patterns:    ${ADDED_PATTERNS}"
+	[ -n "${REMOVED_PATTERNS}" ] && echo "Removed patterns:  ${REMOVED_PATTERNS}"
+	[ -n "${ADDED_PACKAGES}" ] && echo "Added packages:    ${ADDED_PACKAGES}"
+	[ -n "${REMOVED_PACKAGES}" ] && echo "Removed packages:  ${REMOVED_PACKAGES}"
     else
 	echo "(Missing status file)"
     fi
