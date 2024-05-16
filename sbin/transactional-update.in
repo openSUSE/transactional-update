@@ -841,7 +841,7 @@ show_snapshot_status() {
 ORIG_ARGS=("$@")
 
 parse_args() {
-    while [ 1 ]; do
+    while true; do
 	if [ $# -eq 0 ]; then
 	    break
 	fi
@@ -909,7 +909,7 @@ parse_args() {
 		    usage 1
 		fi
 
-		while [ 1 ]; do
+		while true; do
 		    if [ $# -eq 0 ]; then
 			break;
 		    else
@@ -1016,7 +1016,7 @@ parse_args() {
 		DO_STATUS=1
 		DO_SELF_UPDATE=0
 		shift
-		while [ 1 ]; do
+		while true; do
 		    [ $# -eq 0 ] && break
 		    case "$1" in
 			last)
