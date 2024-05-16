@@ -453,17 +453,6 @@ check_registration_on_next_reboot() {
     touch "${VARDIR}/check-registration"
 }
 
-# Return the optimized list of mount points
-root_mount_points() {
-    local prev=0
-    for mount in $(findmnt --noheadings --submounts --target / --output TARGET --raw | sort | tail -n +2); do
-	if [ "${prev}/" != "${mount:0:$((${#prev}+1))}" ]; then
-	    echo "${mount}"
-	    prev="${mount}"
-	fi
-    done
-}
-
 # Call tukit callext with the correct parameters
 callext() {
     # shellcheck disable=SC2086
