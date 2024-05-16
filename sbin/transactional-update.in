@@ -698,7 +698,7 @@ removed_packages() {
 jaccard() {
     local union_card=$(echo "$1 $2" | tr ' ' '\n' | LC_COLLATE=C sort | uniq | wc -l)
     local intersection_card=$(echo "$1 $2" | tr ' ' '\n' | LC_COLLATE=C sort | uniq -D | uniq | wc -l)
-    echo $((100 * $intersection_card / $union_card))
+    echo $((100 * intersection_card / union_card))
 }
 
 # Based on the installed patterns, find the installed role
