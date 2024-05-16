@@ -72,7 +72,6 @@ EXPERIMENTAL_STATUS=0
 BASE_MANIFEST_FILE="@libdir@/sysimage/tu/base.manifest"
 SYSTEM_MANIFEST_FILE="@libdir@/sysimage/tu/system.manifest"
 ZYPPER_AUTO_IMPORT_KEYS=0
-ETC_OVERLAY_PATTERN='^[^[:space:]]\+[[:space:]]\+\/etc[[:space:]]\+overlay[[:space:]]\+\([^[:space:]]*,\|\)workdir=\/sysroot\/var\/lib\/overlay\/work-etc[,[:space:]]'
 NON_ROOTFS_WHITELIST=("/var/lib/YaST2/cookies" "/var/lib/rpm" "/var/lib/systemd/migrated" "/var/run/zypp.pid")
 DRACUT_OPTS=""
 TUKIT_OPTS=""
