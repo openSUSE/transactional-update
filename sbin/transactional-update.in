@@ -1224,7 +1224,7 @@ if [ -f ${STATE_FILE} ]; then
 fi
 
 log_info "transactional-update @VERSION@ started"
-log_info "Options: ${ORIG_ARGS[@]}"
+log_info "Options: ${ORIG_ARGS[*]}"
 
 SNAPPER_VERSION=$(snapper --version | head -1 | cut -d ' ' -f 2)
 if [ -n "${BASE_SNAPSHOT_ID}" ] && [ "$(zypper --terse versioncmp "$SNAPPER_VERSION" 0.8.4)" -lt 0 ]; then
