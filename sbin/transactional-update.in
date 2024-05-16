@@ -118,15 +118,13 @@ self_update() {
     log_info "Checking for newer version."
     if zypper --non-interactive info transactional-update | grep -q '^Status *: out-of-date'; then
 	log_info "New version found - updating..."
-	TA_UPDATE_TMPFILE="$(mktemp -d "${TMPDIR}"/transactional-update.XXXXXXXXXX)"
-	if [ $? -ne 0 ]; then
+	if ! TA_UPDATE_TMPFILE="$(mktemp -d "${TMPDIR}"/transactional-update.XXXXXXXXXX)"; then
 	    log_error "ERROR: Couldn't create temporary directory for self-update."
 	    quit 1
 	fi
 	pushd "${TA_UPDATE_TMPFILE}" >/dev/null
 	zypper --non-interactive --pkg-cache-dir "${TA_UPDATE_TMPFILE}" download transactional-update
-	find . -name transactional-update*.rpm -exec rpm2cpio {} \; | cpio -idmv 2>/dev/null
-	if [ $? -ne 0 ]; then
+	if ! find . -name transactional-update*.rpm -exec rpm2cpio {} \; | cpio -idmv 2>/dev/null; then
 	    log_error "ERROR: Couldn't extract the update."
 	    quit 1
 	fi
@@ -260,8 +258,7 @@ save_state_file() {
 	# If /var/lib/misc is not a seperate partition / subvolume, copy the
 	# state file into the new snapshot as it will contain an outdated
 	# version from before taking the snapshot otherwise.
-	grep -q var.lib.misc /proc/mounts
-	if [ $? -ne 0 ]; then
+	if ! grep -q var.lib.misc /proc/mounts; then
 	    cp -a ${STATE_FILE} "/.snapshots/$1/snapshot${STATE_FILE}"
 	fi
     fi
@@ -1193,8 +1190,7 @@ fi
 # Check if this is a self-updated transactional-update; if it isn't lock and
 # check for update
 if [ -z "${TA_UPDATE_TMPFILE}" ]; then
-    bashlock
-    if [ $? -ne 0 ]; then
+    if ! bashlock; then
 	log_error "Couldn't get lock, is another instance already running?"
 	exit 1
     fi
@@ -1257,15 +1253,11 @@ if [ ! -d /.snapshots ]; then
   exit 1
 fi
 
-grep -q "[[:space:]]/var[[:space:]]" /proc/mounts
-if [ $? -eq 0 ]; then
+if grep -q "[[:space:]]/var[[:space:]]" /proc/mounts; then
     log_info "Separate /var detected."
     HAS_SEPARATE_VAR=1
-else
-    grep -q var.cache /proc/mounts
-    if [ $? -ne 0 ]; then
-	log_error "WARNING: it looks like your installation isn't recent enough."
-    fi
+elif ! grep -q var.cache /proc/mounts; then
+    log_error "WARNING: it looks like your installation isn't recent enough."
 fi
 
 if [ -n "${ZYPPER_ARG}" -a "${DO_MIGRATION}" -eq 0 -a ${ZYPPER_AUTO_IMPORT_KEYS} -eq 1 ]; then
@@ -1299,8 +1291,7 @@ if [ ${DO_ROLLBACK} -eq 1 ]; then
 
     log_info "Rollback to snapshot ${ROLLBACK_SNAPSHOT}..."
 
-    tukit rollback "${ROLLBACK_SNAPSHOT}"
-    if [ $? -ne 0 ]; then
+    if ! tukit rollback "${ROLLBACK_SNAPSHOT}"; then
 	log_error "ERROR: Rollback to snapshot $ROLLBACK_SNAPSHOT failed!"
 	quit 1
     fi
@@ -1423,8 +1414,7 @@ if [ ${DO_CLEANUP_OVERLAYS} -eq 1 ]; then
 	snapshots="$(ls /.snapshots/*/snapshot/etc/fstab{,.sys} 2>/dev/null)"
 	for overlay in /var/lib/overlay/*; do
 	    if [ -e ${overlay} ] && [ -n "${snapshots}" ]; then
-		grep -q "${overlay}" ${snapshots}
-		if [ $? -eq 1 ]; then
+		if grep -q "${overlay}" ${snapshots}; then
 		    log_info "Deleting unused overlay ${overlay}"
 		    rm -r "${overlay}"
 		fi
@@ -1526,8 +1516,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	    REBUILD_KDUMP_INITRD=1
 	    # check if products are updated and we need to re-register
 	    # at next boot.
-            diff -qr /etc/products.d ${SNAPSHOT_DIR}/etc/products.d > /dev/null
-	    if [ $? -ne 0 ]; then
+	    if ! diff -qr /etc/products.d ${SNAPSHOT_DIR}/etc/products.d > /dev/null; then
 		check_registration_on_next_reboot
 	    fi
 	    # Rebuild grub.cfg if /etc/os-release changes, could change grub
@@ -1601,8 +1590,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 
     if [ ${REWRITE_INITRD} -eq 1 ]; then
 	log_info "Creating new initrd"
-	tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" dracut ${DRACUT_OPTS} --force --regenerate-all |& tee -a ${LOGFILE} 1>&${origstdout}
-	if [ $? -ne 0 ]; then
+	if ! tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" dracut ${DRACUT_OPTS} --force --regenerate-all |& tee -a ${LOGFILE} 1>&${origstdout}; then
 	    log_error "ERROR: initrd creation failed!"
 	    EXITCODE=1
 	else
@@ -1613,8 +1601,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 
     if [ ${REBUILD_KDUMP_INITRD} -eq 1 ]; then
 	log_info "Trying to rebuild kdump initrd"
-	rebuild_kdump_initrd ${SNAPSHOT_ID}
-	if [ $? -ne 0 ]; then
+	if ! rebuild_kdump_initrd ${SNAPSHOT_ID}; then
 	    log_error "ERROR: kdump initrd creation failed!"
 	    EXITCODE=1
 	fi
@@ -1623,8 +1610,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 
     if [ ${REWRITE_GRUB_CFG} -eq 1 -o ${REWRITE_GRUB_CFG_NO_REBOOT} -eq 1 ]; then
 	log_info "Creating a new grub2 config"
-	tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" bash -c "/usr/sbin/grub2-mkconfig > /boot/grub2/grub.cfg" |& tee -a ${LOGFILE} 1>&${origstdout}
-	if [ $? -ne 0 ]; then
+	if ! tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" bash -c "/usr/sbin/grub2-mkconfig > /boot/grub2/grub.cfg" |& tee -a ${LOGFILE} 1>&${origstdout}; then
 	    log_error "ERROR: grub2-mkconfig failed!"
 	    EXITCODE=1;
         else
@@ -1639,8 +1625,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 
     if [ ${REWRITE_BOOTLOADER} -eq 1 ]; then
 	log_info "Writing new bootloader"
-	tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" /sbin/pbl --install |& tee -a ${LOGFILE} 1>&${origstdout}
-	if [ $? -ne 0 ]; then
+	if ! tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" /sbin/pbl --install |& tee -a ${LOGFILE} 1>&${origstdout}; then
 	    log_error "ERROR: /sbin/pbl --install failed!"
 	    EXITCODE=1;
 	fi
