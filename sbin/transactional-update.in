@@ -236,7 +236,7 @@ save_state_file() {
 	echo "REBOOT_ASSOCS[${key}]=${REBOOT_ASSOCS[${key}]}" >> ${STATE_FILE}
     done
 
-    if [ $1 -ne 0 -a ${HAS_SEPARATE_VAR} -eq 0 ]; then
+    if [ $1 -ne 0 ] && [ ${HAS_SEPARATE_VAR} -eq 0 ]; then
 	# If /var/lib/misc is not a seperate partition / subvolume, copy the
 	# state file into the new snapshot as it will contain an outdated
 	# version from before taking the snapshot otherwise.
@@ -754,7 +754,7 @@ fi
 
 # Setup FIPS
 if [ "${SETUP_FIPS}" -eq 1 ]; then
-    if [ -n "${ZYPPER_ARG}" -a "${ZYPPER_ARG}" != "install" ]; then
+    if [ -n "${ZYPPER_ARG}" ] && [ "${ZYPPER_ARG}" != "install" ]; then
 	log_error "ERROR: Cannot combine 'setup-fips' with zypper command '${ZYPPER_ARG}'"
 	exit 1
     fi
@@ -778,7 +778,7 @@ if [ "${SETUP_SELINUX}" -eq 1 ]; then
     # 3. Adjust /etc/selinux/config
     # 4. Rebuild grub.cfg and initrd
 
-    if [ -n "${ZYPPER_ARG}" -a "${ZYPPER_ARG}" != "install" ]; then
+    if [ -n "${ZYPPER_ARG}" ] && [ "${ZYPPER_ARG}" != "install" ]; then
 	log_error "ERROR: Cannot combine 'setup-selinux' with zypper command '${ZYPPER_ARG}'"
 	exit 1
     fi
@@ -799,7 +799,7 @@ fi
 
 # Setup kdump
 if [ ${SETUP_KDUMP} -eq 1 ]; then
-    if [ -n "${ZYPPER_ARG}" -a "${ZYPPER_ARG}" != "install" ]; then
+    if [ -n "${ZYPPER_ARG}" ] && [ "${ZYPPER_ARG}" != "install" ]; then
         log_error "ERROR: Cannot combine 'setup-kdump' with zypper command '${ZYPPER_ARG}'"
         exit 1
     fi
@@ -872,7 +872,7 @@ log_info "transactional-update @VERSION@ started"
 log_info "Options: ${ORIG_ARGS[@]}"
 
 SNAPPER_VERSION=$(snapper --version | head -1 | cut -d ' ' -f 2)
-if [ -n "${BASE_SNAPSHOT_ID}" -a $(zypper --terse versioncmp $SNAPPER_VERSION 0.8.4) -lt 0 ]; then
+if [ -n "${BASE_SNAPSHOT_ID}" ] && [ $(zypper --terse versioncmp $SNAPPER_VERSION 0.8.4) -lt 0 ]; then
     log_error "ERROR: snapper >= 0.8.4 required for --continue option!"
     log_info "transactional-update finished"
     exit 1
@@ -897,7 +897,7 @@ elif ! grep -q var.cache /proc/mounts; then
     log_error "WARNING: it looks like your installation isn't recent enough."
 fi
 
-if [ -n "${ZYPPER_ARG}" -a "${DO_MIGRATION}" -eq 0 -a ${ZYPPER_AUTO_IMPORT_KEYS} -eq 1 ]; then
+if [ -n "${ZYPPER_ARG}" ] && [ "${DO_MIGRATION}" -eq 0 ] && [ ${ZYPPER_AUTO_IMPORT_KEYS} -eq 1 ]; then
     ZYPPER_ARG="--gpg-auto-import-keys ${ZYPPER_ARG}"
 fi
 
@@ -971,7 +971,7 @@ if [ ${DO_CLEANUP_SNAPSHOTS} -eq 1 ]; then
     # active one.
     if [ -n "${LAST_WORKING_SNAPSHOTS}" ]; then
 	for snap in ${LAST_WORKING_SNAPSHOTS}; do
-	    if [ ${CURRENT_SNAPSHOT_ID} -ne ${snap} -a ${BOOTED_SNAPSHOT_ID} -ne ${snap} ]; then
+	    if [ ${CURRENT_SNAPSHOT_ID} -ne ${snap} ] && [ ${BOOTED_SNAPSHOT_ID} -ne ${snap} ]; then
 		log_info "Adding cleanup algorithm to snapshot #${snap}"
 		snapper modify -c number ${snap} |& tee -a ${LOGFILE}
 		if [ ${PIPESTATUS[0]} -ne 0 ]; then
@@ -1022,7 +1022,7 @@ if [ ${DO_CLEANUP_SNAPSHOTS} -eq 1 ]; then
 			_new_unused="${snap} ${_new_unused}"
 		    fi
 		fi
-	    elif [ ${snap} -ne ${CURRENT_SNAPSHOT_ID} -a ${snap} -ne ${BOOTED_SNAPSHOT_ID} ]; then
+	    elif [ ${snap} -ne ${CURRENT_SNAPSHOT_ID} ] && [ ${snap} -ne ${BOOTED_SNAPSHOT_ID} ]; then
 		# This is the snapshot which is currently in use, so keep it in
 		# the list. We would probably never clean it up later otherwise.
 		_new_unused="${snap} ${_new_unused}"
@@ -1099,7 +1099,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
     -o ${REWRITE_BOOTLOADER} -eq 1 -o ${DO_REGISTRATION} -eq 1 \
     -o ${DO_APPLY_OCI} -eq 1 ]; then
 
-    if [ -z "${ZYPPER_NONINTERACTIVE}" -a "${DEFAULT_SNAPSHOT_ID}" -ne "${BASE_SNAPSHOT_ID}" ]; then
+    if [ -z "${ZYPPER_NONINTERACTIVE}" ] && [ "${DEFAULT_SNAPSHOT_ID}" -ne "${BASE_SNAPSHOT_ID}" ]; then
 	log_info "WARNING: You are creating a snapshot from a different base (${BASE_SNAPSHOT_ID}) than the"
 	log_info "         current default snapshot (${DEFAULT_SNAPSHOT_ID})."
 	if [ "${BASE_SNAPSHOT_ID}" -eq "${CURRENT_SNAPSHOT_ID}" ]; then
@@ -1221,7 +1221,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	    # Rebuild grub.cfg if /etc/os-release changes, could change grub
 	    # menu output, too.
             cmp -s /etc/os-release ${SNAPSHOT_DIR}/etc/os-release
-	    if [ $? -ne 0 -a -x /usr/sbin/grub2-mkconfig -a ! is_bls ]; then
+	    if [ $? -ne 0 ] && [ -x /usr/sbin/grub2-mkconfig ] && [ ! is_bls ]; then
 	        REWRITE_GRUB_CFG_NO_REBOOT=1
 	    fi
 	    source <(grep VERSION_ID ${SNAPSHOT_DIR}/etc/os-release)
@@ -1374,7 +1374,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 
     # If --drop-if-no-change is used, then the snapshot may not exist any more;
     # the remaining code is not applicable in this case.
-    if [ ! -e "${SNAPSHOT_DIR}/etc/fstab" -a ${EXITCODE} -eq 0 ]; then
+    if [ ! -e "${SNAPSHOT_DIR}/etc/fstab" ] && [ ${EXITCODE} -eq 0 ]; then
 	SNAPSHOT_ID=
 	quit 0
     fi
@@ -1427,11 +1427,11 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 fi
 
 # No command changing the reboot level given - restore potential previous one
-if [ "${REBOOT_LEVEL}" == "none" -a "${REBOOT_LEVEL_PREV}" != "none" ]; then
+if [ "${REBOOT_LEVEL}" == "none" ] && [ "${REBOOT_LEVEL_PREV}" != "none" ]; then
     echo -n "${REBOOT_LEVEL_PREV}" > "${NEEDS_RESTARTING_FILE}"
 fi
 
-if [ ${DO_APPLY} -eq 1 -a ${EXITCODE} -eq 0 ]; then
+if [ ${DO_APPLY} -eq 1 ] && [ ${EXITCODE} -eq 0 ]; then
     do_apply
 fi
 
