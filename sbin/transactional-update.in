@@ -95,7 +95,6 @@ if [ -r ${CONFFILE} ]; then
 fi
 
 # Initialize internal variables
-ETC_IS_OVERLAY=0
 HAS_SEPARATE_VAR=0
 FORCE_NONINTERACTIVE=""
 SNAPSHOT_ID=""
