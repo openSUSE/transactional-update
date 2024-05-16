@@ -80,14 +80,17 @@ TMPDIR=${TMPDIR:-/tmp}
 
 # Load config
 if [ -r ${SYSTEMCONFFILE} ]; then
+    # shellcheck source=../etc/transactional-update.conf
     . ${SYSTEMCONFFILE}
 fi
 for snippet in "${SYSTEMCONFFILE}.d"/*; do
     if [ -f "${snippet}" ]; then
+	# shellcheck source=/dev/null
 	. "${snippet}"
     fi
 done
 if [ -r ${CONFFILE} ]; then
+    # shellcheck source=../etc/transactional-update.conf
     . ${CONFFILE}
 fi
 
