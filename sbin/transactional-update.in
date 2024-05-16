@@ -98,7 +98,7 @@ self_update() {
     log_info "Checking for newer version."
     if zypper --non-interactive info transactional-update | grep -q '^Status *: out-of-date'; then
 	log_info "New version found - updating..."
-	TA_UPDATE_TMPFILE="`mktemp -d ${TMPDIR}/transactional-update.XXXXXXXXXX`"
+	TA_UPDATE_TMPFILE="$(mktemp -d "${TMPDIR}"/transactional-update.XXXXXXXXXX)"
 	if [ $? -ne 0 ]; then
 	    log_error "ERROR: Couldn't create temporary directory for self-update."
 	    quit 1
@@ -177,7 +177,7 @@ print_version() {
 }
 
 log_to_file() {
-    echo -e `date "+%Y-%m-%d %H:%M"` "$@" >> ${LOGFILE}
+    echo -e $(date "+%Y-%m-%d %H:%M") "$@" >> ${LOGFILE}
 }
 
 log_to_stdout() {
@@ -199,7 +199,7 @@ log_error() {
 bashlock() {
     echo "$$" >"$LOCKFILE.$$"
     if ! ln "$LOCKFILE.$$" "$LOCKFILE" 2>/dev/null; then
-	PID=`head -1 "$LOCKFILE"`
+	PID=$(head -1 "$LOCKFILE")
 	if [ -z "$PID" ]; then
 	    rm -f "$LOCKFILE"
 	else
@@ -305,7 +305,7 @@ teardown() {
 
 do_apply() {
     if [ -n "${SNAPSHOT_ID}" -o "${ROLLBACK_SNAPSHOT}" -ne 0 -o "${DEFAULT_SNAPSHOT_ID}" != "${CURRENT_SNAPSHOT_ID}" ]; then
-	NEW_DEFAULT_SNAPSHOT_ID=`btrfs subvolume get-default / | sed -e 's|.*.snapshots/\(.*\)/snapshot|\1|g'`
+	NEW_DEFAULT_SNAPSHOT_ID=$(btrfs subvolume get-default / | sed -e 's|.*.snapshots/\(.*\)/snapshot|\1|g')
 	if ! APPLYWORKDIR="$(mktemp -d /tmp/transactional-update.apply.XXXXXXXX)"; then
 	    log_error "ERROR during apply: Temporary directory template failed."
 	fi
@@ -871,14 +871,14 @@ fi
 log_info "transactional-update @VERSION@ started"
 log_info "Options: ${ORIG_ARGS[@]}"
 
-SNAPPER_VERSION=`snapper --version | head -1 | cut -d ' ' -f 2`
+SNAPPER_VERSION=$(snapper --version | head -1 | cut -d ' ' -f 2)
 if [ -n "${BASE_SNAPSHOT_ID}" -a $(zypper --terse versioncmp $SNAPPER_VERSION 0.8.4) -lt 0 ]; then
     log_error "ERROR: snapper >= 0.8.4 required for --continue option!"
     log_info "transactional-update finished"
     exit 1
 fi
 
-if [ "`stat -f -c %T /`" != "btrfs" ]; then
+if [ "$(stat -f -c %T /)" != "btrfs" ]; then
   log_error "ERROR: not using btrfs as root file system!"
   log_info "transactional-update finished"
   exit 1
@@ -905,10 +905,10 @@ if [ -n "${ZYPPER_ARG}" -a "${DO_MIGRATION}" -eq 0 -a ${ZYPPER_AUTO_IMPORT_KEYS}
     ZYPPER_ARG="--gpg-auto-import-keys ${ZYPPER_ARG}"
 fi
 
-BOOTED_SNAPSHOT_ID=`grep subvol=/@/.snapshots/ /proc/mounts | grep "/ btrfs" | sed -e 's|.*.snapshots/\(.*\)/snapshot.*|\1|g'`
-CURRENT_SNAPSHOT_ID=`findmnt --target /usr --raw --noheadings --output FSROOT | tail -n 1 | sed -e 's|.*.snapshots/\(.*\)/snapshot.*|\1|g'`
-DEFAULT_SNAPSHOT_ID=`btrfs subvolume get-default / | sed -e 's|.*.snapshots/\(.*\)/snapshot|\1|g'`
-RO_ROOT=`btrfs property get / ro | sed -e 's|ro=||'`
+BOOTED_SNAPSHOT_ID=$(grep subvol=/@/.snapshots/ /proc/mounts | grep "/ btrfs" | sed -e 's|.*.snapshots/\(.*\)/snapshot.*|\1|g')
+CURRENT_SNAPSHOT_ID=$(findmnt --target /usr --raw --noheadings --output FSROOT | tail -n 1 | sed -e 's|.*.snapshots/\(.*\)/snapshot.*|\1|g')
+DEFAULT_SNAPSHOT_ID=$(btrfs subvolume get-default / | sed -e 's|.*.snapshots/\(.*\)/snapshot|\1|g')
+RO_ROOT=$(btrfs property get / ro | sed -e 's|ro=||')
 
 if [ -z "${BASE_SNAPSHOT_ID}" ]; then
     BASE_SNAPSHOT_ID="${CURRENT_SNAPSHOT_ID}"
@@ -1113,9 +1113,9 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	fi
     fi
 
-    output="`tukit ${TUKIT_OPTS} -c"${BASE_SNAPSHOT_ID}" open |& tee -a ${LOGFILE}`"
+    output="$(tukit ${TUKIT_OPTS} -c"${BASE_SNAPSHOT_ID}" open |& tee -a ${LOGFILE})"
     log_info "$output"
-    SNAPSHOT_ID=`echo "${output}" | grep -e "^ID:" | cut -d " " -f 2-`
+    SNAPSHOT_ID=$(echo "${output}" | grep -e "^ID:" | cut -d " " -f 2-)
     if [ -z ${SNAPSHOT_ID} ]; then
 	quit 1
     fi
@@ -1180,12 +1180,12 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 		zypper_cmd="tukit ${TUKIT_OPTS} call ${SNAPSHOT_ID} zypper"
 	    fi
 	    # Check if there are updates at all.
-	    TMPFILE=`mktemp ${TMPDIR}/transactional-update.XXXXXXXXXX`
+	    TMPFILE=$(mktemp ${TMPDIR}/transactional-update.XXXXXXXXXX)
 	    ${zypper_cmd} --xmlout ${ZYPPER_ARG} -y --auto-agree-with-product-licenses --dry-run "${ZYPPER_ARG_EXTRA[@]}" > ${TMPFILE}
-	    PACKAGE_UPDATES=`grep "install-summary download-size" ${TMPFILE} | sed -e 's|.*install-summary download-size=\"\(.*\)\" space-usage-diff.*|\1|g'`
-	    SIZE_OF_UPDATES=`grep "install-summary.*space-usage-diff" ${TMPFILE} | sed -e 's|.*install-summary.*space-usage-diff=\"\([^"]*\)\".*|\1|g'`
-	    NUM_OF_UPDATES=`grep "install-summary.*packages-to-change" ${TMPFILE} | sed -e 's|.*install-summary.*packages-to-change=\"\([^"]*\)\".*|\1|g'`
-	    INCLUDES_KERNEL_PACKAGES=`grep 'solvable.*type="package"' ${TMPFILE} | grep 'name="kernel-'`
+	    PACKAGE_UPDATES=$(grep "install-summary download-size" ${TMPFILE} | sed -e 's|.*install-summary download-size=\"\(.*\)\" space-usage-diff.*|\1|g')
+	    SIZE_OF_UPDATES=$(grep "install-summary.*space-usage-diff" ${TMPFILE} | sed -e 's|.*install-summary.*space-usage-diff=\"\([^"]*\)\".*|\1|g')
+	    NUM_OF_UPDATES=$(grep "install-summary.*packages-to-change" ${TMPFILE} | sed -e 's|.*install-summary.*packages-to-change=\"\([^"]*\)\".*|\1|g')
+	    INCLUDES_KERNEL_PACKAGES=$(grep 'solvable.*type="package"' ${TMPFILE} | grep 'name="kernel-')
 	    # Workaround for broken postuninstall
 	    if grep 'solvable.*type="package"' ${TMPFILE} | grep 'name="libfdisk1"' | grep -q -e 'edition-old="2\.38\.1-[78]\.'; then
 		log_info "Applying workaround for broken libfdisk1"
