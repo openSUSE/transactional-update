@@ -102,14 +102,18 @@ self_update() {
 	    log_error "ERROR: Couldn't create temporary directory for self-update."
 	    quit 1
 	fi
-	pushd "${TA_UPDATE_TMPFILE}" >/dev/null
+	pushd "${TA_UPDATE_TMPFILE}" >/dev/null || return
 	zypper --non-interactive --pkg-cache-dir "${TA_UPDATE_TMPFILE}" download transactional-update
 	if ! find . -name transactional-update*.rpm -exec rpm2cpio {} \; | cpio -idmv 2>/dev/null; then
 	    log_error "ERROR: Couldn't extract the update."
 	    quit 1
 	fi
 	# Reset CWD before restart
-	popd >/dev/null
+	if ! popd >/dev/null; then
+	    log_error "popd failed during self-update"
+	    rm -rf "${TA_UPDATE_TMPFILE}"
+	    quit 1
+	fi
 	if ! "${TA_UPDATE_TMPFILE}/usr/sbin/transactional-update" --version >/dev/null; then
 	    log_error "Cannot execute updated transactional-update - skipping"
 	    rm -rf "${TA_UPDATE_TMPFILE}"
@@ -830,10 +834,10 @@ if [ -z "${TA_UPDATE_TMPFILE}" ]; then
     self_update "${ORIG_ARGS[@]}"
 else # Set exit handler to clean up artifacts of the self-update
     trap 'rm -f "$LOCKFILE" && rm -rf "${TA_UPDATE_TMPFILE}" && unset TA_UPDATE_TMPFILE' EXIT
-    pushd "${TA_UPDATE_TMPFILE}" >/dev/null
+    pushd "${TA_UPDATE_TMPFILE}" >/dev/null || exit 1
     zypper --non-interactive --pkg-cache-dir "${TA_UPDATE_TMPFILE}" download libtukit4 tukit
     find . -name *.rpm -exec sh -c 'rpm2cpio {} | cpio -idmv 2>/dev/null' \;
-    popd >/dev/null
+    popd >/dev/null || exit 1
     export LD_LIBRARY_PATH="${TA_UPDATE_TMPFILE}/usr/lib64:${TA_UPDATE_TMPFILE}/usr/lib"
     if "${TA_UPDATE_TMPFILE}"/usr/sbin/tukit --version >/dev/null; then
 	# tukit is executable - use new version
