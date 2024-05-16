@@ -453,7 +453,7 @@ callext() {
 ORIG_ARGS=("$@")
 
 parse_zypper_args_extra() {
-    while [ 1 ]; do
+    while true; do
 	if [ $# -eq 0 ]; then
 	    break;
 	else
@@ -468,7 +468,7 @@ parse_zypper_args_extra() {
 }
 
 parse_args() {
-    while [ 1 ]; do
+    while true; do
 	if [ $# -eq 0 ]; then
 	    break
 	fi
