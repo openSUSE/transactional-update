@@ -14,7 +14,7 @@ int main(int argc, char *argv[]) {
     try {
         TUKit ta{argc, argv};
     } catch (int e) {
-	    return e;
+        return e;
     } catch (const exception &e) {
         cerr << "ERROR: " << e.what() << endl;
         return 1;
