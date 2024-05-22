@@ -167,6 +167,10 @@ public:
      * root path as long as Transaction's destructor hasn't been called.
      */
     std::filesystem::path getRoot();
+
+    friend class Plugins;
+protected:
+    std::filesystem::path getBindDir();
 private:
     class impl;
     std::unique_ptr<impl> pImpl;

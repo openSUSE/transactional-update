@@ -9,6 +9,7 @@
 #include "Configuration.hpp"
 #include "Exceptions.hpp"
 #include "Log.hpp"
+#include "Plugins.hpp"
 #include "Snapshot.hpp"
 #include "SnapshotManager.hpp"
 #include "Util.hpp"
@@ -77,6 +78,8 @@ Reboot::Reboot(std::string method) {
 }
 
 void Reboot::reboot() {
+    TransactionalUpdate::Plugins plugins{nullptr};
+    plugins.run("reboot-pre", nullptr);
     Util::exec(command);
 }
 
