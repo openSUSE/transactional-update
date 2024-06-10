@@ -2,6 +2,14 @@ transactional-update NEWS -- history of user-visible changes.
 
 Copyright (C) 2016-2022 Thorsten Kukuk, Ignaz Forster et al.
 
+Version 4.1.8
+* tukit: Properly handle overlay syncing failures: If the system would not be
+  rebooted and several snapshots accumulated in the meantime, it was
+  possible that the previous base snapshot - required for /etc syncing -
+  was deleted already. In that case changes in /etc might have been reset.
+  [gh#openSUSE/transactional-update#116]
+  [gh#kube-hetzner/terraform-hcloud-kube-hetzner#1287]
+
 Version 4.1.7
 * Always use zypper of installed system [bsc#1221346]
 
