@@ -12,6 +12,7 @@ EXTRA_DIST = transactional-update.in
 
 do_subst = sed -e 's,[@]sysconfdir[@],$(sysconfdir),g' \
 	-e 's,[@]prefix[@],$(prefix),g' \
+	-e 's,[@]libdir[@],$(libdir),g' \
 	-e 's,[@]VERSION[@],$(VERSION),g'
 
 transactional-update: transactional-update.in Makefile

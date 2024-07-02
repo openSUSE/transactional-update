@@ -12,6 +12,7 @@
 #include "Log.hpp"
 #include "Mount.hpp"
 #include "Overlay.hpp"
+#include "Plugins.hpp"
 #include "SnapshotManager.hpp"
 #include "Snapshot.hpp"
 #include "Supplement.hpp"
@@ -80,6 +81,8 @@ Transaction::~Transaction() {
         if (isInitialized() && !getSnapshot().empty() && fs::exists(getRoot())) {
             tulog.info("Discarding snapshot ", pImpl->snapshot->getUid(), ".");
             pImpl->snapshot->abort();
+            TransactionalUpdate::Plugins plugins{nullptr};
+            plugins.run("abort-post", pImpl->snapshot->getUid());
         }
     }  catch (const std::exception &e) {
         tulog.error("ERROR: ", e.what());
@@ -96,6 +99,10 @@ std::string Transaction::getSnapshot() {
 
 fs::path Transaction::getRoot() {
     return pImpl->snapshot->getRoot();
+}
+
+fs::path Transaction::getBindDir() {
+    return pImpl->bindDir;
 }
 
 void Transaction::impl::snapMount() {
@@ -256,6 +263,9 @@ int Transaction::impl::inotifyAdd(const char *pathname, const struct stat *sbuf,
 }
 
 void Transaction::init(std::string base, std::optional<std::string> description) {
+    TransactionalUpdate::Plugins plugins{nullptr};
+    plugins.run("init-pre", nullptr);
+
     if (base == "active")
         base = pImpl->snapshotMgr->getCurrent();
     else if (base == "default")
@@ -291,9 +301,15 @@ void Transaction::init(std::string base, std::optional<std::string> description)
         // Flag file to indicate this snapshot was initialized with discard flag
         std::ofstream output(getRoot() / "discardIfNoChange");
     }
+
+    TransactionalUpdate::Plugins plugins_with_transaction{this};
+    plugins_with_transaction.run("init-post", nullptr);
 }
 
 void Transaction::resume(std::string id) {
+    TransactionalUpdate::Plugins plugins{nullptr};
+    plugins.run("resume-pre", id);
+
     pImpl->snapshot = pImpl->snapshotMgr->open(id);
     if (! pImpl->snapshot->isInProgress()) {
         pImpl->snapshot.reset();
@@ -304,6 +320,9 @@ void Transaction::resume(std::string id) {
     if (fs::exists(getRoot() / "discardIfNoChange")) {
         pImpl->discardIfNoChange = true;
     }
+
+    TransactionalUpdate::Plugins plugins_with_transaction{this};
+    plugins_with_transaction.run("resume-post", nullptr);
 }
 
 void Transaction::setDiscardIfUnchanged(bool discard) {
@@ -452,7 +471,11 @@ int Transaction::impl::runCommand(char* argv[], bool inChroot, std::string* outp
 }
 
 int Transaction::execute(char* argv[], std::string* output) {
-    return this->pImpl->runCommand(argv, true, output);
+    TransactionalUpdate::Plugins plugins{this};
+    plugins.run("execute-pre", argv);
+    int status = this->pImpl->runCommand(argv, true, output);
+    plugins.run("execute-post", argv);
+    return status;
 }
 
 int Transaction::callExt(char* argv[], std::string* output) {
@@ -466,7 +489,12 @@ int Transaction::callExt(char* argv[], std::string* output) {
             s.replace(pos, from.size(), this->pImpl->bindDir);
         argv[i] = strdup(s.c_str());
     }
-    return this->pImpl->runCommand(argv, false, output);
+
+    TransactionalUpdate::Plugins plugins{this};
+    plugins.run("callExt-pre", argv);
+    int status = this->pImpl->runCommand(argv, false, output);
+    plugins.run("callExt-post", argv);
+    return status;
 }
 
 void Transaction::sendSignal(int signal) {
@@ -478,6 +506,9 @@ void Transaction::sendSignal(int signal) {
 }
 
 void Transaction::finalize() {
+    TransactionalUpdate::Plugins plugins{this};
+    plugins.run("finalize-pre", nullptr);
+
     sync();
     if (pImpl->discardIfNoChange &&
             ((inotifyFd != 0 && pImpl->inotifyRead() == 0) ||
@@ -511,6 +542,8 @@ void Transaction::finalize() {
             Util::exec("rsync --archive --inplace --xattrs --acls --exclude 'fstab' --delete --quiet '" + this->pImpl->bindDir.native() + "/etc/' " + targetRoot.native() + "/etc");
         }
 
+	TransactionalUpdate::Plugins plugins_without_transaction{nullptr};
+	plugins_without_transaction.run("finalize-post", pImpl->snapshot->getUid() + " " + "discarded");
         return;
     }
     if (fs::exists(getRoot() / "discardIfNoChange")) {
@@ -531,15 +564,26 @@ void Transaction::finalize() {
     pImpl->snapshot->setDefault();
     tulog.info("New default snapshot is #" + pImpl->snapshot->getUid() + " (" + std::string(pImpl->snapshot->getRoot()) + ").");
 
+    std::string id = pImpl->snapshot->getUid();
     pImpl->snapshot.reset();
+
+    TransactionalUpdate::Plugins plugins_without_transaction{nullptr};
+    plugins_without_transaction.run("finalize-post", id);
 }
 
 void Transaction::keep() {
+    TransactionalUpdate::Plugins plugins{this};
+    plugins.run("keep-pre", nullptr);
+
     sync();
     if (fs::exists(pImpl->snapshot->getRoot() / "discardIfNoChange") && (inotifyFd != 0 && pImpl->inotifyRead() > 0)) {
         tulog.debug("Snapshot was changed, removing discard flagfile.");
         fs::remove(pImpl->snapshot->getRoot() / "discardIfNoChange");
     }
     pImpl->supplements.cleanup();
+    std::string id = pImpl->snapshot->getUid();
     pImpl->snapshot.reset();
+
+    TransactionalUpdate::Plugins plugins_without_transaction{nullptr};
+    plugins_without_transaction.run("keep-post", id);
 }
