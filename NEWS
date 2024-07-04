@@ -1,6 +1,13 @@
 transactional-update NEWS -- history of user-visible changes.
 
-Copyright (C) 2016-2023 Thorsten Kukuk, Ignaz Forster et al.
+Copyright (C) 2016-2024 Thorsten Kukuk, Ignaz Forster et al.
+
+Version 4.7.0 (2024-07-04)
+* Add plugin mechanism
+  It's now possible to hook into API functions with custom plugins; see
+  doc/tukit-plugins.md for details.
+  [gh#openSUSE/transactional-update#122]
+* Fix missing libdir replacement for status command
 
 Version 4.6.8 (2024-05-07)
 * tukit: Properly handle overlay syncing failures: If the system would not be
