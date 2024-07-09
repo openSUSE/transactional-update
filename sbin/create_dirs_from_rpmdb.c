@@ -21,6 +21,7 @@
 #include <config.h>
 #endif
 
+#include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <getopt.h>
@@ -221,6 +222,48 @@ exit:
     return ec;
 }
 
+// Open the parent of path without dereferencing symlinks.
+int open_parent_dir(const char *path) {
+	// strdup for use with strtok
+	char *local_path = strdup(path);
+	if (!local_path) {
+		return -1;
+	}
+
+	int dirfd = open("/", O_RDONLY | O_DIRECTORY | O_NOFOLLOW);
+	if (dirfd < 0) {
+		free(local_path);
+		return -1;
+	}
+
+	char *saveptr = NULL;
+	const char *component = strtok_r(local_path, "/", &saveptr);
+	while (component) {
+		int nextdirfd = openat(dirfd, component, O_RDONLY | O_DIRECTORY | O_NOFOLLOW);
+		int saved_errno = errno;
+
+		component = strtok_r(NULL, "/", &saveptr);
+		if (component == NULL) {
+			// previous component was the last part, return dirfd
+			if (nextdirfd >= 0)
+				close(nextdirfd);
+
+			break;
+		}
+
+		close(dirfd);
+		dirfd = nextdirfd;
+
+		if (dirfd < 0) {
+			errno = saved_errno;
+			break;
+		}
+	}
+
+	free(local_path);
+	return dirfd;
+}
+
 int create_dirs(struct node *node, size_t size) {
     int rc = 0;
     size_t i;
@@ -270,19 +313,38 @@ int create_dirs(struct node *node, size_t size) {
         if (verbose_flag)
             printf("Create %s\n", node->dirname);
 
-        if (mkdir(node->dirname, node->fmode) < 0) {
+		int dirfd = open_parent_dir(node->dirname);
+		if (dirfd < 0) {
+			fprintf(stderr, "Failed to traverse path for '%s': %m\n", node->dirname);
+			rc = 1;
+			continue;
+		}
+
+        const char *node_basename = strrchr(node->dirname, '/');
+        // Make sure there's a name
+        if (!node_basename || node_basename[1] == '\0') {
+			fprintf(stderr, "Failed to get basename of '%s'", node->dirname);
+			rc = 1;
+			continue;
+        }
+        node_basename = node_basename + 1; // Skip /
+
+        // Ok to assign mode before chown?
+        if (mkdirat(dirfd, node_basename, node->fmode) < 0) {
             fprintf(stderr, "Failed to create directory '%s': %m\n", node->dirname);
             rc = 1;
             continue;
         }
 
-        if (chown(node->dirname, node->user_id, node->group_id) < 0) {
+        // Ok to assign ownership before se labels?
+        if (fchownat(dirfd, node_basename, node->user_id, node->group_id, AT_SYMLINK_NOFOLLOW) < 0) {
             fprintf(stderr, "Failed to set owner/group for '%s': %m\n", node->dirname);
             /* wrong permissions are bad, remove dir and continue */
-            rmdir(node->dirname);
+            unlinkat(dirfd, node_basename, AT_REMOVEDIR);
             rc = 1;
             continue;
         }
+
         /* ignore errors here, time stamps are not critical */
         utimes(node->dirname, stamps);
 
@@ -295,7 +357,7 @@ int create_dirs(struct node *node, size_t size) {
                 }
 
                 fprintf(stderr, "Failed to get default context for directory '%s': %m\n", node->dirname);
-                rmdir(node->dirname);
+                unlinkat(dirfd, node_basename, AT_REMOVEDIR);
                 rc = 1;
                 continue;
             }
@@ -307,7 +369,7 @@ int create_dirs(struct node *node, size_t size) {
                 if (errno != ENODATA) {
                     fprintf(stderr, "Failed to get old context for '%s': %m\n", node->dirname);
                     freecon(newcon);
-                    rmdir(node->dirname);
+                    unlinkat(dirfd, node_basename, AT_REMOVEDIR);
                     rc = 1;
                     continue;
                 }
@@ -319,7 +381,7 @@ int create_dirs(struct node *node, size_t size) {
                     printf("Set SELinux file context to %s\n", newcon);
                 if (setfilecon_raw(node->dirname, newcon) < 0) {
                     fprintf(stderr, "Failed to set new context for '%s': %m\n", node->dirname);
-                    rmdir(node->dirname);
+                    unlinkat(dirfd, node_basename, AT_REMOVEDIR);
                     rc = 1;
                 }
             }
@@ -327,6 +389,8 @@ int create_dirs(struct node *node, size_t size) {
             freecon(curcon);
             freecon(newcon);
         }
+
+        close(dirfd);
     }
 
     if (use_selinux)
