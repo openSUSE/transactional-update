@@ -44,6 +44,7 @@ DO_STATUS=0
 DO_STATUS_LAST=0
 REGISTRATION_ARGS=""
 ROLLBACK_SNAPSHOT=0
+HAS_BLS_SUPPORT=0
 REBOOT_AFTERWARDS=0
 REBOOT_LEVEL="none"
 REBOOT_LEVEL_PREV=""
@@ -1229,6 +1230,10 @@ else
     REBOOT_LEVEL_PREV=none
 fi
 
+if [ -f /etc/kernel/cmdline ]; then
+    HAS_BLS_SUPPORT=1
+fi
+
 # Load old state file
 if [ -f ${STATE_FILE} ]; then
     . ${STATE_FILE}
@@ -1557,20 +1562,30 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	ETC_BASE="${SNAPSHOT_DIR}"
     fi
     if [ ${SETUP_FIPS} -eq 1 ]; then
-	# Adjust grub configuration
+	if [ ${HAS_BLS_SUPPORT} -eq 1 ]; then
+	    grep -q -w fips /etc/kernel/cmdline || \
+		tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" sed -i -e 's|$| fips=1|' "/etc/kernel/cmdline"
+        else
+	    # Adjust grub configuration
 
-	# Check if we don't have selinux already enabled.
-	grep ^GRUB_CMDLINE_LINUX_DEFAULT /etc/default/grub | grep -q -w fips || \
-	    tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" sed -i -e 's|\(^GRUB_CMDLINE_LINUX_DEFAULT=.*\)"|\1 fips=1"|g' "/etc/default/grub"
-	REWRITE_GRUB_CFG=1
+	    # Check if we don't have selinux already enabled.
+	    grep ^GRUB_CMDLINE_LINUX_DEFAULT /etc/default/grub | grep -q -w fips || \
+		tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" sed -i -e 's|\(^GRUB_CMDLINE_LINUX_DEFAULT=.*\)"|\1 fips=1"|g' "/etc/default/grub"
+	    REWRITE_GRUB_CFG=1
+	fi
     fi
     if [ ${SETUP_SELINUX} -eq 1 ]; then
-	# Adjust grub configuration
+	if [ ${HAS_BLS_SUPPORT} -eq 1 ]; then
+	    grep -q -w fips /etc/kernel/cmdline || \
+		tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" sed -i -e 's|$| security=selinux selinux=1|' "/etc/kernel/cmdline"
+        else
+	    # Adjust grub configuration
 
-	# Check if we don't have selinux already enabled.
-	grep ^GRUB_CMDLINE_LINUX_DEFAULT /etc/default/grub | grep -q -w security=selinux || \
-	    tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" sed -i -e 's|\(^GRUB_CMDLINE_LINUX_DEFAULT=.*\)"|\1 security=selinux selinux=1"|g' "/etc/default/grub"
-	REWRITE_GRUB_CFG=1
+	    # Check if we don't have selinux already enabled.
+	    grep ^GRUB_CMDLINE_LINUX_DEFAULT /etc/default/grub | grep -q -w security=selinux || \
+		tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" sed -i -e 's|\(^GRUB_CMDLINE_LINUX_DEFAULT=.*\)"|\1 security=selinux selinux=1"|g' "/etc/default/grub"
+	    REWRITE_GRUB_CFG=1
+        fi
 
 	if tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" [ ! -e "/etc/selinux/config" ]; then
 	    log_error "ERROR: /etc/selinux/config does not exist!"
@@ -1592,8 +1607,12 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	    KDUMP_HIGH="$(echo "$KDUMP_CALIBRATION" | grep ^High: | cut -d ' ' -f 2)"
 	fi
 
-	tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" sed -i -e '/^GRUB_CMDLINE_LINUX_DEFAULT=/s/ *crashkernel[^ "]\+//g' -e 's|\(^GRUB_CMDLINE_LINUX_DEFAULT=.*\)"|\1 crashkernel='${KDUMP_LOW}'M,low crashkernel='${KDUMP_HIGH}'M,high"|g' "/etc/default/grub"
-	REWRITE_GRUB_CFG=1
+	if [ ${HAS_BLS_SUPPORT} -eq 1 ]; then
+	    tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" sed -i -e 's/ *crashkernel[^ "]\+//g' -e 's|$| crashkernel='${KDUMP_LOW}'M,low crashkernel='${KDUMP_HIGH}'M,high"|g' /etc/kernel/cmdline
+        else
+	    tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" sed -i -e '/^GRUB_CMDLINE_LINUX_DEFAULT=/s/ *crashkernel[^ "]\+//g' -e 's|\(^GRUB_CMDLINE_LINUX_DEFAULT=.*\)"|\1 crashkernel='${KDUMP_LOW}'M,low crashkernel='${KDUMP_HIGH}'M,high"|g' "/etc/default/grub"
+	    REWRITE_GRUB_CFG=1
+        fi
 
         tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" systemctl enable kdump
     fi
@@ -1620,7 +1639,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	set_reboot_level "soft-reboot"
     fi
 
-    if [ ${REWRITE_GRUB_CFG} -eq 1 -o ${REWRITE_GRUB_CFG_NO_REBOOT} -eq 1 ]; then
+    if [ ${HAS_BLS_SUPPORT} -eq 0 -a ${REWRITE_GRUB_CFG} -eq 1 -o ${REWRITE_GRUB_CFG_NO_REBOOT} -eq 1 ]; then
 	log_info "Creating a new grub2 config"
 	tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" bash -c "/usr/sbin/grub2-mkconfig > /boot/grub2/grub.cfg" |& tee -a ${LOGFILE} 1>&${origstdout}
 	if [ $? -ne 0 ]; then
