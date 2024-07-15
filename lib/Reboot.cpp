@@ -6,6 +6,7 @@
  */
 
 #include "Reboot.hpp"
+#include "BlsEntry.hpp"
 #include "Configuration.hpp"
 #include "Exceptions.hpp"
 #include "Log.hpp"
@@ -63,7 +64,22 @@ Reboot::Reboot(std::string method) {
             sm->getDefault();
             std::unique_ptr<Snapshot> defaultSnap = sm->open(sm->getDefault());
 
-            command  = "kexec --kexec-syscall-auto -l " + std::string(defaultSnap->getRoot() / "boot" / "vmlinuz") + " --initrd=" + std::string(defaultSnap->getRoot() / "boot" / "initrd") + " --reuse-cmdline;";
+            auto kernel = std::string(defaultSnap->getRoot() / "boot" / "vmlinuz");
+            auto initrd = std::string(defaultSnap->getRoot() / "boot" / "initrd");
+            if (!std::filesystem::exists(kernel)) {
+                // If /boot/vmlinuz is not found, probably the system is using BLS entries
+                // BLS entries are outside of snapshots
+                auto efi = std::filesystem::path("/boot/efi");
+                auto bls_entry_path = Util::exec("/usr/bin/sdbootutil list-entries --only-default");
+                Util::trim(bls_entry_path);
+                std::tie(kernel, initrd) =
+                    BlsEntry::parse_bls_entry(efi / "loader" / "entries" / bls_entry_path);
+                // relative_path strips the path of the root ("/"), otherwise the operator/
+                // doesn't work and just returns the value of efi
+                kernel = efi / std::filesystem::path(kernel).relative_path();
+                initrd = efi / std::filesystem::path(initrd).relative_path();
+            }
+            command  = "kexec --kexec-syscall-auto -l '" + kernel + "' --initrd='" + initrd + "' --reuse-cmdline;";
             command += "systemctl kexec;";
         } else {
             command += "systemctl reboot;";
