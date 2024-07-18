@@ -393,12 +393,19 @@ for more information.
 <refsect3 id='i_pkg_commands'><title>Interactive Package Commands</title>
 <variablelist>
   <varlistentry>
-    <term><option>migration</option></term>
+    <term><option>migration</option> <replaceable>arguments</replaceable></term>
     <listitem>
       <para>
 	On systems which are registered against the SUSE Customer Center (SCC)
 	or SMT, a migration to a new version of the installed products can be
-	made with this option.
+	made with this option. This command calls <command>zypper migration</command>
+	with the given <replaceable>arguments</replaceable>.
+      </para>
+      <para>
+	These arguments can be any
+	<citerefentry project='zypper-migration'><refentrytitle>zypper-migration</refentrytitle><manvolnum>8</manvolnum></citerefentry>
+	argument, with the exception of "--root", as this is handled by
+	transactional-update dynamically.
       </para>
     </listitem>
   </varlistentry>
