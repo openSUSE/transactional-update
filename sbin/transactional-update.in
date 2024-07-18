@@ -24,8 +24,8 @@ export DISABLE_SNAPPER_ZYPP_PLUGIN=1
 EXITCODE=0
 VERBOSITY=2
 ZYPPER_ARG=""
+ZYPPER_ARG_EXTRA=()
 ZYPPER_NONINTERACTIVE="-y --auto-agree-with-product-licenses"
-ZYPPER_ARG_PKGS=()
 REWRITE_BOOTLOADER=0
 REWRITE_GRUB_CFG=0
 REWRITE_GRUB_CFG_NO_REBOOT=0
@@ -169,7 +169,7 @@ usage() {
     echo "dist-upgrade, dup          Call 'zypper dup' (n)"
     echo "update, up                 Call 'zypper up' (n)"
     echo "patch                      Call 'zypper patch' (n)"
-    echo "migration                  Updates systems registered via SCC / SMT (i)"
+    echo "migration ...              Updates systems registered via SCC / SMT (i)"
     echo "pkg install|in ...         Install individual packages (i)"
     echo "pkg remove|rm ...          Remove individual packages (i)"
     echo "pkg update|up ...          Updates individual packages (i)"
@@ -848,6 +848,21 @@ show_snapshot_status() {
 
 ORIG_ARGS=("$@")
 
+parse_zypper_args_extra() {
+    while [ 1 ]; do
+	if [ $# -eq 0 ]; then
+	    break;
+	else
+	    if [ "$1" == "--root" ]; then
+                log_error "ERROR: You cannot set '--root' in transactional-update."
+                quit 1
+	    fi
+	    ZYPPER_ARG_EXTRA+=("$1");
+	    shift
+	fi
+    done
+}
+
 parse_args() {
     while [ 1 ]; do
 	if [ $# -eq 0 ]; then
@@ -917,14 +932,8 @@ parse_args() {
 		    usage 1
 		fi
 
-		while [ 1 ]; do
-		    if [ $# -eq 0 ]; then
-			break;
-		    else
-			ZYPPER_ARG_PKGS+=("$1");
-			shift
-		    fi
-		done
+		parse_zypper_args_extra "$@"
+		break
 		;;
 	    migration)
 		DO_MIGRATION=1
@@ -937,6 +946,9 @@ parse_args() {
 		    ZYPPER_NONINTERACTIVE=""
 		fi
 		shift
+
+		parse_zypper_args_extra "$@"
+		break
 		;;
 	    bootloader)
 		REWRITE_BOOTLOADER=1
@@ -1102,6 +1114,7 @@ parse_args() {
 	esac
     done
 }
+
 parse_args "${ORIG_ARGS[@]}"
 
 # Duplicate stdout before creating custom handlers
@@ -1126,9 +1139,9 @@ if [ "${SETUP_FIPS}" -eq 1 ]; then
     # Check if we need to install packages
     fipspattern="$(rpm -q --whatprovides 'pattern()' --provides | grep '^pattern() = fips$')"
     if [ -z "${fipspattern}" ]; then
-	ZYPPER_ARG_PKGS+=("pattern() = fips")
+	ZYPPER_ARG_EXTRA+=("pattern() = fips")
     fi
-    if [ ${#ZYPPER_ARG_PKGS[@]} -ne 0 ]; then
+    if [ ${#ZYPPER_ARG_EXTRA[@]} -ne 0 ]; then
 	ZYPPER_ARG="install"
     fi
     REWRITE_INITRD=1
@@ -1149,9 +1162,9 @@ if [ "${SETUP_SELINUX}" -eq 1 ]; then
     fi
     # Check if we need to install packages
     for pkg in selinux-policy-targeted container-selinux; do
-	rpm -q --quiet ${pkg} || ZYPPER_ARG_PKGS+=("${pkg}")
+	rpm -q --quiet ${pkg} || ZYPPER_ARG_EXTRA+=("${pkg}")
     done
-    if [ ${#ZYPPER_ARG_PKGS[@]} -ne 0 ]; then
+    if [ ${#ZYPPER_ARG_EXTRA[@]} -ne 0 ]; then
 	ZYPPER_ARG="install"
     fi
     REWRITE_INITRD=1
@@ -1170,9 +1183,9 @@ if [ ${SETUP_KDUMP} -eq 1 ]; then
     fi
     # Check if we need to install packages
     for pkg in kdump; do
-        rpm -q --quiet ${pkg} || ZYPPER_ARG_PKGS+=("${pkg}")
+        rpm -q --quiet ${pkg} || ZYPPER_ARG_EXTRA+=("${pkg}")
     done
-    if [ ${#ZYPPER_ARG_PKGS[@]} -ne 0 ]; then
+    if [ ${#ZYPPER_ARG_EXTRA[@]} -ne 0 ]; then
         ZYPPER_ARG="install"
     fi
     REBUILD_KDUMP_INITRD=1
@@ -1471,7 +1484,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	if [ ${DO_MIGRATION} -eq 1 ]; then
 	    # transactional-update migration
 	    export DISABLE_RESTART_ON_UPDATE=yes
-	    tukit ${TUKIT_OPTS} callext "${SNAPSHOT_ID}" zypper ${ZYPPER_ARG} --root {} ${ZYPPER_NONINTERACTIVE} "${ZYPPER_ARG_PKGS[@]}" |& tee -a ${LOGFILE} 1>&${origstdout}
+	    tukit ${TUKIT_OPTS} callext "${SNAPSHOT_ID}" zypper ${ZYPPER_ARG} --root {} ${ZYPPER_NONINTERACTIVE} "${ZYPPER_ARG_EXTRA[@]}" |& tee -a ${LOGFILE} 1>&${origstdout}
 	    RETVAL=${PIPESTATUS[0]}
 	else
 	    if [ ${DO_CALLEXT} -eq 1 ]; then
@@ -1481,7 +1494,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	    fi
 	    # Check if there are updates at all.
 	    TMPFILE=`mktemp ${TMPDIR}/transactional-update.XXXXXXXXXX`
-	    ${zypper_cmd} --xmlout ${ZYPPER_ARG} -y --auto-agree-with-product-licenses --dry-run "${ZYPPER_ARG_PKGS[@]}" > ${TMPFILE}
+	    ${zypper_cmd} --xmlout ${ZYPPER_ARG} -y --auto-agree-with-product-licenses --dry-run "${ZYPPER_ARG_EXTRA[@]}" > ${TMPFILE}
 	    PACKAGE_UPDATES=`grep "install-summary download-size" ${TMPFILE} | sed -e 's|.*install-summary download-size=\"\(.*\)\" space-usage-diff.*|\1|g'`
 	    SIZE_OF_UPDATES=`grep "install-summary.*space-usage-diff" ${TMPFILE} | sed -e 's|.*install-summary.*space-usage-diff=\"\([^"]*\)\".*|\1|g'`
 	    NUM_OF_UPDATES=`grep "install-summary.*packages-to-change" ${TMPFILE} | sed -e 's|.*install-summary.*packages-to-change=\"\([^"]*\)\".*|\1|g'`
@@ -1498,7 +1511,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	    fi
 
 	    export DISABLE_RESTART_ON_UPDATE=yes
-	    ${zypper_cmd} ${ZYPPER_ARG} ${ZYPPER_NONINTERACTIVE} "${ZYPPER_ARG_PKGS[@]}" |& tee -a ${LOGFILE} 1>&${origstdout}
+	    ${zypper_cmd} ${ZYPPER_ARG} ${ZYPPER_NONINTERACTIVE} "${ZYPPER_ARG_EXTRA[@]}" |& tee -a ${LOGFILE} 1>&${origstdout}
 	    RETVAL=${PIPESTATUS[0]}
 	    if [ \( $RETVAL -eq 0 -o $RETVAL -eq 102 -o $RETVAL -eq 103 \) -a -n "${INCLUDES_KERNEL_PACKAGES}" ]; then
 		${zypper_cmd} -n purge-kernels |& tee -a ${LOGFILE}
