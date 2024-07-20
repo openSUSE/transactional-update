@@ -32,6 +32,7 @@ REWRITE_GRUB_CFG_NO_REBOOT=0
 REWRITE_INITRD=0
 REBUILD_KDUMP_INITRD=0
 DO_APPLY=0
+DO_APPLY_OCI=0
 DO_CLEANUP_OVERLAYS=0
 DO_CLEANUP_SNAPSHOTS=0
 DO_MIGRATION=0
@@ -74,6 +75,9 @@ SYSTEM_MANIFEST_FILE="@libdir@/sysimage/tu/system.manifest"
 ZYPPER_AUTO_IMPORT_KEYS=0
 ETC_OVERLAY_PATTERN='^[^[:space:]]\+[[:space:]]\+\/etc[[:space:]]\+overlay[[:space:]]\+\([^[:space:]]*,\|\)workdir=\/sysroot\/var\/lib\/overlay\/work-etc[,[:space:]]'
 NON_ROOTFS_WHITELIST=("/var/lib/YaST2/cookies" "/var/lib/rpm" "/var/lib/systemd/migrated" "/var/run/zypp.pid")
+OCI_RSYNC_ARGS="-a --hard-links --xattrs --acls --inplace"
+OCI_RSYNC_EXCLUDES="/etc /var /usr/local /tmp /root /home /srv /opt /sys /dev /proc /run"
+OCI_TARGET=""
 DRACUT_OPTS=""
 TUKIT_OPTS=""
 
@@ -173,6 +177,7 @@ usage() {
     echo "pkg install|in ...         Install individual packages (i)"
     echo "pkg remove|rm ...          Remove individual packages (i)"
     echo "pkg update|up ...          Updates individual packages (i)"
+    echo "apply-oci ...              Applies system layout based on OCI container (i)"
     echo "register ...               Register system via SUSEConnect (implies -d)"
     echo ""
     echo "Standalone Commands:"
@@ -1088,6 +1093,38 @@ parse_args() {
 		# A lot of commands won't change anything; discard snapshot then
 		TUKIT_OPTS="${TUKIT_OPTS} --discard"
 		;;
+	    apply-oci)
+		DO_APPLY_OCI=1
+		REWRITE_GRUB_CFG=1
+		REWRITE_INITRD=1
+		REBUILD_KDUMP_INITRD=1
+		shift
+
+		if [ $# -eq 0 ]; then
+		    usage 1
+		fi
+
+		while [ 1 ]; do
+		    if [ $# -eq 0 ]; then
+			break;
+		    else
+			if [ "$1" == "--image" ]; then
+			    if [ -n "$2" ]; then
+				OCI_TARGET=$2
+			    else
+				log_error "ERROR: Please specify an OCI image to use as an upgrade target."
+				quit 1
+			    fi
+			fi
+			if [ "$1" == "--help" ]; then
+			    usage 1
+			    break
+			fi
+		        shift
+		    fi
+		done
+		shift
+		;;
 	    -h|--help)
 		usage 0
 		;;
@@ -1435,7 +1472,8 @@ fi
 if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
     -o ${REWRITE_INITRD} -eq 1 -o ${REBUILD_KDUMP_INITRD} -eq 1 \
     -o ${RUN_SHELL} -eq 1 -o ${DO_RUN} -eq 1 \
-    -o ${REWRITE_BOOTLOADER} -eq 1 -o ${DO_REGISTRATION} -eq 1 ]; then
+    -o ${REWRITE_BOOTLOADER} -eq 1 -o ${DO_REGISTRATION} -eq 1 \
+    -o ${DO_APPLY_OCI} -eq 1 ]; then
 
     if [ -z "${ZYPPER_NONINTERACTIVE}" -a "${DEFAULT_SNAPSHOT_ID}" -ne "${BASE_SNAPSHOT_ID}" ]; then
 	log_info "WARNING: You are creating a snapshot from a different base (${BASE_SNAPSHOT_ID}) than the"
@@ -1463,6 +1501,36 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
     if [ ${DO_REGISTRATION} -eq 1 ]; then
 	tukit ${TUKIT_OPTS} callext ${SNAPSHOT_ID} SUSEConnect --root {} ${REGISTRATION_ARGS} |& tee -a ${LOGFILE} 1>&${origstdout}
 	set_reboot_level "soft-reboot"
+    fi
+
+    if [ ${DO_APPLY_OCI} -eq 1 ]; then
+	# Pull desired container image and mount it ready for copy
+	log_info "INFO: Pulling image from: $OCI_TARGET"
+	podman image pull $OCI_TARGET || {
+	    log_error "ERROR: Couldn't pull image from $OCI_TARGET"
+	    quit 1
+	}
+	OCI_MOUNT=$(podman image mount $OCI_TARGET)
+
+	# Copy over core parts of the operating system into the new snapshot, deleting files that don't exist, and ignoring partitions that aren't captured in the snapshot
+	log_info "INFO: Writing contents of ${OCI_TARGET} to snapshot directory ${SNAPSHOT_DIR}..."
+	OCI_RSYNC_EXCLUDES_LIST=()
+	for i in ${OCI_RSYNC_EXCLUDES}; do
+	    OCI_RSYNC_EXCLUDES_LIST+=("--exclude $i ")
+	done
+	rsync --delete ${OCI_RSYNC_ARGS} ${OCI_RSYNC_EXCLUDES_LIST[@]} ${OCI_MOUNT}/ ${SNAPSHOT_DIR}/ |& tee -a ${LOGFILE} 1>&${origstdout}
+
+	# Merge contents of /etc from container image but preserve existing configuration
+	log_info "INFO: Merging /etc from container image into existing snapshot, preserving existing configuration..."
+	tukit ${TUKIT_OPTS} callext ${SNAPSHOT_ID} rsync --ignore-existing ${OCI_RSYNC_ARGS} ${OCI_MOUNT}/etc/ ${SNAPSHOT_DIR}/etc/ |& tee -a ${LOGFILE} 1>&${origstdout}
+
+	# Unmount the container image
+	podman image unmount ${OCI_TARGET}
+	# Ensure that the filesystem is labelled correctly for SELinux.
+	log_info "Forcing SELinux relabel at next reboot."
+	touch ${SNAPSHOT_DIR}/.autorelabel
+	# Ensure RPM database is using the desired system backend
+	tukit ${TUKIT_OPTS} call ${SNAPSHOT_ID} rpm --rebuilddb |& tee -a ${LOGFILE} 1>&${origstdout}
     fi
 
     if [ -n "${ZYPPER_ARG}" ]; then
