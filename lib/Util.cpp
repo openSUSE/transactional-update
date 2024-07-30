@@ -65,4 +65,20 @@ void Util::trim(string &s) {
     rtrim(s);
 }
 
+void Util::sanitize_quotes(string &s) {
+    // Skip empty strings
+    if (!s.length()) {
+        return;
+    }
+
+    std::string::iterator it = s.begin();
+    do {
+        if (*it == '\'') {
+            it = s.insert(it, '\\');
+            // Skip over the new added character
+            it++;
+        }
+    } while (++it != s.end());
+}
+
 } // namespace TransactionalUpdate

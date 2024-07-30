@@ -77,7 +77,9 @@ Reboot::Reboot(std::string method) {
                 // relative_path strips the path of the root ("/"), otherwise the operator/
                 // doesn't work and just returns the value of efi
                 kernel = efi / std::filesystem::path(kernel).relative_path();
+                Util::sanitize_quotes(kernel);
                 initrd = efi / std::filesystem::path(initrd).relative_path();
+                Util::sanitize_quotes(initrd);
             }
             command  = "kexec --kexec-syscall-auto -l '" + kernel + "' --initrd='" + initrd + "' --reuse-cmdline;";
             command += "systemctl kexec;";
