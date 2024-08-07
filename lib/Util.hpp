@@ -20,6 +20,7 @@ struct Util {
     static void rtrim(std::string &s);
     static void stub(std::string option);
     static void trim(std::string &s);
+    static void sanitize_quotes(std::string &s);
 };
 
 struct CString {
