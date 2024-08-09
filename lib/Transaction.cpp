@@ -128,6 +128,8 @@ void Transaction::impl::snapMount() {
         dirsToMount.push_back(std::make_unique<BindMount>("/var/lib/ca-certificates"));
         if (fs::is_directory("/var/lib/alternatives"))
             dirsToMount.push_back(std::make_unique<BindMount>("/var/lib/alternatives"));
+        if (fs::is_directory("/var/lib/systemd"))
+            dirsToMount.push_back(std::make_unique<BindMount>("/var/lib/systemd"));
         if (fs::is_directory("/var/lib/selinux"))
             dirsToMount.push_back(std::make_unique<BindMount>("/var/lib/selinux"));
         if (is_selinux_enabled()) {
