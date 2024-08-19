@@ -1620,10 +1620,16 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	    KDUMP_HIGH="$(echo "$KDUMP_CALIBRATION" | grep ^High: | cut -d ' ' -f 2)"
 	fi
 
+	if [[ ${KDUMP_HIGH} -gt 0 ]]; then
+		KDUMP_PARAM="crashkernel=${KDUMP_LOW}M,low crashkernel=${KDUMP_HIGH}M,high"
+	else
+		KDUMP_PARAM="crashkernel=${KDUMP_LOW}M"
+	fi
+
 	if [ ${HAS_BLS_SUPPORT} -eq 1 ]; then
-	    tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" sed -i -e 's/ *crashkernel[^ "]\+//g' -e 's|$| crashkernel='${KDUMP_LOW}'M,low crashkernel='${KDUMP_HIGH}'M,high"|g' /etc/kernel/cmdline
+	    tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" sed -i -e 's/ *crashkernel[^ "]\+//g' -e 's|$| '"${KDUMP_PARAM}"'"|' /etc/kernel/cmdline
         else
-	    tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" sed -i -e '/^GRUB_CMDLINE_LINUX_DEFAULT=/s/ *crashkernel[^ "]\+//g' -e 's|\(^GRUB_CMDLINE_LINUX_DEFAULT=.*\)"|\1 crashkernel='${KDUMP_LOW}'M,low crashkernel='${KDUMP_HIGH}'M,high"|g' "/etc/default/grub"
+	    tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" sed -i -e '/^GRUB_CMDLINE_LINUX_DEFAULT=/s/ *crashkernel[^ "]\+//g' -e 's|\(^GRUB_CMDLINE_LINUX_DEFAULT=.*\)"|\1 '"${KDUMP_PARAM}"'"|g' "/etc/default/grub"
 	    REWRITE_GRUB_CFG=1
         fi
 
