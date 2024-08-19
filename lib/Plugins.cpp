@@ -7,6 +7,7 @@
 #include "Log.hpp"
 #include "Plugins.hpp"
 #include "Util.hpp"
+#include <regex>
 #include <set>
 #include <unistd.h>
 
@@ -81,8 +82,11 @@ void Plugins::run(string stage, char* argv[]) {
 
     int i = 0;
     while (argv != nullptr && argv[i]) {
-        args.append(" ");
-        args.append(argv[i++]);
+        std::string param = argv[i++];
+        param = std::regex_replace(param, std::regex("'"), "'\"'\"'");
+        args.append(" '");
+        args.append(param);
+        args.append("'");
     }
 
     run(stage, args);
