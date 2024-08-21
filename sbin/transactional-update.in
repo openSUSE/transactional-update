@@ -1627,7 +1627,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	fi
 
 	if [ ${HAS_BLS_SUPPORT} -eq 1 ]; then
-	    tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" sed -i -e 's/ *crashkernel[^ "]\+//g' -e 's|$| '"${KDUMP_PARAM}"'"|' /etc/kernel/cmdline
+	    tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" sed -i -e 's/ *crashkernel[^ "]\+//g' -e 's|$| '"${KDUMP_PARAM}"'|' /etc/kernel/cmdline
         else
 	    tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" sed -i -e '/^GRUB_CMDLINE_LINUX_DEFAULT=/s/ *crashkernel[^ "]\+//g' -e 's|\(^GRUB_CMDLINE_LINUX_DEFAULT=.*\)"|\1 '"${KDUMP_PARAM}"'"|g' "/etc/default/grub"
 	    REWRITE_GRUB_CFG=1
