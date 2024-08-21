@@ -267,6 +267,11 @@ save_state_file() {
     fi
 }
 
+# Check if the system is using a BLS-compatible bootloader
+is_bls() {
+    [ -e "/usr/bin/sdbootutil" ] && /usr/bin/sdbootutil is-installed
+}
+
 rebuild_kdump_initrd() {
     if tukit -q call "$1" systemctl is-enabled --quiet kdump.service; then
 	tukit ${TUKIT_OPTS} call "$1" /sbin/mkdumprd |& tee -a ${LOGFILE} 1>&${origstdout}
@@ -1450,6 +1455,50 @@ if [ ${DO_CLEANUP_OVERLAYS} -eq 1 ]; then
     fi
 fi
 
+# Certain actions should happend outside the transaction when we are
+# using systemd-boot or grub2bls
+if is_bls; then
+    if [ ${REWRITE_BOOTLOADER} = 1 ]; then
+	# NOTE: pbl has partial support of BLS. It will replace the
+	# shim bootloader, so for now we make a call of sdbootutil
+	# directly (bsc#1228864)
+	sdbootutil update |& tee -a ${LOGFILE} 1>&${origstdout}
+	if [ $? -ne 0 ]; then
+	    log_error "ERROR: sdbootutil update failed!"
+	    EXITCODE=1;
+	fi
+	# Drop the command from the execution chain
+	REWRITE_BOOTLOADER=0
+    fi
+
+    if [ ${REWRITE_GRUB_CFG} = 1 ] || [ ${REWRITE_GRUB_CFG_NO_REBOOT} = 1 ]; then
+	# The first GRUB configuration file in grub2bls is embedded in
+	# the EFI file, and the second one that contains the menu
+	# entries is generated dinamically by the new `blscfg` GRUB2
+	# command.  Also there is no configuration file to generate if
+	# systemd-boot is used.
+	REWRITE_GRUB_CFG=0
+	REWRITE_GRUB_CFG_NO_REBOOT=0
+    fi
+
+    if [ ${REWRITE_INITRD} = 1 ]; then
+	sdbootutil mkinitrd |& tee -a ${LOGFILE} 1>&${origstdout}
+	if [ $? -ne 0 ]; then
+	    log_error "ERROR: sdbootutil mkinitrd failed!"
+	    EXITCODE=1;
+	fi
+	# Drop the command from the execution chain
+	REWRITE_INITRD=0
+    fi
+
+    if [ ${REBUILD_KDUMP_INITRD} = 1 ]; then
+	# mkinitrd depends on pbl, so it will fail (bsc#1226676)
+	log_info "WARNING: mkdumprd fails for this bootloader"
+	REBUILD_KDUMP_INITRD=0
+	SETUP_KDUMP=0
+    fi
+fi
+
 if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
     -o ${REWRITE_INITRD} -eq 1 -o ${REBUILD_KDUMP_INITRD} -eq 1 \
     -o ${RUN_SHELL} -eq 1 -o ${DO_RUN} -eq 1 \
@@ -1540,7 +1589,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	fi
 
 	if [ $RETVAL -eq 0 -o $RETVAL -eq 102 -o $RETVAL -eq 103 -o \( $DO_DUP -eq 0 -a $RETVAL -eq 106 \) ]; then
-	    REBUILD_KDUMP_INITRD=1
+	    is_bls || REBUILD_KDUMP_INITRD=1
 	    # check if products are updated and we need to re-register
 	    # at next boot.
             diff -qr /etc/products.d ${SNAPSHOT_DIR}/etc/products.d > /dev/null
@@ -1550,7 +1599,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	    # Rebuild grub.cfg if /etc/os-release changes, could change grub
 	    # menu output, too.
             cmp -s /etc/os-release ${SNAPSHOT_DIR}/etc/os-release
-	    if [ $? -ne 0 -a -x /usr/sbin/grub2-mkconfig ]; then
+	    if [ $? -ne 0 -a -x /usr/sbin/grub2-mkconfig -a ! is_bls]; then
 	        REWRITE_GRUB_CFG_NO_REBOOT=1
 	    fi
 	    source <(grep VERSION_ID ${SNAPSHOT_DIR}/etc/os-release)
