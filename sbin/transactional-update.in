@@ -44,7 +44,6 @@ DO_STATUS=0
 DO_STATUS_LAST=0
 REGISTRATION_ARGS=""
 ROLLBACK_SNAPSHOT=0
-HAS_BLS_SUPPORT=0
 REBOOT_AFTERWARDS=0
 REBOOT_LEVEL="none"
 REBOOT_LEVEL_PREV=""
@@ -1248,10 +1247,6 @@ else
     REBOOT_LEVEL_PREV=none
 fi
 
-if [ -f /etc/kernel/cmdline ]; then
-    HAS_BLS_SUPPORT=1
-fi
-
 # Load old state file
 if [ -f ${STATE_FILE} ]; then
     . ${STATE_FILE}
@@ -1624,7 +1619,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	ETC_BASE="${SNAPSHOT_DIR}"
     fi
     if [ ${SETUP_FIPS} -eq 1 ]; then
-	if [ ${HAS_BLS_SUPPORT} -eq 1 ]; then
+	if is_bls; then
 	    grep -q -w fips /etc/kernel/cmdline || \
 		tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" sed -i -e 's|$| fips=1|' "/etc/kernel/cmdline"
         else
@@ -1637,7 +1632,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	fi
     fi
     if [ ${SETUP_SELINUX} -eq 1 ]; then
-	if [ ${HAS_BLS_SUPPORT} -eq 1 ]; then
+	if is_bls; then
 	    grep -q -w fips /etc/kernel/cmdline || \
 		tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" sed -i -e 's|$| security=selinux selinux=1|' "/etc/kernel/cmdline"
         else
@@ -1675,7 +1670,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 		KDUMP_PARAM="crashkernel=${KDUMP_LOW}M"
 	fi
 
-	if [ ${HAS_BLS_SUPPORT} -eq 1 ]; then
+	if is_bls; then
 	    tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" sed -i -e 's/ *crashkernel[^ "]\+//g' -e 's|$| '"${KDUMP_PARAM}"'|' /etc/kernel/cmdline
         else
 	    tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" sed -i -e '/^GRUB_CMDLINE_LINUX_DEFAULT=/s/ *crashkernel[^ "]\+//g' -e 's|\(^GRUB_CMDLINE_LINUX_DEFAULT=.*\)"|\1 '"${KDUMP_PARAM}"'"|g' "/etc/default/grub"
@@ -1707,7 +1702,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	set_reboot_level "soft-reboot"
     fi
 
-    if [ ${HAS_BLS_SUPPORT} -eq 0 -a ${REWRITE_GRUB_CFG} -eq 1 -o ${REWRITE_GRUB_CFG_NO_REBOOT} -eq 1 ]; then
+    if [ ${REWRITE_GRUB_CFG} -eq 1 -o ${REWRITE_GRUB_CFG_NO_REBOOT} -eq 1 ]; then
 	log_info "Creating a new grub2 config"
 	tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" bash -c "/usr/sbin/grub2-mkconfig > /boot/grub2/grub.cfg" |& tee -a ${LOGFILE} 1>&${origstdout}
 	if [ $? -ne 0 ]; then
