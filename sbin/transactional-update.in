@@ -44,7 +44,6 @@ DO_STATUS=0
 DO_STATUS_LAST=0
 REGISTRATION_ARGS=""
 ROLLBACK_SNAPSHOT=0
-HAS_BLS_SUPPORT=0
 REBOOT_AFTERWARDS=0
 REBOOT_LEVEL="none"
 REBOOT_LEVEL_PREV=""
@@ -265,6 +264,11 @@ save_state_file() {
 	    cp -a ${STATE_FILE} "/.snapshots/$1/snapshot${STATE_FILE}"
 	fi
     fi
+}
+
+# Check if the system is using a BLS-compatible bootloader
+is_bls() {
+    [ -e "/usr/bin/sdbootutil" ] && /usr/bin/sdbootutil is-installed
 }
 
 rebuild_kdump_initrd() {
@@ -1243,10 +1247,6 @@ else
     REBOOT_LEVEL_PREV=none
 fi
 
-if [ -f /etc/kernel/cmdline ]; then
-    HAS_BLS_SUPPORT=1
-fi
-
 # Load old state file
 if [ -f ${STATE_FILE} ]; then
     . ${STATE_FILE}
@@ -1450,6 +1450,50 @@ if [ ${DO_CLEANUP_OVERLAYS} -eq 1 ]; then
     fi
 fi
 
+# Certain actions should happend outside the transaction when we are
+# using systemd-boot or grub2bls
+if is_bls; then
+    if [ ${REWRITE_BOOTLOADER} = 1 ]; then
+	# NOTE: pbl has partial support of BLS. It will replace the
+	# shim bootloader, so for now we make a call of sdbootutil
+	# directly (bsc#1228864)
+	sdbootutil update |& tee -a ${LOGFILE} 1>&${origstdout}
+	if [ $? -ne 0 ]; then
+	    log_error "ERROR: sdbootutil update failed!"
+	    EXITCODE=1;
+	fi
+	# Drop the command from the execution chain
+	REWRITE_BOOTLOADER=0
+    fi
+
+    if [ ${REWRITE_GRUB_CFG} = 1 ] || [ ${REWRITE_GRUB_CFG_NO_REBOOT} = 1 ]; then
+	# The first GRUB configuration file in grub2bls is embedded in
+	# the EFI file, and the second one that contains the menu
+	# entries is generated dinamically by the new `blscfg` GRUB2
+	# command.  Also there is no configuration file to generate if
+	# systemd-boot is used.
+	REWRITE_GRUB_CFG=0
+	REWRITE_GRUB_CFG_NO_REBOOT=0
+    fi
+
+    if [ ${REWRITE_INITRD} = 1 ]; then
+	sdbootutil mkinitrd |& tee -a ${LOGFILE} 1>&${origstdout}
+	if [ $? -ne 0 ]; then
+	    log_error "ERROR: sdbootutil mkinitrd failed!"
+	    EXITCODE=1;
+	fi
+	# Drop the command from the execution chain
+	REWRITE_INITRD=0
+    fi
+
+    if [ ${REBUILD_KDUMP_INITRD} = 1 ]; then
+	# mkinitrd depends on pbl, so it will fail (bsc#1226676)
+	log_info "WARNING: mkdumprd fails for this bootloader"
+	REBUILD_KDUMP_INITRD=0
+	SETUP_KDUMP=0
+    fi
+fi
+
 if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
     -o ${REWRITE_INITRD} -eq 1 -o ${REBUILD_KDUMP_INITRD} -eq 1 \
     -o ${RUN_SHELL} -eq 1 -o ${DO_RUN} -eq 1 \
@@ -1540,7 +1584,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	fi
 
 	if [ $RETVAL -eq 0 -o $RETVAL -eq 102 -o $RETVAL -eq 103 -o \( $DO_DUP -eq 0 -a $RETVAL -eq 106 \) ]; then
-	    REBUILD_KDUMP_INITRD=1
+	    is_bls || REBUILD_KDUMP_INITRD=1
 	    # check if products are updated and we need to re-register
 	    # at next boot.
             diff -qr /etc/products.d ${SNAPSHOT_DIR}/etc/products.d > /dev/null
@@ -1550,7 +1594,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	    # Rebuild grub.cfg if /etc/os-release changes, could change grub
 	    # menu output, too.
             cmp -s /etc/os-release ${SNAPSHOT_DIR}/etc/os-release
-	    if [ $? -ne 0 -a -x /usr/sbin/grub2-mkconfig ]; then
+	    if [ $? -ne 0 -a -x /usr/sbin/grub2-mkconfig -a ! is_bls]; then
 	        REWRITE_GRUB_CFG_NO_REBOOT=1
 	    fi
 	    source <(grep VERSION_ID ${SNAPSHOT_DIR}/etc/os-release)
@@ -1575,7 +1619,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	ETC_BASE="${SNAPSHOT_DIR}"
     fi
     if [ ${SETUP_FIPS} -eq 1 ]; then
-	if [ ${HAS_BLS_SUPPORT} -eq 1 ]; then
+	if is_bls; then
 	    grep -q -w fips /etc/kernel/cmdline || \
 		tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" sed -i -e 's|$| fips=1|' "/etc/kernel/cmdline"
         else
@@ -1588,7 +1632,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	fi
     fi
     if [ ${SETUP_SELINUX} -eq 1 ]; then
-	if [ ${HAS_BLS_SUPPORT} -eq 1 ]; then
+	if is_bls; then
 	    grep -q -w fips /etc/kernel/cmdline || \
 		tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" sed -i -e 's|$| security=selinux selinux=1|' "/etc/kernel/cmdline"
         else
@@ -1626,7 +1670,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 		KDUMP_PARAM="crashkernel=${KDUMP_LOW}M"
 	fi
 
-	if [ ${HAS_BLS_SUPPORT} -eq 1 ]; then
+	if is_bls; then
 	    tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" sed -i -e 's/ *crashkernel[^ "]\+//g' -e 's|$| '"${KDUMP_PARAM}"'|' /etc/kernel/cmdline
         else
 	    tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" sed -i -e '/^GRUB_CMDLINE_LINUX_DEFAULT=/s/ *crashkernel[^ "]\+//g' -e 's|\(^GRUB_CMDLINE_LINUX_DEFAULT=.*\)"|\1 '"${KDUMP_PARAM}"'"|g' "/etc/default/grub"
@@ -1658,7 +1702,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	set_reboot_level "soft-reboot"
     fi
 
-    if [ ${HAS_BLS_SUPPORT} -eq 0 -a ${REWRITE_GRUB_CFG} -eq 1 -o ${REWRITE_GRUB_CFG_NO_REBOOT} -eq 1 ]; then
+    if [ ${REWRITE_GRUB_CFG} -eq 1 -o ${REWRITE_GRUB_CFG_NO_REBOOT} -eq 1 ]; then
 	log_info "Creating a new grub2 config"
 	tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" bash -c "/usr/sbin/grub2-mkconfig > /boot/grub2/grub.cfg" |& tee -a ${LOGFILE} 1>&${origstdout}
 	if [ $? -ne 0 ]; then
