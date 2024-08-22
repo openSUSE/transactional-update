@@ -1450,7 +1450,7 @@ if [ ${DO_CLEANUP_OVERLAYS} -eq 1 ]; then
     fi
 fi
 
-# Certain actions should happend outside the transaction when we are
+# Certain actions should happen outside the transaction when we are
 # using systemd-boot or grub2bls
 if is_bls; then
     if [ ${REWRITE_BOOTLOADER} = 1 ]; then
@@ -1594,7 +1594,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 	    # Rebuild grub.cfg if /etc/os-release changes, could change grub
 	    # menu output, too.
             cmp -s /etc/os-release ${SNAPSHOT_DIR}/etc/os-release
-	    if [ $? -ne 0 -a -x /usr/sbin/grub2-mkconfig -a ! is_bls]; then
+	    if [ $? -ne 0 -a -x /usr/sbin/grub2-mkconfig -a ! is_bls ]; then
 	        REWRITE_GRUB_CFG_NO_REBOOT=1
 	    fi
 	    source <(grep VERSION_ID ${SNAPSHOT_DIR}/etc/os-release)
