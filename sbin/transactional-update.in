@@ -1735,7 +1735,7 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 
     if [ ${RUN_SHELL} -eq 1 ]; then
 	log_to_stdout "Opening chroot in snapshot ${SNAPSHOT_ID}, continue with 'exit'"
-        export PS1="transactional update # "
+        export PS1="transactional update \\w# "
 	tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" bash 1>&${origstdout} 2>&${origstderr}
 	set_reboot_level "reboot"
     fi

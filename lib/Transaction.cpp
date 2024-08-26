@@ -404,8 +404,11 @@ int Transaction::impl::runCommand(char* argv[], bool inChroot, std::string* outp
         }
 
         if (inChroot) {
-            if (chdir(bindDir.c_str()) < 0) {
-                tulog.info("Warning: Couldn't set working directory: ", std::string(strerror(errno)));
+            auto currentPathRel = std::filesystem::current_path().relative_path();
+            if (!std::filesystem::exists(bindDir / currentPathRel) || chdir((bindDir / currentPathRel).c_str()) < 0) {
+                if (chdir(bindDir.c_str()) < 0) {
+                    tulog.info("Warning: Couldn't set working directory: ", std::string(strerror(errno)));
+                }
             }
             if (chroot(bindDir.c_str()) < 0) {
                 tulog.error("Chrooting to " + bindDir.native() + " failed: " + std::string(strerror(errno)));
