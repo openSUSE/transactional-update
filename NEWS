@@ -2,6 +2,17 @@ transactional-update NEWS -- history of user-visible changes.
 
 Copyright (C) 2016-2024 Thorsten Kukuk, Ignaz Forster et al.
 
+Version 4.8.0 (2024-08-26)
+* Add sd-boot (systemd-boot) support for most commands
+* Add support for specifying migration arguments
+  [gh#openSUSE/transactional-update#127]
+* Support kdump setup on platforms without kdump high/low settings (e.g.
+  S/390 or PPC64le [bsc#1229138]
+* Preserve current working directory if possible when entering
+  transactional-update environment [bsc#1227452]; also adds the current path
+  to the Bash prompt
+* Fix plugin system to support special characters in commands
+
 Version 4.7.0 (2024-07-04)
 * Add plugin mechanism
   It's now possible to hook into API functions with custom plugins; see
