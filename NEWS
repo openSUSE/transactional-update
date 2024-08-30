@@ -2,6 +2,9 @@ transactional-update NEWS -- history of user-visible changes.
 
 Copyright (C) 2016-2024 Thorsten Kukuk, Ignaz Forster et al.
 
+Version 4.8.1 (2024-08-30)
+* tukit: fix --drop-if-no-change after apply [bsc#1229900]
+
 Version 4.8.0 (2024-08-26)
 * Add sd-boot (systemd-boot) support for most commands
 * Add support for specifying migration arguments
