@@ -104,9 +104,11 @@ std::filesystem::path Snapper::getRoot() {
 }
 
 std::string Snapper::getCurrent() {
-    std::string id = callSnapper("--csvout list --columns active,number");
     std::smatch match;
-    bool found = std::regex_search(id, match, std::regex("yes,([0-9]+)"));
+
+    // snapper doesn't support the `apply` command for now, so use findmnt directly.
+    std::string id = Util::exec("findmnt --target /usr --raw --noheadings --output FSROOT | tail -n 1");
+    bool found = std::regex_search(id, match, std::regex(".*.snapshots/(.*)/snapshot.*"));
     if (!found)
         throw std::runtime_error{"Couldn't determine current snapshot number"};
     return match[1].str();
