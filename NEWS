@@ -2,6 +2,9 @@ transactional-update NEWS -- history of user-visible changes.
 
 Copyright (C) 2016-2022 Thorsten Kukuk, Ignaz Forster et al.
 
+Version 4.1.9
+* Adding support for specifying migration arguments
+
 Version 4.1.8
 * tukit: Properly handle overlay syncing failures: If the system would not be
   rebooted and several snapshots accumulated in the meantime, it was
