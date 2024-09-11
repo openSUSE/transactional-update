@@ -11,7 +11,6 @@
 #include "Configuration.hpp"
 #include "Log.hpp"
 #include "Mount.hpp"
-#include "Overlay.hpp"
 #include "Plugins.hpp"
 #include "SnapshotManager.hpp"
 #include "Snapshot.hpp"
@@ -168,13 +167,6 @@ void Transaction::impl::snapMount() {
         }
     }
 
-    std::unique_ptr<Mount> mntEtc{new Mount{"/etc"}};
-    if (mntEtc->isMount() && mntEtc->getFilesystem() == "overlay") {
-        Overlay overlay = Overlay{snapshot->getUid()};
-        overlay.setMountOptionsForMount(mntEtc);
-        dirsToMount.push_back(std::move(mntEtc));
-    }
-
     // Set up temporary directories, so changes will be discarded automatically
     dirsToMount.push_back(std::make_unique<BindMount>("/var/cache"));
     std::unique_ptr<Mount> mntTmp{new Mount{"/tmp"}};
@@ -276,30 +268,19 @@ void Transaction::init(std::string base, std::optional<std::string> description)
 
     tulog.info("Using snapshot " + base + " as base for new snapshot " + pImpl->snapshot->getUid() + ".");
 
-    // Create /etc overlay
-    std::unique_ptr<Mount> mntEtc{new Mount{"/etc"}};
-    if (mntEtc->isMount() && mntEtc->getFilesystem() == "overlay") {
-        Overlay overlay = Overlay{pImpl->snapshot->getUid()};
-        overlay.create(base, pImpl->snapshot->getUid(), getRoot());
-        overlay.setMountOptions(mntEtc);
-        // Copy current fstab into root in case the user modified it
-        if (fs::exists(fs::path{overlay.lowerdirs[0] / "fstab"})) {
-            fs::copy(fs::path{overlay.lowerdirs[0] / "fstab"}, fs::path{getRoot() / "etc"}, fs::copy_options::overwrite_existing);
-        }
-
-        mntEtc->persist(getRoot() / "etc" / "fstab");
-
-        // Make sure both the snapshot and the overlay contain all relevant fstab data, i.e.
-        // user modifications from the overlay are present in the root fs and the /etc
-        // overlay is visible in the overlay
-        fs::copy(fs::path{getRoot() / "etc" / "fstab"}, overlay.upperdir, fs::copy_options::overwrite_existing);
-    }
-
     pImpl->snapMount();
     pImpl->addSupplements();
     if (pImpl->discardIfNoChange) {
-        // Flag file to indicate this snapshot was initialized with discard flag
-        std::ofstream output(getRoot() / "discardIfNoChange");
+        std::unique_ptr<Snapshot> prevSnap = pImpl->snapshotMgr->open(base);
+        std::unique_ptr<Mount> oldEtc{new Mount{prevSnap->getRoot() / "etc"}};
+        if (oldEtc->getFilesystem() == "overlayfs") {
+            tulog.info("Can not merge back changes in /etc into old overlayfs system - ignoring 'discardIfNoChange'.");
+        } else {
+            // Flag file to indicate this snapshot was initialized with discard flag
+            std::ofstream output(getRoot() / "discardIfNoChange");
+            output << base;
+            output.close();
+        }
     }
 
     TransactionalUpdate::Plugins plugins_with_transaction{this};
@@ -330,7 +311,7 @@ void Transaction::setDiscardIfUnchanged(bool discard) {
 }
 
 int Transaction::impl::inotifyRead() {
-    size_t bufLen = sizeof(struct inotify_event) + NAME_MAX + 1;
+    const size_t bufLen = sizeof(struct inotify_event) + NAME_MAX + 1;
     char buf[bufLen] __attribute__((aligned(8)));
     ssize_t numRead;
     int ret;
@@ -358,6 +339,7 @@ int Transaction::impl::runCommand(char* argv[], bool inChroot, std::string* outp
 
         // Recursively register all directories of the root file system
         inotifyExcludes = MountList::getList(snapshot->getRoot());
+        inotifyExcludes.push_back(snapshot->getRoot() / "etc");
         nftw(snapshot->getRoot().c_str(), inotifyAdd, 20, FTW_MOUNT | FTW_PHYS);
     }
 
@@ -523,24 +505,20 @@ void Transaction::finalize() {
         // running system directly and delete the snapshot. Otherwise merge it back into the previous overlay
         // (using rsync instead of a plain copy to preserve xattrs).
         std::unique_ptr<Mount> mntEtc{new Mount{"/etc"}};
-        if (mntEtc->isMount() && mntEtc->getFilesystem() == "overlay") {
-            std::filesystem::path targetRoot;
+        if (mntEtc->isMount()) {
+            std::filesystem::path targetRoot = "/";
+            std::string base;
+
+            std::ifstream input(getRoot() / "discardIfNoChange");
+            input >> base;
+            input.close();
+
             std::unique_ptr<Mount> previousEtc{new Mount("/etc", 0, true)};
-            if (pImpl->snapshotMgr->getCurrent() == Overlay{pImpl->snapshot->getUid()}.getPreviousSnapshotOvlId()) {
+            if (pImpl->snapshotMgr->getCurrent() == base) {
                 tulog.info("Merging changes in /etc into the running system.");
-                targetRoot = "/";
             } else {
                 tulog.info("Merging changes in /etc into the previous snapshot.");
-
-                auto previousSnapId = Overlay{pImpl->snapshot->getUid()}.getPreviousSnapshotOvlId();
-                std::unique_ptr<Snapshot> previousSnapshot = pImpl->snapshotMgr->open(previousSnapId);
-                previousEtc->setTabSource(previousSnapshot->getRoot() / "etc" / "fstab");
-
-                Overlay previousOvl{previousSnapId};
-                previousOvl.lowerdirs.back() = previousSnapshot->getRoot();
-                previousOvl.setMountOptionsForMount(previousEtc);
-                targetRoot = previousOvl.upperdir.parent_path() / "sync";
-                previousEtc->mount(targetRoot);
+                targetRoot = pImpl->snapshotMgr->open(base)->getRoot();
             }
             Util::exec("rsync --archive --inplace --xattrs --acls --exclude 'fstab' --delete --quiet '" + this->pImpl->bindDir.native() + "/etc/' " + targetRoot.native() + "/etc");
         }
