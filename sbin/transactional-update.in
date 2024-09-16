@@ -161,7 +161,7 @@ usage() {
     echo "reboot                     Reboot after update"
     echo "run <cmd>                  Run a command in a new snapshot"
     echo "setup-fips                 Install and enable FIPS pattern package"
-    echo "setup-kdump [--crashkernel=<low>,<high>]  Configure and enable kdump"
+    echo "setup-kdump [--crashkernel=<low>[,<high>]]  Configure and enable kdump"
     echo "setup-selinux              Install targeted SELinux policy and enable it"
     echo ""
     echo "Package Commands:"
@@ -1024,12 +1024,15 @@ parse_args() {
 		SETUP_KDUMP=1
 		shift
 		if [[ $1 == --crashkernel* ]]; then
-		    if ! [[ $1 =~ ^--crashkernel=[[:digit:]]+,[[:digit:]]+ ]]; then
+		    if ! [[ $1 =~ ^--crashkernel=[[:digit:]]+(,[[:digit:]]+)?$ ]]; then
 			echo "Invalid --crashkernel syntax"
+			echo
 			usage 1
 		    fi
 		    KDUMP_LOW="$(echo "$1" | cut -d '=' -f 2 | cut -d ',' -f 1)"
-		    KDUMP_HIGH="$(echo "$1" | cut -d '=' -f 2 | cut -d ',' -f 2)"
+		    if [[ $1 =~ , ]]; then
+			KDUMP_HIGH="$(echo "$1" | cut -d '=' -f 2 | cut -d ',' -f 2)"
+		    fi
 		    shift
 		fi
 		;;

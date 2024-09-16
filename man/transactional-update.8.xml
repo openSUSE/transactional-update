@@ -306,7 +306,7 @@ for more information.
     </listitem>
   </varlistentry>
   <varlistentry>
-    <term><option>setup-kdump</option> <optional>--crashkernel=<replaceable>low</replaceable>,<replaceable>high</replaceable></optional></term>
+    <term><option>setup-kdump</option> <optional>--crashkernel=<replaceable>low</replaceable><optional>,<replaceable>high</replaceable></optional></optional></term>
     <listitem>
       <para>
 	Sets up kdump on the system; if no <option>--crashkernel</option>
@@ -314,7 +314,8 @@ for more information.
 	<command>kdumptool calibrate</command>, otherwise the values of
 	<replaceable>low</replaceable> and <replaceable>high</replaceable>
 	(numbers in Megabytes) will be used for the corresponding
-	<command>crashkernel</command> kernel parameters.
+	<command>crashkernel</command> kernel parameters, or a static
+	value if only <replaceable>low</replaceable> is specified.
       </para>
       <para>
 	This command can not be combined with any
