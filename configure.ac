@@ -113,4 +113,5 @@ AM_CONDITIONAL(ENABLE_REGENERATE_MAN,
 
 AC_OUTPUT([Makefile lib/Makefile tukit/Makefile sbin/Makefile man/Makefile \
 	systemd/Makefile logrotate/Makefile dracut/Makefile doc/Makefile \
-	etc/Makefile dbus/Makefile sbin/transactional-update])
+	etc/Makefile dbus/Makefile snapper/Makefile \
+	sbin/transactional-update])

@@ -1,0 +1,77 @@
+#!/bin/sh -e
+# SPDX-License-Identifier: LGPL-2.1-or-later
+# SPDX-FileCopyrightText: 2024-2025 SUSE LLC
+
+make_sure_snapshot_is_writable() {
+  isRO="$(btrfs property get "/.snapshots/${snapshot}/snapshot/" ro)"
+  if [ "${isRO}" = "ro=true" ]; then
+    btrfs property set "/.snapshots/${snapshot}/snapshot/" ro false
+  fi
+}
+
+reset_snapshot_writability() {
+  if [ "${isRO}" = "ro=true" ]; then
+    btrfs property set "/.snapshots/${snapshot}/snapshot/" ro true
+  fi
+}
+
+create_snapshot_post() {
+  snapshot="${1}"
+  parentuuid="$(btrfs subvolume list -q / | grep -E " path @/.snapshots/${snapshot}/snapshot"$ | cut -f 9 -d ' ')"
+  parent="$(btrfs subvolume list -u / | grep " uuid ${parentuuid} " | cut -f 9- -d ' ' | cut -f 3 -d '/')"
+  parentid="$(btrfs subvolume list / | grep -E " path @/.snapshots/${parent}/snapshot"$ | cut -f 2 -d ' ')"
+
+  make_sure_snapshot_is_writable
+
+  rm -rf "/.snapshots/${snapshot}/snapshot/etc"
+  if btrfs subvolume list / | grep -Eq " top level ${parentid} path (@/.snapshots/${parent}/snapshot/)?etc"; then
+    btrfs subvolume snapshot "/.snapshots/${parent}/snapshot/etc" "/.snapshots/${snapshot}/snapshot/etc"
+  else
+    # Migration from old system
+    echo "Migrating from /etc overlays to /etc subvolume..."
+    btrfs subvolume create "/.snapshots/${snapshot}/snapshot/etc"
+
+    # Syncing old /etc state
+    oldetcopts="$(findmnt --output OPTIONS --noheadings --tab-file "/.snapshots/${parent}/snapshot/etc/fstab" /etc | sed 's;/sysroot/;/;g')"
+    mkdir "/var/lib/overlay/${parent}/rsync"
+    trap 'rmdir "/var/lib/overlay/${parent}/rsync"' EXIT
+    mount -t overlay overlay -o"${oldetcopts}" "/var/lib/overlay/${parent}/rsync"
+    trap 'umount "/var/lib/overlay/${parent}/rsync" && rmdir "/var/lib/overlay/${parent}/rsync"' EXIT
+    rsync --quiet --archive --inplace --xattrs --acls --delete "/var/lib/overlay/${parent}/rsync/" "/.snapshots/${snapshot}/snapshot/etc"
+
+    # Add entry for /etc
+    sed -i '/^overlay \/etc /d' "/.snapshots/${snapshot}/snapshot/etc/fstab"
+    echo "/etc /etc none bind 0 0" >> "/.snapshots/${snapshot}/snapshot/etc/fstab"
+  fi
+
+  reset_snapshot_writability
+}
+
+delete_snapshot_pre() {
+  snapshot="${1}"
+
+  # Only operate on snapshots with /etc as subvolume
+  if btrfs subvolume list / | grep -q " @/.snapshots/${snapshot}/snapshot/etc"; then
+    make_sure_snapshot_is_writable
+    btrfs subvolume delete "/.snapshots/${snapshot}/snapshot/etc"
+  fi
+}
+
+if [ "$2" != "/" ]; then
+  exit 0
+fi
+if ! mountpoint -q /etc; then
+  echo "/etc is not a mount point - skipping..."
+  exit 0
+fi
+if [ "$3" != "btrfs" ]; then
+  echo "Unsupported file system $3!"
+  exit 1
+fi
+
+if [ "$1" = "create-snapshot-post" ]; then
+  create_snapshot_post "${4}"
+elif [ "$1" = "delete-snapshot-pre" ]; then
+  delete_snapshot_pre "${4}"
+fi
+
