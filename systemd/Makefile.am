@@ -12,7 +12,7 @@ EXTRA_DIST = transactional-update.timer transactional-update-cleanup.timer \
 	create-dirs-from-rpmdb.service prepare-nextroot-for-softreboot.service.in
 CLEANFILES = transactional-update.service transactional-update-cleanup.service \
 	prepare-nextroot-for-softreboot.service
-libexec_SCRIPTS = prepare-nextroot-for-softreboot
+dist_libexec_SCRIPTS = prepare-nextroot-for-softreboot
 
 do_subst = sed -e 's,[@]sysconfdir[@],$(sysconfdir),g' \
 	-e 's,[@]sbindir[@],$(sbindir),g' \
