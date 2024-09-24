@@ -2,6 +2,9 @@ transactional-update NEWS -- history of user-visible changes.
 
 Copyright (C) 2016-2024 Thorsten Kukuk, Ignaz Forster et al.
 
+Version 4.8.3 (2024-09-24)
+* Check return value of `register` command [bsc#1230901]
+
 Version 4.8.2 (2024-09-16)
 * Allow specifying only low value with setup-kdump [bsc#1230537]
 
