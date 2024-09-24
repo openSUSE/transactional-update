@@ -1527,6 +1527,9 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 
     if [ ${DO_REGISTRATION} -eq 1 ]; then
 	tukit ${TUKIT_OPTS} callext ${SNAPSHOT_ID} SUSEConnect --root {} ${REGISTRATION_ARGS} |& tee -a ${LOGFILE} 1>&${origstdout}
+	if [ ${PIPESTATUS[0]} -ne 0 ]; then
+	    EXITCODE=1
+	fi
 	set_reboot_level "soft-reboot"
     fi
 
