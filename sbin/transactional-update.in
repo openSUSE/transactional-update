@@ -1739,6 +1739,10 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 
     if [ ${DO_RUN} -eq 1 ]; then
 	tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" "${RUN_CMD[@]}" |& tee -a ${LOGFILE} 1>&${origstdout}
+	if [ ${PIPESTATUS[0]} -ne 0 ]; then
+	    log_error "ERROR: ${RUN_CMD[@]} failed!"
+	    EXITCODE=1;
+	fi
 	set_reboot_level "reboot"
     fi
 
