@@ -48,7 +48,7 @@
   <refsynopsisdiv>
     <para><literallayout>
 <filename>%sysconfdir%/tukit.conf</filename>
-<filename>%sysconfdir%/tukit.d/*.conf</filename>
+<filename>%sysconfdir%/tukit.conf.d/*.conf</filename>
     </literallayout></para>
   </refsynopsisdiv>
 
@@ -67,7 +67,7 @@
     <filename>%prefix%%sysconfdir%/tukit.conf</filename>.</para>
     <para>Configuration file snippets (to overwrite only parts of the
     configuration) can also be used in
-    <filename>%sysconfdir%/tukit.d/*.conf</filename>.</para>
+    <filename>%sysconfdir%/tukit.conf.d/*.conf</filename>.</para>
   </refsect1>
 
   <refsect1>
