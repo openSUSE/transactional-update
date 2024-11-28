@@ -35,6 +35,7 @@ test-suite.log
 check-output.*
 tukit.pc
 tukitd
+dracut/transactional-update-sync-etc-state
 sbin/transactional-update
 src/transactional-update
 systemd/prepare-nextroot-for-softreboot.service
