@@ -221,6 +221,48 @@ exit:
     return ec;
 }
 
+// Open the parent of path without dereferencing symlinks.
+int open_parent_dir(const char *path) {
+    // strdup for use with strtok
+    char *local_path = strdup(path);
+    if (!local_path) {
+        return -1;
+    }
+
+    int dirfd = open("/", O_RDONLY | O_DIRECTORY | O_NOFOLLOW);
+    if (dirfd < 0) {
+        free(local_path);
+        return -1;
+    }
+
+    char *saveptr = NULL;
+    const char *component = strtok_r(local_path, "/", &saveptr);
+    while (component) {
+        int nextdirfd = openat(dirfd, component, O_RDONLY | O_DIRECTORY | O_NOFOLLOW);
+        int saved_errno = errno;
+
+        component = strtok_r(NULL, "/", &saveptr);
+        if (component == NULL) {
+            // previous component was the last part, return dirfd
+            if (nextdirfd >= 0)
+                close(nextdirfd);
+
+            break;
+        }
+
+        close(dirfd);
+        dirfd = nextdirfd;
+
+        if (dirfd < 0) {
+            errno = saved_errno;
+            break;
+        }
+    }
+
+    free(local_path);
+    return dirfd;
+}
+
 int create_dirs(struct node *node, size_t size) {
     int rc = 0;
     size_t i;
@@ -270,63 +312,95 @@ int create_dirs(struct node *node, size_t size) {
         if (verbose_flag)
             printf("Create %s\n", node->dirname);
 
-        if (mkdir(node->dirname, node->fmode) < 0) {
-            fprintf(stderr, "Failed to create directory '%s': %m\n", node->dirname);
+        const char *node_basename = strrchr(node->dirname, '/');
+        // Make sure there's a name
+        if (!node_basename || node_basename[1] == '\0') {
+            fprintf(stderr, "Failed to get basename of '%s'", node->dirname);
+            rc = 1;
+            continue;
+        }
+        node_basename = node_basename + 1; // Skip /
+
+        int parentdirfd = open_parent_dir(node->dirname);
+        if (parentdirfd < 0) {
+            fprintf(stderr, "Failed to traverse path for '%s': %m\n", node->dirname);
             rc = 1;
             continue;
         }
 
-        if (chown(node->dirname, node->user_id, node->group_id) < 0) {
-            fprintf(stderr, "Failed to set owner/group for '%s': %m\n", node->dirname);
-            /* wrong permissions are bad, remove dir and continue */
-            rmdir(node->dirname);
+        if (mkdirat(parentdirfd, node_basename, node->fmode) < 0) {
+            fprintf(stderr, "Failed to create directory '%s': %m\n", node->dirname);
             rc = 1;
+            close(parentdirfd);
             continue;
         }
+
+        /* open the created directory */
+        int dirfd = openat(parentdirfd, node_basename, O_RDONLY | O_DIRECTORY | O_NOFOLLOW);
+        if (dirfd < 0) {
+            fprintf(stderr, "Failed to open created directory '%s': %m\n", node->dirname);
+            goto delete_and_continue;
+        }
+
         /* ignore errors here, time stamps are not critical */
-        utimes(node->dirname, stamps);
+        futimes(dirfd, stamps);
 
         /* set selinux file context */
         if (use_selinux) {
+            newcon = NULL;
             if (selabel_lookup_raw(hnd, &newcon, node->dirname, node->fmode) < 0) {
                 if (errno == ENOENT) {
                     fprintf(stderr, "Warning: No default context for directory '%s'\n", node->dirname);
-                    continue;
+                } else {
+                    fprintf(stderr, "Failed to get default context for directory '%s': %m\n", node->dirname);
+                    goto delete_and_continue;
                 }
-
-                fprintf(stderr, "Failed to get default context for directory '%s': %m\n", node->dirname);
-                rmdir(node->dirname);
-                rc = 1;
-                continue;
             }
 
-            if (getfilecon_raw(node->dirname, &curcon) < 0) {
+            curcon = NULL;
+            if (newcon && getfilecon_raw(node->dirname, &curcon) < 0) {
                 /* ENODATA: The named attribute does not exist, or the process has no
                             access to this attribute.
                    Mimic selinux_restorecon.c behavior and ignore ENODATA */
                 if (errno != ENODATA) {
                     fprintf(stderr, "Failed to get old context for '%s': %m\n", node->dirname);
                     freecon(newcon);
-                    rmdir(node->dirname);
-                    rc = 1;
-                    continue;
+                    goto delete_and_continue;
                 }
                 curcon = NULL;
             }
 
-            if (curcon == NULL || strcmp(curcon, newcon) != 0) {
+            if (newcon && (curcon == NULL || strcmp(curcon, newcon) != 0)) {
                 if (verbose_flag)
                     printf("Set SELinux file context to %s\n", newcon);
-                if (setfilecon_raw(node->dirname, newcon) < 0) {
+                if (fsetfilecon_raw(dirfd, newcon) < 0) {
                     fprintf(stderr, "Failed to set new context for '%s': %m\n", node->dirname);
-                    rmdir(node->dirname);
-                    rc = 1;
+                    freecon(curcon);
+                    freecon(newcon);
+                    goto delete_and_continue;
                 }
             }
 
             freecon(curcon);
             freecon(newcon);
         }
+
+        /* assign ownership after SELinux label */
+        if (fchown(dirfd, node->user_id, node->group_id) < 0) {
+            fprintf(stderr, "Failed to set owner/group for '%s': %m\n", node->dirname);
+            goto delete_and_continue;
+        }
+
+        close(dirfd);
+        close(parentdirfd);
+        continue;
+
+        delete_and_continue:
+        rc = 1;
+        close(dirfd);
+        unlinkat(parentdirfd, node_basename, AT_REMOVEDIR);
+        close(parentdirfd);
+        continue;
     }
 
     if (use_selinux)
