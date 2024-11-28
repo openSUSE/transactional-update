@@ -18,10 +18,16 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-if [ -e /etc/etc.syncpoint -o $# -eq 3 ]; then
+if [ "$1" == "--dry-run" ] || [ "$1" == "-n" ]; then
+  DRYRUN=1
+  shift
+fi
+
+if [ -e /etc/etc.syncpoint ] || [ $# -eq 3 ]; then
   echo "First boot of snapshot: Merging /etc changes..."
 
   if [ $# -eq 3 ]; then
+    # Allow overwriting default locations for testing
     parentdir="$1/"
     currentdir="$2/"
     syncpoint="$3/"
@@ -32,20 +38,139 @@ if [ -e /etc/etc.syncpoint -o $# -eq 3 ]; then
     currentdir="/etc/"
   fi
 
-  # Check for files changed in new snapshot during update and create excludes list
-  excludesfile="$(mktemp "${syncpoint}/transactional-update.sync.changedinnewsnap.XXXXXX)")"
-  # TODO: Mount parent /etc here for migrations from old overlay to new subvolumes
-  rsync --archive --inplace --xattrs --acls --out-format='%n' --dry-run "${currentdir}" "${syncpoint}" > "${excludesfile}"
-  # `rsync` and `echo` are using a different format to represent octals ("\#xxx" vs. "\xxx"); convert to `echo` syntax
-  # First escape already escaped characters, then convert the octals, then escape other rsync special characters in filenames
-  sed -i 's/\\/\\\\\\\\/g;s/\\\\#\([0-9]\{3\}\)/\\0\1/g;s/\[/\\[/g;s/?/\\?/g;s/*/\\*/g;s/#/\\#/g' "${excludesfile}"
-  # Escape all escapes because they will also be parsed by the following echo, and write them all into a nul-separated file, so that we don't mix up end of filename and newline because they are unescaped now; prepend a slash for absolute paths
-  sed 's/\\/\\\\/g' "${excludesfile}" | while read file; do echo -en "- $file\0"; done > "${excludesfile}.tmp"
-  # Replace the first character of each file with a character class to force rsync's parser to always interpret a backslash in a file name as an escape character
-  sed 's/^\(- \)\(.\)/\1[\2]/g;s/\(\x00- \)\(.\)/\1[\2]/g' "${excludesfile}.tmp" > "${excludesfile}"
-  # If the first character of a filename was an escaped character, then escape it again correctly by moving the bracket one charater further
-  sed -i 's/^\(- \[\\\)\]\(.\)/\1\2]/g;s/\(\x00- \[\\\)\]\(.\)/\1\2]/g' "${excludesfile}"
+  declare -A REFERENCEFILES
+  declare -A PARENTFILES
+  declare -A CURRENTFILES
+  declare -A DIFFTOCURRENT
 
-  # Sync files changed in old snapshot before reboot, but don't overwrite the files from above
-  rsync --archive --inplace --xattrs --acls --delete --from0 --exclude-from "${excludesfile}" --itemize-changes "${parentdir}" "${currentdir}"
+  shopt -s globstar dotglob nullglob
+
+  cd "${syncpoint}"
+  for f in **; do
+    REFERENCEFILES["${f}"]=.
+  done
+  cd "${parentdir}"
+  for f in **; do
+    PARENTFILES["${f}"]=.
+  done
+  cd "${currentdir}"
+  for f in **; do
+    CURRENTFILES["${f}"]=.
+  done
+
+  # Check which files have been changed in new snapshot
+  for file in "${!REFERENCEFILES[@]}"; do
+    if [ -z "${CURRENTFILES[${file}]}" ]; then
+      echo "File '$file' got deleted in new snapshot."
+      DIFFTOCURRENT[${file}]=recursiveskip
+    elif [ -d "${currentdir}/${file}" ] && [ "$(stat --printf="%a %B %F %g %u %Y" "${syncpoint}/${file}")" != "$(stat --printf="%a %B %F %g %u %Y" "${currentdir}/${file}")" ]; then
+      echo "Directory '$file' was changed in new snapshot."
+      DIFFTOCURRENT[${file}]=skip
+    elif [ ! -d "${currentdir}/${file}" ] && [ "$(stat --printf="%a %B %F %g %s %u %Y" "${syncpoint}/${file}")" != "$(stat --printf="%a %B %F %g %s %u %Y" "${currentdir}/${file}")" ]; then
+      echo "File '$file' was changed in new snapshot."
+      DIFFTOCURRENT[${file}]=skip
+    elif [ "$(getfattr --no-dereference --dump --match='' "${syncpoint}/${file}" 2>&1 | tail --lines=+3)" != "$(getfattr --no-dereference --dump --match='' "${currentdir}/${file}" 2>&1 | tail --lines=+3)" ]; then
+      echo "Extended file attributes of '$file' were changed in new snapshot."
+      DIFFTOCURRENT[${file}]=skip
+    fi
+  done
+  for file in "${!CURRENTFILES[@]}"; do
+    if [ -z "${REFERENCEFILES[${file}]}" ]; then
+      echo "File or directory '$file' was added in new snapshot."
+      DIFFTOCURRENT[${file}]=skip
+    fi
+  done
+
+  # Check which files have been changed in old snapshot
+  for file in "${!REFERENCEFILES[@]}"; do
+    if [ -z "${PARENTFILES[${file}]}" ]; then
+      echo "File '$file' got deleted in old snapshot."
+      if [ -z "${DIFFTOCURRENT[${file}]}" ]; then
+        DIFFTOCURRENT[${file}]=delete
+        if [ -d "${currentdir}/${file}" ]; then
+          # If some file was changed or added in a subdir of the new snapshot, then don't delete
+          for index in "${!DIFFTOCURRENT[@]}"; do
+            if [[ ${index} == "${file}/"* ]]; then
+              DIFFTOCURRENT[${file}]=skip
+            fi
+          done
+        fi
+      fi
+    elif [ -d "${parentdir}/${file}" ] && [ "$(stat --printf="%a %B %F %g %u %Y" "${syncpoint}/${file}")" != "$(stat --printf="%a %B %F %g %u %Y" "${parentdir}/${file}")" ]; then
+      echo "Directory '$file' was changed in old snapshot."
+      if [ -z "${DIFFTOCURRENT[${file}]}" ]; then
+        DIFFTOCURRENT[${file}]=copy # cp -a for file; touch, chmod, chown with reference file for directory
+      fi
+    elif [ ! -d "${parentdir}/${file}" ] && [ "$(stat --printf="%a %B %F %g %s %u %Y" "${syncpoint}/${file}")" != "$(stat --printf="%a %B %F %g %s %u %Y" "${parentdir}/${file}")" ]; then
+      echo "File '$file' was changed in old snapshot."
+      if [ -z "${DIFFTOCURRENT[${file}]}" ]; then
+        DIFFTOCURRENT[${file}]=copy # cp -a for file; touch, chmod, chown with reference file for directory
+      fi
+    elif [ "$(getfattr --no-dereference --dump --match='' "${syncpoint}/${file}" 2>&1 | tail --lines=+3)" != "$(getfattr --no-dereference --dump --match='' "${parentdir}/${file}" 2>&1 | tail --lines=+3)" ]; then
+      echo "Extended file attributes of '$file' were changed in old snapshot."
+      if [ -z "${DIFFTOCURRENT[${file}]}" ]; then
+        DIFFTOCURRENT[${file}]=copy # getfattr --dump & setfattr --restore
+      fi
+    fi
+  done
+  for file in "${!PARENTFILES[@]}"; do
+    if [ -z "${REFERENCEFILES[${file}]}" ]; then
+      echo "File or directory '$file' was added in old snapshot."
+      if [ -z "${DIFFTOCURRENT[${file}]}" ]; then
+        DIFFTOCURRENT[${file}]=copy
+      fi
+    fi
+  done
+
+  # Sort files to prevent processing a file before the directory was created
+  readarray -d '' DIFFTOCURRENT_SORTED < <(printf '%s\0' "${!DIFFTOCURRENT[@]}" | sort -z)
+
+  for file in "${DIFFTOCURRENT_SORTED[@]}"; do
+    if [ "${DIFFTOCURRENT[${file}]}" = "recursiveskip" ]; then
+      for index in "${!DIFFTOCURRENT[@]}"; do
+        if [[ ${index} == "${file}/"* ]]; then
+          DIFFTOCURRENT[${index}]=skip
+        fi
+      done
+    elif [ "${DIFFTOCURRENT[${file}]}" = "delete" ]; then
+      rm -rf "${currentdir:?}/${file}"
+    elif [ "${DIFFTOCURRENT[${file}]}" = "copy" ]; then
+      if { [ -f "${parentdir}/${file}" ] && [ -d "${currentdir}/${file}" ]; } || { [ -d "${parentdir}/${file}" ] && [ -f "${currentdir}/${file}" ]; }; then
+        echo "File ${file} changed type between file and directory."
+        if [ -z "${DRYRUN}" ]; then
+          rm -r "${currentdir:?}/${file}"
+        fi
+      fi
+      if [ -d "${parentdir}/${file}" ]; then
+        if [ -z "${DRYRUN}" ]; then
+          mkdir --parents "${currentdir}/${file}"
+          touch --no-dereference --reference="${parentdir}/${file}" "${currentdir}/${file}"
+          chmod --no-dereference --reference="${parentdir}/${file}" "${currentdir}/${file}"
+          chown --no-dereference --reference="${parentdir}/${file}" "${currentdir}/${file}"
+
+          pushd "${parentdir}" >/dev/null
+          extattrs="$(getfattr --no-dereference --dump -- "${file}")"
+          pushd "${currentdir}" >/dev/null
+          echo "${extattrs}" | setfattr --no-dereference --restore=-
+          popd >/dev/null
+          popd >/dev/null
+        fi
+      else
+        if [ -z "${DRYRUN}" ]; then
+          cp --no-dereference --archive "${parentdir}/${file}" "${currentdir}/${file}"
+        fi
+      fi
+    fi
+  done
+
+  # Sync for this snapshot was done, so syncpoint can be removed
+  if [ -z "${DRYRUN}" ]; then
+    rm -rf "${syncpoint}"
+  fi
+
+# Border cases, which are defined as follows for now (mostly matching overlayfs' behavior):
+# * If a directory was newly created both in old and new after snapshot creation, then the contents of both are merged
+# * If a directory was deleted in new, but has changes or new files in old, then it stays deleted
+# * If a directory was deleted in old, but has changes or new files in new, then take contents of new
+
 fi
