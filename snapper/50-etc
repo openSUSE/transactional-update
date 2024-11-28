@@ -15,10 +15,28 @@ reset_snapshot_writability() {
   fi
 }
 
+create_reference_etc() {
+  # Syncing is only necessary when the snapshot is based on the currently running system
+  if [ "/@/.snapshots/${parent}/snapshot" == "$(findmnt --target /usr --raw --noheadings --output FSROOT | tail -n 1)" ]; then
+    if [ -d "/.snapshots/${snapshot}/snapshot/etc/etc.syncpoint" ]; then
+      rmdir "/.snapshots/${snapshot}/snapshot/etc/etc.syncpoint"
+    fi
+    btrfs subvolume snapshot "/.snapshots/${snapshot}/snapshot/etc" "/.snapshots/${snapshot}/snapshot/etc/etc.syncpoint"
+  # If it's a consecutive snapshot copy the syncpoint
+  elif [ -e "/.snapshots/${parent}/snapshot/etc/etc.syncpoint" ]; then
+    btrfs subvolume snapshot "/.snapshots/${parent}/snapshot/etc/etc.syncpoint" "/.snapshots/${snapshot}/snapshot/etc/etc.syncpoint"
+  fi
+
+  echo "${parent}" > "/.snapshots/${snapshot}/snapshot/etc/etc.syncpoint/transactional-update.comparewith"
+}
+
 create_snapshot_post() {
   snapshot="${1}"
+
+  # "Parent UUID" means which parent this snapshot was created from
   parentuuid="$(btrfs subvolume list -q / | grep -E " path @/.snapshots/${snapshot}/snapshot"$ | cut -f 9 -d ' ')"
   parent="$(btrfs subvolume list -u / | grep " uuid ${parentuuid} " | cut -f 9- -d ' ' | cut -f 3 -d '/')"
+  # "Parent ID" means the parent subvolume in the file system tree
   parentid="$(btrfs subvolume list / | grep -E " path @/.snapshots/${parent}/snapshot"$ | cut -f 2 -d ' ')"
 
   make_sure_snapshot_is_writable
@@ -26,22 +44,28 @@ create_snapshot_post() {
   rm -rf "/.snapshots/${snapshot}/snapshot/etc"
   if btrfs subvolume list / | grep -Eq " top level ${parentid} path (@/.snapshots/${parent}/snapshot/)?etc"; then
     btrfs subvolume snapshot "/.snapshots/${parent}/snapshot/etc" "/.snapshots/${snapshot}/snapshot/etc"
+    create_reference_etc
   else
     # Migration from old system
     echo "Migrating from /etc overlays to /etc subvolume..."
     btrfs subvolume create "/.snapshots/${snapshot}/snapshot/etc"
 
     # Syncing old /etc state
-    oldetcopts="$(findmnt --output OPTIONS --noheadings --tab-file "/.snapshots/${parent}/snapshot/etc/fstab" /etc | sed 's;/sysroot/;/;g')"
+    oldetcopts="$(findmnt --output OPTIONS --noheadings --fstab --tab-file "/.snapshots/${parent}/snapshot/etc/fstab" /etc | sed 's;/sysroot/;/;g')"
     mkdir "/var/lib/overlay/${parent}/rsync"
     trap 'rmdir "/var/lib/overlay/${parent}/rsync"' EXIT
     mount -t overlay overlay -o"${oldetcopts}" "/var/lib/overlay/${parent}/rsync"
     trap 'umount "/var/lib/overlay/${parent}/rsync" && rmdir "/var/lib/overlay/${parent}/rsync"' EXIT
-    rsync --quiet --archive --inplace --xattrs --acls --delete "/var/lib/overlay/${parent}/rsync/" "/.snapshots/${snapshot}/snapshot/etc"
+    rsync --quiet --archive --xattrs --acls "/var/lib/overlay/${parent}/rsync/" "/.snapshots/${snapshot}/snapshot/etc"
+
+    create_reference_etc
 
     # Add entry for /etc
-    sed -i '/^overlay \/etc /d' "/.snapshots/${snapshot}/snapshot/etc/fstab"
+    sed -i '/^overlay[[:space:]]\+\/etc[[:space:]]/d' "/.snapshots/${snapshot}/snapshot/etc/fstab"
     echo "/etc /etc none bind 0 0" >> "/.snapshots/${snapshot}/snapshot/etc/fstab"
+
+    # Clean up potential conflicting overlay cruft
+    rm -rf "/var/lib/overlay/${snapshot}"
   fi
 
   reset_snapshot_writability
@@ -53,6 +77,9 @@ delete_snapshot_pre() {
   # Only operate on snapshots with /etc as subvolume
   if btrfs subvolume list / | grep -q " @/.snapshots/${snapshot}/snapshot/etc"; then
     make_sure_snapshot_is_writable
+    if btrfs subvolume list / | grep -q " @/.snapshots/${snapshot}/snapshot/etc/etc.syncpoint"; then
+      btrfs subvolume delete "/.snapshots/${snapshot}/snapshot/etc/etc.syncpoint"
+    fi
     btrfs subvolume delete "/.snapshots/${snapshot}/snapshot/etc"
   fi
 }
