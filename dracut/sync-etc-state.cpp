@@ -27,11 +27,13 @@ bool diff_attrs(filesystem::path ref, filesystem::path cmp) {
     struct stat stat_ref;
     struct stat stat_cmp;
     if (lstat(ref.c_str(), &stat_ref) == -1) {
-        perror("lstat");
+        cerr << "Error while processing " << ref << ": ";
+        perror("lstat ref");
         return false;
     }
     if (lstat(cmp.c_str(), &stat_cmp) == -1) {
-        perror("lstat");
+        cerr << "Error while processing " << cmp << ": ";
+        perror("lstat cmp");
         return false;
     }
     if (stat_ref.st_mode != stat_cmp.st_mode ||
@@ -39,7 +41,7 @@ bool diff_attrs(filesystem::path ref, filesystem::path cmp) {
             stat_ref.st_gid != stat_cmp.st_gid ||
             stat_ref.st_mtim.tv_sec != stat_cmp.st_mtim.tv_sec ||
             (!S_ISDIR(stat_ref.st_mode) && stat_ref.st_size != stat_cmp.st_size)) {
-        cout << ref << " was changed in " << cmp << "." << endl;
+        cout << "File changed: " << cmp << endl;
         return true;
     }
     return false;
@@ -49,19 +51,21 @@ bool diff_xattrs(filesystem::path ref, filesystem::path cmp) {
     ssize_t buflen_ref, keylen_ref, vallen_ref, buflen_cmp, vallen_cmp;
     buflen_ref = llistxattr(ref.c_str(), NULL, 0);
     if (buflen_ref == -1) {
-        perror("llistxattr");
+        cerr << "Error while processing " << ref << ": ";
+        perror("llistxattr ref len");
         return false;
     }
     buflen_cmp = llistxattr(cmp.c_str(), NULL, 0);
     if (buflen_cmp == -1) {
-        perror("llistxattr");
+        cerr << "Error while processing " << cmp << ": ";
+        perror("llistxattr cmp len");
         return false;
     }
     if (buflen_ref == 0 && buflen_cmp == 0) {
         return false;
     }
     if (buflen_ref != buflen_cmp) {
-        cout << ref << " has a different number of xattr values." << endl;
+        cout << "Extented attribute count changed: " << cmp << endl;
         return true;
     }
     std::unique_ptr<char[]> buf_ref(new char[buflen_ref]);
@@ -72,12 +76,14 @@ bool diff_xattrs(filesystem::path ref, filesystem::path cmp) {
      */
     buflen_ref = llistxattr(ref.c_str(), buf_ref.get(), buflen_ref);
     if (buflen_ref == -1) {
-        perror("llistxattr");
+        cerr << "Error while processing " << ref << ": ";
+        perror("llistxattr ref list");
         return false;
     }
     buflen_cmp = llistxattr(cmp.c_str(), buf_cmp.get(), buflen_cmp);
     if (buflen_cmp == -1) {
-        perror("llistxattr");
+        cerr << "Error while processing " << cmp << ": ";
+        perror("llistxattr cmp list");
         return false;
     }
 
@@ -93,16 +99,18 @@ bool diff_xattrs(filesystem::path ref, filesystem::path cmp) {
          */
         vallen_ref = lgetxattr(ref.c_str(), key, NULL, 0);
         if (vallen_ref == -1) {
-            perror("lgetxattr");
+            cerr << "Error while processing " << ref << ": ";
+            perror("lgetxattr ref len");
             return false;
         }
         vallen_cmp = lgetxattr(cmp.c_str(), key, NULL, 0);
         if (vallen_cmp == -1) {
             if (errno == ENODATA) { // The named attribute does not exist
-                cout << ref << " has different xattrs." << endl;
+                cout << "Extended attribute key changed: " << endl;
                 return true;
             } else {
-                perror("lgetxattr");
+                cerr << "Error while processing " << cmp << ": ";
+                perror("lgetxattr cmp len");
                 return false;
             }
         }
@@ -110,17 +118,19 @@ bool diff_xattrs(filesystem::path ref, filesystem::path cmp) {
             std::unique_ptr<char[]> val_ref(new char[vallen_ref]);
             vallen_ref = lgetxattr(ref.c_str(), key, val_ref.get(), vallen_ref);
             if (vallen_ref == -1) {
-                perror("lgetxattr");
+                cerr << "Error while processing " << ref << ": ";
+                perror("lgetxattr ref get");
                 return false;
             }
             std::unique_ptr<char[]> val_cmp(new char[vallen_cmp]);
             vallen_cmp = lgetxattr(cmp.c_str(), key, val_cmp.get(), vallen_cmp);
             if (vallen_cmp == -1) {
-                perror("lgetxattr");
+                cerr << "Error while processing " << cmp << ": ";
+                perror("lgetxattr cmp get");
                 return false;
             }
-            if (string{val_ref.get()} == string{val_cmp.get()}) {
-                cout << ref << " has different xattr values." << endl;
+            if (string{val_ref.get()} != string{val_cmp.get()}) {
+                cout << "Extended attribute value changed: " << cmp << endl;
                 return true;
             }
         }
@@ -135,7 +145,8 @@ bool copy_xattrs(filesystem::path ref, filesystem::path target) {
     ssize_t buflen_ref, keylen_ref, vallen_ref, vallen_target;
     buflen_ref = llistxattr(ref.c_str(), NULL, 0);
     if (buflen_ref == -1) {
-        perror("llistxattr");
+        cerr << "Error while processing " << ref << ": ";
+        perror("llistxattr len");
         return false;
     }
     if (buflen_ref == 0) {
@@ -148,7 +159,8 @@ bool copy_xattrs(filesystem::path ref, filesystem::path target) {
      */
     buflen_ref = llistxattr(ref.c_str(), buf_ref.get(), buflen_ref);
     if (buflen_ref == -1) {
-        perror("llistxattr");
+        cerr << "Error while processing " << ref << ": ";
+        perror("llistxattr list");
         return false;
     }
 
@@ -156,19 +168,22 @@ bool copy_xattrs(filesystem::path ref, filesystem::path target) {
     while (buflen_ref > 0) {
         vallen_ref = lgetxattr(ref.c_str(), key, NULL, 0);
         if (vallen_ref == -1) {
-            perror("lgetxattr");
+            cerr << "Error while processing " << ref << ": ";
+            perror("lgetxattr len");
             return false;
         }
         if (vallen_ref > 0) {
             std::unique_ptr<char[]> val_ref(new char[vallen_ref]);
             vallen_ref = lgetxattr(ref.c_str(), key, val_ref.get(), vallen_ref);
             if (vallen_ref == -1) {
-                perror("lgetxattr");
+                cerr << "Error while processing " << ref << ": ";
+                perror("lgetxattr get");
                 return false;
             }
             std::unique_ptr<char[]> val_cmp(new char[vallen_ref]);
             vallen_target = lsetxattr(target.c_str(), key, val_ref.get(), vallen_ref, 0);
             if (vallen_target == -1) {
+                cerr << "Error while processing " << ref << ": ";
                 perror("lsetxattr");
                 return false;
             }
@@ -188,31 +203,25 @@ int main(int argc, const char* argv[])
     filesystem::path currentdir = "/etc";
     filesystem::path parentdir;
 
-    if (argc >= 1) {
+    if (argc > 1) {
         if (string(argv[1]) == "--dry-run" || string(argv[1]) == "-n") {
             dry_run = true;
             argpos++;
         }
     }
-
-    if (! filesystem::is_directory(syncpoint) && (argc - argpos < 3))
-        return 0;
-
+    if (argc - argpos != 3) {
+        cerr << "Wrong number of arguments." << endl;
+        cerr << "Arguments: [--dry-run|-n] <parent etc> <current etc> <reference etc>" << endl;
+        _exit(1);
+    }
 
     string parent;
 
-    if (argc - argpos == 3) { // Allow overwriting default locations for testing
-        parentdir = argv[argpos];
-        currentdir = argv[argpos + 1];
-        syncpoint = argv[argpos + 2];
-    } else {
-        string parent;
-        ifstream statefile;
-        statefile.open(syncpoint / "transactional-update.comparewith");
-        statefile >> parent;
-        statefile.close();
-        parentdir = "/.snapshots/" + parent + "/snapshot/etc";
-    }
+    parentdir = argv[argpos];
+    currentdir = argv[argpos + 1];
+    syncpoint = argv[argpos + 2];
+
+    cout << "Using new snapshot - syncing from old parent " << parentdir << "..." << endl;
 
     map<filesystem::path, SYNC_ACTIONS> DIFFTOCURRENT;
 
@@ -220,7 +229,7 @@ int main(int argc, const char* argv[])
     filesystem::current_path(syncpoint);
     for (const filesystem::directory_entry& dir_entry : filesystem::recursive_directory_iterator(".")) {
         if (! filesystem::exists(filesystem::symlink_status(currentdir / dir_entry))) {
-            cout << dir_entry << " got deleted in new snapshot." << endl;
+            cout << "Deleted in new snapshot: " << currentdir / dir_entry << endl;
             DIFFTOCURRENT.emplace(dir_entry, SYNC_ACTIONS::RECURSIVE_SKIP);
             continue;
         }
@@ -238,8 +247,10 @@ int main(int argc, const char* argv[])
     filesystem::current_path(currentdir);
     for (const filesystem::directory_entry& dir_entry : filesystem::recursive_directory_iterator(".")) {
         if (! filesystem::exists(filesystem::symlink_status(syncpoint / dir_entry))) {
-            cout << dir_entry << " was added in new snapshot." << endl;
-            DIFFTOCURRENT.emplace(dir_entry, SYNC_ACTIONS::SKIP);
+            if (dir_entry.path().native().compare(0, 15, "./etc.syncpoint") != 0) {
+                cout << "Added in new snapshot: " << currentdir / dir_entry << endl;
+                DIFFTOCURRENT.emplace(dir_entry, SYNC_ACTIONS::SKIP);
+            }
         }
     }
 
@@ -247,7 +258,7 @@ int main(int argc, const char* argv[])
     filesystem::current_path(syncpoint);
     for (const filesystem::directory_entry& dir_entry : filesystem::recursive_directory_iterator(".")) {
         if (! filesystem::exists(filesystem::symlink_status(parentdir / dir_entry))) {
-            cout << dir_entry << " got deleted in old snapshot." << endl;
+            cout << "Deleted in old snapshot: " << parentdir / dir_entry << endl;
             if (DIFFTOCURRENT.count(dir_entry) == 0) {
                 DIFFTOCURRENT.emplace(dir_entry, SYNC_ACTIONS::DELETE);
                 if (filesystem::is_directory(currentdir / dir_entry)) {
@@ -277,15 +288,16 @@ int main(int argc, const char* argv[])
     filesystem::current_path(parentdir);
     for (const filesystem::directory_entry& dir_entry : filesystem::recursive_directory_iterator(".")) {
         if (! filesystem::exists(filesystem::symlink_status(syncpoint / dir_entry))) {
-            cout << dir_entry << " was added in old snapshot." << endl;
+            cout << "Added in old snapshot: " << parentdir / dir_entry << endl;
             DIFFTOCURRENT.emplace(dir_entry, SYNC_ACTIONS::COPY);
         }
     }
 
+    cout << "Processing files..." << endl;
+
     // Process generated list
     if (!dry_run) {
         for(auto it = DIFFTOCURRENT.begin(); it != DIFFTOCURRENT.end(); ++it) {
-            cout << "Processing " << it->first << "..." << endl;
             if (it->second == SYNC_ACTIONS::RECURSIVE_SKIP) {
                 auto potentialContains = DIFFTOCURRENT.lower_bound(it->first);
                 if (it->first != potentialContains->first) {
@@ -298,19 +310,23 @@ int main(int argc, const char* argv[])
             }
             if (it->second == SYNC_ACTIONS::DELETE) {
                 if (filesystem::exists(filesystem::symlink_status(currentdir / it->first))) {
+                    cout << "Deleting " << it->first << endl;
                     filesystem::remove_all(currentdir / it->first);
                 }
                 continue;
             }
             if (it->second == SYNC_ACTIONS::COPY) {
+                cout << "Copying " << it->first << endl;
                 struct statx sourcestat;
                 struct statx targetstat = {};
                 if (statx(AT_FDCWD, (parentdir / it->first).c_str(), AT_SYMLINK_NOFOLLOW, STATX_ATIME | STATX_MTIME | STATX_MODE | STATX_UID | STATX_GID, &sourcestat) == -1) {
+                    cerr << "Error while processing " << it->first << ": ";
                     perror("statx source");
                     continue;
                 }
                 if (filesystem::exists(filesystem::symlink_status(currentdir / it->first))) {
                     if (statx(AT_FDCWD, (currentdir / it->first).c_str(), AT_SYMLINK_NOFOLLOW, STATX_MODE, &targetstat) == -1) {
+                        cerr << "Error while processing " << it->first << ": ";
                         perror("statx target");
                         continue;
                     }
@@ -330,7 +346,7 @@ int main(int argc, const char* argv[])
                     if (filesystem::exists((filesystem::symlink_status((currentdir / it->first).parent_path())))) {
                         filesystem::copy_file(parentdir / it->first, currentdir / it->first, filesystem::copy_options::overwrite_existing);
                         if (lchmod((currentdir / it->first).c_str(), sourcestat.stx_mode) == -1) {
-                            cout << it->first << endl;
+                            cerr << "Error while processing " << it->first << ": ";
                             perror("lchmod");
                         }
                     } else {
@@ -341,10 +357,12 @@ int main(int argc, const char* argv[])
                     continue;
                 }
                 if (lchown((parentdir / it->first).c_str(), sourcestat.stx_uid, sourcestat.stx_gid) == -1) {
+                    cerr << "Error while processing " << it->first << ": ";
                     perror("lchown");
                 }
                 const struct timespec newtimes[2] = {{.tv_sec = sourcestat.stx_atime.tv_sec, .tv_nsec = sourcestat.stx_atime.tv_nsec},{.tv_sec = sourcestat.stx_mtime.tv_sec, .tv_nsec = sourcestat.stx_mtime.tv_nsec}};
                 if (utimensat(AT_FDCWD, (parentdir / it->first).c_str(), newtimes, AT_SYMLINK_NOFOLLOW) == -1) {
+                    cerr << "Error while processing " << it->first << ": ";
                     perror("utimensat");
                 }
 
