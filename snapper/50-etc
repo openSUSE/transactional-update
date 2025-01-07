@@ -17,7 +17,7 @@ reset_snapshot_writability() {
 
 create_reference_etc() {
   # Syncing is only necessary when the snapshot is based on the currently running system
-  if [ "/@/.snapshots/${parent}/snapshot" == "$(findmnt --target /usr --raw --noheadings --output FSROOT | tail -n 1)" ]; then
+  if [ "/@/.snapshots/${parent}/snapshot" = "$(findmnt --target /usr --raw --noheadings --output FSROOT | tail -n 1 | cut -d '/' -f 1-5)" ]; then
     if [ -d "/.snapshots/${snapshot}/snapshot/etc/etc.syncpoint" ]; then
       rmdir "/.snapshots/${snapshot}/snapshot/etc/etc.syncpoint"
     fi
