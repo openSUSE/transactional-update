@@ -321,7 +321,7 @@ teardown() {
 }
 
 do_apply() {
-    if [ -n "${SNAPSHOT_ID}" -o -n "${ROLLBACK_SNAPSHOT}" -o "${DEFAULT_SNAPSHOT_ID}" != "${CURRENT_SNAPSHOT_ID}" ]; then
+    if [ -n "${SNAPSHOT_ID}" -o "${ROLLBACK_SNAPSHOT}" -ne 0 -o "${DEFAULT_SNAPSHOT_ID}" != "${CURRENT_SNAPSHOT_ID}" ]; then
 	NEW_DEFAULT_SNAPSHOT_ID=`btrfs subvolume get-default / | sed -e 's|.*.snapshots/\(.*\)/snapshot|\1|g'`
 	if ! APPLYWORKDIR="$(mktemp -d /tmp/transactional-update.apply.XXXXXXXX)"; then
 	    log_error "ERROR during apply: Temporary directory template failed."
