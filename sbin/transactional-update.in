@@ -26,8 +26,6 @@ DO_ROLLBACK=0
 DO_SELF_UPDATE=1
 DO_REGISTRATION=0
 DO_RUN=0
-DO_STATUS=0
-DO_STATUS_LAST=0
 REGISTRATION_ARGS=""
 ROLLBACK_SNAPSHOT=0
 REBOOT_AFTERWARDS=0
@@ -52,10 +50,6 @@ LOGFILE="/var/log/transactional-update.log"
 STATE_FILE="/var/lib/misc/transactional-update.state"
 NEEDS_RESTARTING_FILE="/run/reboot-needed"
 LOCKFILE="/var/run/transactional-update.pid"
-STATUS_FILE="@libdir@/sysimage/tu/transactional-update.status"
-EXPERIMENTAL_STATUS=0
-BASE_MANIFEST_FILE="@libdir@/sysimage/tu/base.manifest"
-SYSTEM_MANIFEST_FILE="@libdir@/sysimage/tu/system.manifest"
 ZYPPER_AUTO_IMPORT_KEYS=0
 NON_ROOTFS_WHITELIST=("/var/lib/YaST2/cookies" "/var/lib/rpm" "/var/lib/systemd/migrated" "/var/run/zypp.pid")
 DRACUT_OPTS=""
@@ -160,7 +154,6 @@ usage() {
     echo "Standalone Commands:"
     echo "rollback [<number>]        Set the current or given snapshot as default snapshot"
     echo "rollback last              Set the last working snapshot as default snapshot"
-    echo "status                     Status and history report [experimental - enabled: ${EXPERIMENTAL_STATUS}]"
     echo ""
     echo "Options:"
     echo "--interactive, -i          Use interactive mode for package command"
@@ -447,400 +440,10 @@ check_registration_on_next_reboot() {
     touch "${VARDIR}/check-registration"
 }
 
-# Return the optimized list of mount points
-root_mount_points() {
-    local prev=0
-    for mount in $(findmnt --noheadings --submounts --target / --output TARGET --raw | sort | tail -n +2); do
-	if [ "${prev}/" != "${mount:0:$((${#prev}+1))}" ]; then
-	    echo "${mount}"
-	    prev="${mount}"
-	fi
-    done
-}
-
 # Call tukit callext with the correct parameters
 callext() {
     tukit ${TUKIT_OPTS} --quiet callext "${SNAPSHOT_ID}" "$@"
 }
-
-# Helper function to grep perl regular expressions
-re_findall() {
-    grep --only-matching --perl-regexp "$1" "${2:--}"
-}
-
-# XXX bsc#1170709 can impact here, but is not expected tha the base
-# product change.
-# Get the baseproduct name
-baseproduct() {
-    local file="/etc/products.d/baseproduct"
-    callext rpm --root {} --quiet --query --file "$file" || log_to_file "File $file not owned: check bsc#1170709"
-
-    re_findall '(?<=<name>).*?(?=</name>)' "${SNAPSHOT_DIR}${file}"
-}
-
-# XXX bsc#1170709 will impact a lot here. We need a more consistent
-# proposal.
-# Read all the roles from control.xml and store in a global variable
-load_roles() {
-    local file="/etc/YaST2/control.xml"
-    callext rpm --root {} --quiet --query --file "$file" || log_to_file "File $file not owned: check bsc#1170709"
-
-    # TODO: detect the microos_selinux pattern
-
-    # Parsing control.xml cannot be done directly by grep, as the
-    # logic of default_patterns can be a bit complex in the case of
-    # MicroOS.  We can have some general default_patterns, and roles
-    # without default_patterns.
-    local xpath="//*[local-name()='productDefines']"
-    xpath+="/*[local-name()='software']"
-    xpath+="/*[local-name()='default_patterns']/text()"
-
-    local default_patterns=$(xmllint --xpath "$xpath" "${SNAPSHOT_DIR}${file}")
-
-    xpath="//*[local-name()='system_role']"
-    xpath+="/*[local-name()='id']/text()"
-    local role patterns
-    while read role; do
-	xpath="//*[local-name()='system_role'][*[local-name()='id']='"$role"']"
-	xpath+="/*[local-name()='software']"
-	xpath+="/*[local-name()='default_patterns']/text()"
-	patterns=$(xmllint --xpath "$xpath" "${SNAPSHOT_DIR}${file}" 2> /dev/null)
-	ROLES["$role"]="${patterns:-$default_patterns}"
-    done <<< $(xmllint --xpath "$xpath" "${SNAPSHOT_DIR}${file}")
-}
-
-# Read all the repo aliases and the priority, reverse sorted by
-# priority
-load_repo_alias() {
-    local regex='(?<=alias=").*?(?=")'
-    regex+='|(?<=priority=").*?(?=")'
-    regex+='|(?<=enabled=").*?(?=")'
-    regex+='|(?<=<url>).*?(?=</url>)'
-
-    # Get the repositories, remove the ones that have duplicated URL,
-    # and sort by priority
-    local line
-    while read line; do
-	line=($line)
-	[ "${line[2]}" != "0" ] && REPOS+=("${line[0]} ${line[1]}")
-    done <<< $(callext zypper --root {} --xmlout lr | re_findall "$regex" | xargs -n4 | LC_COLLATE=C sort -k4 | uniq -f3 | LC_COLLATE=C sort -k2 -r)
-}
-
-# Read all the build time of repo packages and store in a file
-load_buildtime_for_repo() {
-    local file="/var/cache/zypp/raw/$1/repodata/*primary.xml.gz"
-    local regex='(?<=<name>).*(?=</name>)'
-    regex+='|(?<=<arch>).*(?=</arch>)'
-    regex+='|(?<=<version ).*?(?=/>)'
-    regex+='|(?<=<time ).*?(?=/>)'
-
-    local name arch line epoch ver rel file build
-    while read name; do
-	read arch
-	read line; eval "$line"
-	read line; eval "$line"
-	[ ! -z "$name" ] && echo "${name}-${ver}-${rel}.${arch} $build" >> "$2"
-    done <<< $(zcat $file | re_findall "$regex")
-}
-
-# Read all the build time of installed packages
-load_buildtime() {
-    local line
-    while read line; do
-	line=($line)
-	BUILDTIME["${line[0]}"]="${line[1]}"
-    done <<< $(callext rpm --root {} --query --all --queryformat='%{NVRA} %{BUILDTIME}\n')
-}
-
-# Return the timestamp of a repository from the metadata
-timestamp_for_repo() {
-    local file="/var/cache/zypp/raw/$1/repodata/repomd.xml"
-    re_findall '(?<=<revision>).*?(?=</revision>)' "$file"
-}
-
-# Return 0 if Zypper will ignore recommended packages
-only_requires() {
-    local file="/etc/zypp/zypp.conf"
-    callext grep --quiet '^solver.onlyRequires\s*=\s*true' "${SNAPSHOT_DIR}${file}"
-    return #?
-}
-
-# Return 0 if Zypper allow vendor change
-allow_vendor_change() {
-    local file="/etc/zypp/zypp.conf"
-    callext grep --quiet '^solver.allowVendorChange\s*=\s*true' "${SNAPSHOT_DIR}${file}"
-    return #?
-}
-
-# Create a libsolv testcase for a role
-testcase_for_role() {
-    local arch="$(uname -m)"
-
-    echo "system $arch rpm"
-
-    local repo
-    for repo in "${REPOS[@]}"; do
-	repo=($repo)
-	echo "repo ${repo[0]} ${repo[1]} solv /var/cache/zypp/solv/${repo[0]}/solv"
-    done
-
-    local flags=""
-    only_requires && flags="ignorerecommended"
-    allow_vendor_change && flags+=" allowvendorchange"
-    [ ! -z "$flags" ] && echo "solverflags $flags"
-
-    echo "job install name product:$(baseproduct)"
-
-    local role
-    for role in ${ROLES[$1]}; do
-	echo "job install name pattern:$role"
-    done
-}
-
-# Given a role, calculate the list of all packages and store it in a
-# file
-load_packages_for_role() {
-    local testcase_file="$(mktemp)"
-
-    testcase_for_role "$1" > "$testcase_file"
-
-    # Execute in a subshell because of a testsolv bug, that do not
-    # accept full path names
-    (
-	cd $(dirname "$testcase_file")
-	testsolv $(basename "$testcase_file") | re_findall '(?<=  - ).*' | LC_COLLATE=C sort > "$2"
-    )
-
-    rm -f "$testcase_file"
-}
-
-# Calculate the manifest document using the repository information
-base_manifest() {
-    local pkg
-    while read pkg; do
-	grep "^$pkg " "$1" || echo "$pkg"
-    done <"$2"
-}
-
-# Calculate the manifest document from the current system
-system_manifest() {
-    local pkg
-    while read pkg; do
-	if [ "${BUILDTIME["$pkg"]+_}" ]; then
-	    echo "$pkg ${BUILDTIME["$pkg"]}"
-	else
-	    echo "$pkg"
-	fi
-    done <"$1"
-}
-
-# List the installed patterns by the user
-installed_patterns() {
-    callext zypper --root {} --disable-repositories se --installed-only --sort-by-name --type pattern \
-	| re_findall '(?<=i\+ \| ).*?(?= )'
-}
-
-# List all the installed patterns (including hiddens one)
-all_installed_patterns() {
-    callext rpm --root {} --query --provides --whatprovides 'pattern()' \
-	| re_findall '(?<=pattern\(\) = ).*' \
-	| LC_COLLATE=C sort
-}
-
-# List the installed packages by the user
-installed_packages() {
-    callext zypper --root {} --disable-repositories se --installed-only --sort-by-name --type package \
-	| re_findall '(?<=i\+ \| ).*?(?= )'
-}
-
-# List all installed packages
-all_installed_packages() {
-    callext rpm --root {} --query --all --queryformat='%{NAME}\n' \
-	| LC_COLLATE=C sort
-}
-
-# List the extra patterns installed by the user
-added_patterns() {
-    # TODO The selinux one should be detected
-    local exclude='microos_selinux'
-    local inst_patterns="$(installed_patterns | grep --invert-match --extended-regexp "$exclude")"
-    local role_patterns="$(echo "${ROLES[$1]}" | tr ' ' '\n' | LC_COLLATE=C sort)"
-
-    LC_COLLATE=C comm -23 <(echo "${inst_patterns}") <(echo "${role_patterns}")
-}
-
-# List the patterns from the role that are not installed
-removed_patterns() {
-    local inst_patterns="$(all_installed_patterns)"
-    local role_patterns="$(echo "${ROLES[$1]}" | tr ' ' '\n' | LC_COLLATE=C sort)"
-
-    LC_COLLATE=C comm -23 <(echo "${role_patterns}") <(echo "${inst_patterns}")
-}
-
-# List the extra packages installed by the user
-added_packages() {
-    # TODO What others are installed by YaST?
-    # TODO Maybe add them into packages_for_role_extended, or add them
-    # in the configuration file
-    local exclude='patterns-|kernel-|snapper|grub2|btrfsprogs'
-    local inst_packages="$(installed_packages | grep --invert-match --extended-regexp "$exclude")"
-    local role_packages="$(cat "$1" | rev | cut -d"-" -f3- | rev | LC_COLLATE=C sort)"
-
-    LC_COLLATE=C comm -23 <(echo "${inst_packages}") <(echo "${role_packages}")
-}
-
-# List the packages from the role that are not installed
-removed_packages() {
-    local exclude='pattern:|product:'
-    local inst_packages="$(all_installed_packages)"
-    local role_packages="$(cat "$1" | grep --invert-match --extended-regexp "$exclude" | rev | cut -d"-" -f3- | rev | LC_COLLATE=C sort)"
-
-    LC_COLLATE=C comm -23 <(echo "${role_packages}") <(echo "${inst_packages}")
-}
-
-# Calculate the Jaccard index for two sets
-jaccard() {
-    local union_card=$(echo "$1 $2" | tr ' ' '\n' | LC_COLLATE=C sort | uniq | wc -l)
-    local intersection_card=$(echo "$1 $2" | tr ' ' '\n' | LC_COLLATE=C sort | uniq -D | uniq | wc -l)
-    echo $((100 * $intersection_card / $union_card))
-}
-
-# Based on the installed patterns, find the installed role
-find_closer_role() {
-    local patterns="$(installed_patterns)"
-    local max_index=0
-    local max_role=
-    local index=
-
-    for role in "${!ROLES[@]}"; do
-	index="$(jaccard "$patterns" "${ROLES["$role"]}")"
-	if [ "$index" -gt "$max_index" ]; then
-	    max_index="$index"
-	    max_role="$role"
-	fi
-    done
-
-    echo "$max_role"
-}
-
-# Wait for a series of PIDs
-wait_all() {
-    local pid
-    for pid in "$@"; do
-	wait "$pid"
-    done
-}
-
-# Create the status file and all the assets to validate it in the
-# future by the user
-create_status_file() {
-    # Start from a clean state
-    rm -fr "$(dirname ${SNAPSHOT_DIR}${STATUS_FILE})"
-    mkdir -p "$(dirname ${SNAPSHOT_DIR}${STATUS_FILE})"
-
-    echo "DATE=\"$(date +"%Y-%m-%d %T")\"" >> "${SNAPSHOT_DIR}${STATUS_FILE}"
-    echo "PRODUCT=\"$(baseproduct)\"" >> "${SNAPSHOT_DIR}${STATUS_FILE}"
-    grep VERSION_ID "${SNAPSHOT_DIR}/etc/os-release" >> "${SNAPSHOT_DIR}${STATUS_FILE}"
-
-    load_roles
-    local role="$(find_closer_role)"
-    echo "ROLE=\"$role\"" >> "${SNAPSHOT_DIR}${STATUS_FILE}"
-
-    load_repo_alias
-
-    local repo_buildtime_file="$(mktemp)"
-    local repo
-    local pids=()
-    for repo in "${REPOS[@]}"; do
-	repo=($repo)
-	log_info "Parsing repo ${repo[0]}"
-	# Do the load in the background, and store the data in the
-	# file.  The OS will take care of synchronizing the file
-	# access (or at least seems so)
-	load_buildtime_for_repo "${repo[0]}" "$repo_buildtime_file" & pids+=($!)
-    done
-    load_buildtime
-    wait_all "${pids[@]}"
-
-    local packages_for_role_file="$(mktemp)"
-    load_packages_for_role "$role" "$packages_for_role_file"
-
-    base_manifest "$repo_buildtime_file" "$packages_for_role_file" > "${SNAPSHOT_DIR}${BASE_MANIFEST_FILE}"
-    system_manifest "$packages_for_role_file" > "${SNAPSHOT_DIR}${SYSTEM_MANIFEST_FILE}"
-
-    local base_manifest_digest="$(sha256sum "${SNAPSHOT_DIR}${BASE_MANIFEST_FILE}" | cut -d' ' -f1)"
-    local system_manifest_digest="$(sha256sum "${SNAPSHOT_DIR}${SYSTEM_MANIFEST_FILE}" | cut -d' ' -f1)"
-
-    echo "BASE_MANIFEST_DIGEST=\"$base_manifest_digest\"" >> "${SNAPSHOT_DIR}${STATUS_FILE}"
-    echo "SYSTEM_MANIFEST_DIGEST=\"$system_manifest_digest\"" >> "${SNAPSHOT_DIR}${STATUS_FILE}"
-
-    pids=()
-    gzip "${SNAPSHOT_DIR}${BASE_MANIFEST_FILE}" & pids+=($!)
-    gzip "${SNAPSHOT_DIR}${SYSTEM_MANIFEST_FILE}" & pids+=($!)
-
-    local items=$(added_patterns "$role" | xargs)
-    echo "ADDED_PATTERNS=\"$items\"" >> "${SNAPSHOT_DIR}${STATUS_FILE}"
-    items=$(removed_patterns "$role" | xargs)
-    echo "REMOVED_PATTERNS=\"$items\"" >> "${SNAPSHOT_DIR}${STATUS_FILE}"
-
-    items=$(added_packages "$packages_for_role_file" | xargs)
-    echo "ADDED_PACKAGES=\"$items\"" >> "${SNAPSHOT_DIR}${STATUS_FILE}"
-    items=$(removed_packages "$packages_for_role_file" | xargs)
-    echo "REMOVED_PACKAGES=\"$items\"" >> "${SNAPSHOT_DIR}${STATUS_FILE}"
-
-    wait_all "${pids[@]}"
-
-    rm -f "$repo_buildtime_file" "$packages_for_role_file"
-}
-
-# Get the snapshot number
-snapshot_num() {
-    local regex='(?<=<num>).*?(?=</num>)'
-    re_findall "$regex" "${1}info.xml"
-}
-
-# Get the snapshot date, in the same format that the status file
-snapshot_date() {
-    local regex='(?<=<date>).*?(?=</date>)'
-    re_findall "$regex" "${1}info.xml"
-}
-
-# Get the snapshot description line
-snapshot_description() {
-    local regex='(?<=<description>).*?(?=</description>)'
-    re_findall "$regex" "${1}info.xml"
-}
-
-# Show the status of a snapshot
-show_snapshot_status() {
-    printf "%0.s-" $(seq 1 $(tput cols)); echo
-
-    local ss_id=$(snapshot_num "$1")
-    if [ "$CURRENT_SNAPSHOT_ID" -eq "$ss_id" ]; then
-	ss_id+="*"
-    elif [ "$DEFAULT_SNAPSHOT_ID" -eq "$ss_id" ]; then
-	ss_id+="+"
-    fi
-
-    local ss_date="$(snapshot_date "$1")"
-    local ss_description="$(snapshot_description "$1")"
-    echo "Snapshot:          ${ss_id} [$(snapshot_date "$1")]"
-    echo "Description:       $(snapshot_description "$1")"
-    if [ -f "${1}snapshot${STATUS_FILE}" ]; then
-	. "${1}snapshot${STATUS_FILE}"
-	echo "Report date:       ${DATE}"
-	echo "Version:           ${PRODUCT} ${VERSION_ID}"
-	echo "Base OS hash:      ${BASE_MANIFEST_DIGEST}"
-	echo "Effective OS hash: ${SYSTEM_MANIFEST_DIGEST}"
-	[ ! -z "${ADDED_PATTERNS}" ] && echo "Added patterns:    ${ADDED_PATTERNS}"
-	[ ! -z "${REMOVED_PATTERNS}" ] && echo "Removed patterns:  ${REMOVED_PATTERNS}"
-	[ ! -z "${ADDED_PACKAGES}" ] && echo "Added packages:    ${ADDED_PACKAGES}"
-	[ ! -z "${REMOVED_PACKAGES}" ] && echo "Removed packages:  ${REMOVED_PACKAGES}"
-    else
-	echo "(Missing status file)"
-    fi
-}
-
 
 ORIG_ARGS=("$@")
 
@@ -1030,23 +633,6 @@ parse_args() {
 	    setup-selinux)
 		SETUP_SELINUX=1
 		shift
-		;;
-	    status)
-		DO_STATUS=1
-		DO_SELF_UPDATE=0
-		shift
-		while [ 1 ]; do
-		    [ $# -eq 0 ] && break
-		    case "$1" in
-			last)
-		    DO_STATUS_LAST=1
-		    shift
-		    ;;
-			*)
-		    usage 1;
-		    ;;
-		    esac
-		done
 		;;
 	    -i|--interactive)
 		ZYPPER_NONINTERACTIVE=""
@@ -1345,18 +931,6 @@ if [ ${DO_ROLLBACK} -eq 1 ]; then
     exit 0
 fi
 
-if [ "${DO_STATUS}" -eq 1 ]; then
-    if [ "${EXPERIMENTAL_STATUS}" -eq 1 ]; then
-        for snapshot in $(ls -d /.snapshots/*/ | cut -d '/' -f 3 | sort --reverse --numeric-sort); do
-	    show_snapshot_status "/.snapshots/$snapshot/"
-	    [ "${DO_STATUS_LAST}" -eq 1 ] && break
-	done
-    else
-	echo "The status command is disabled by default as it is marked as experimental"
-    fi
-    exit 0
-fi
-
 #
 # Cleanup part: make sure old root file systems will be removed after they are no longer active.
 #
@@ -1573,11 +1147,6 @@ if [ -n "${ZYPPER_ARG}" -o ${REWRITE_GRUB_CFG} -eq 1 \
 		# reboot.
 		check_registration_on_next_reboot
 	    fi
-	fi
-
-	# Create the status for the new snapshot, before closing it
-	if [ "${EXPERIMENTAL_STATUS}" -eq 1 ]; then
-	    create_status_file
 	fi
 
 	if [ $RETVAL -eq 0 -o $RETVAL -eq 102 -o $RETVAL -eq 103 -o \( $DO_DUP -eq 0 -a $RETVAL -eq 106 \) ]; then
