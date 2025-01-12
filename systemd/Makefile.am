@@ -9,7 +9,8 @@ systemd_DATA = transactional-update.timer transactional-update.service \
 	create-dirs-from-rpmdb.service prepare-nextroot-for-softreboot.service
 EXTRA_DIST = transactional-update.timer transactional-update-cleanup.timer \
 	transactional-update.service.in transactional-update-cleanup.service.in \
-	create-dirs-from-rpmdb.service prepare-nextroot-for-softreboot.service.in
+	create-dirs-from-rpmdb.service prepare-nextroot-for-softreboot.service.in \
+	prepare-nextroot-for-softreboot
 CLEANFILES = transactional-update.service transactional-update-cleanup.service \
 	prepare-nextroot-for-softreboot.service
 dist_libexec_SCRIPTS = prepare-nextroot-for-softreboot
