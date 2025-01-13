@@ -1,4 +1,6 @@
 #!/bin/sh -eu
+# SPDX-License-Identifier: GPL-2.0-or-later
+# SPDX-FileCopyrightText: Copyright SUSE LLC
 
 # By default a systemd soft-reboot will stay within the current snapshot. On
 # a regular r/w system this is not a problem because updates will change the

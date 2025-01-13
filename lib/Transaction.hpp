@@ -1,6 +1,5 @@
-/*
- SPDX-License-Identifier: LGPL-2.1-or-later */
-/* SPDX-FileCopyrightText: 2020 SUSE LLC */
+/* SPDX-License-Identifier: LGPL-2.1-or-later */
+/* SPDX-FileCopyrightText: Copyright SUSE LLC */
 
 /*
   A Transaction is unique instance, shared between all classes derived from

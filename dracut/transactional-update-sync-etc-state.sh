@@ -1,4 +1,6 @@
 #!/bin/sh -e
+# SPDX-License-Identifier: GPL-2.0-or-later
+# SPDX-FileCopyrightText: Copyright SUSE LLC
 
 mount --target-prefix /sysroot --fstab /sysroot/etc/fstab /.snapshots
 mount --bind /sysroot/etc /sysroot/etc

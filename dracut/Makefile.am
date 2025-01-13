@@ -1,6 +1,5 @@
-#
-# Copyright (c) 2018 Ignaz Forster <iforster@suse.de>
-#
+# SPDX-License-Identifier: GPL-2.0-or-later
+# SPDX-FileCopyrightText: Copyright SUSE LLC
 
 modulesdir = @DRACUTDIR@/50transactional-update
 

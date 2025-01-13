@@ -1,6 +1,5 @@
-/*
- SPDX-License-Identifier: LGPL-2.1-or-later */
-/* SPDX-FileCopyrightText: SUSE LLC */
+/* SPDX-License-Identifier: LGPL-2.1-or-later */
+/* SPDX-FileCopyrightText: Copyright SUSE LLC */
 
 #include "libtukit.h"
 #include "Log.hpp"

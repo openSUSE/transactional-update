@@ -1,5 +1,5 @@
 ﻿/* SPDX-License-Identifier: GPL-2.0-or-later */
-/* SPDX-FileCopyrightText: 2021 SUSE LLC */
+/* SPDX-FileCopyrightText: Copyright SUSE LLC */
 
 #include "Bindings/libtukit.h"
 #include <errno.h>

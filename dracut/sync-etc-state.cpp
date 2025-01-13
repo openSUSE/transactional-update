@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
-/* SPDX-FileCopyrightText: 2024 SUSE LLC */
+/* SPDX-FileCopyrightText: Copyright SUSE LLC */
 
 #include <cstring>
 #include <fcntl.h>
