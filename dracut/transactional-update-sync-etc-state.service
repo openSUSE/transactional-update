@@ -1,0 +1,17 @@
+[Unit]
+Description=Syncing /etc state after transactional-update
+# Has to run before SELinux autorelabel (pre-pivot hook in 98selinux-microos), otherwise everything would be a diff
+Requires=dracut-pre-pivot.service
+After=initrd-fs.target
+Before=initrd-pre-pivot.service
+Before=initrd-cleanup.service
+DefaultDependencies=no
+ConditionPathExists=/sysroot/etc/etc.syncpoint
+
+[Service]
+Type=oneshot
+Environment=DRACUT_SYSTEMD=1
+Environment=NEWROOT=/sysroot
+StandardInput=null
+ExecStart=/bin/transactional-update-sync-etc-state.sh
+MountFlags=slave
