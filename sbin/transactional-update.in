@@ -1396,7 +1396,7 @@ if [ -n "${ZYPPER_ARG}" ] || [ ${REWRITE_GRUB_CFG} -eq 1 ] \
     fi
 
     write_needs_restarting
-    if ! { [ $REBOOT_AFTERWARDS -eq 1 ] || { [ $DO_APPLY -eq 1 ] && [ "${rebootmethod}" == "soft-reboot" ]; } } then
+    if [ "${REBOOT_AFTERWARDS}" -eq 0 ] && [ "${DO_APPLY}" -eq 0 ]; then
 	log_info ""
 	log_info "Please reboot your machine to activate the changes and avoid data loss."
     fi
