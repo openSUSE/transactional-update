@@ -87,7 +87,7 @@ delete_snapshot_pre() {
 if [ "$2" != "/" ]; then
   exit 0
 fi
-if ! mountpoint -q /etc; then
+if ! findmnt --mountpoint /etc --noheadings --output TARGET --tab-file /.snapshots/${4}/snapshot/etc/fstab; then
   echo "/etc is not a mount point - skipping..."
   exit 0
 fi
