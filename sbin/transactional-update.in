@@ -67,7 +67,7 @@ if [ -r ${SYSTEMCONFFILE} ]; then
 fi
 for snippet in "${SYSTEMCONFFILE}.d"/*; do
     if [ -f "${snippet}" ]; then
-	. "${snippet}"
+        . "${snippet}"
     fi
 done
 if [ -r ${CONFFILE} ]; then
@@ -88,35 +88,35 @@ HAS_COMMAND=0
 
 self_update() {
     if [ ${DO_SELF_UPDATE} == 0 ]; then
-	return
+        return
     fi
 
     log_info "Checking for newer version."
     if zypper --non-interactive info transactional-update | grep -q '^Status *: out-of-date'; then
-	log_info "New version found - updating..."
-	if ! TA_UPDATE_TMPFILE="$(mktemp -d "${TMPDIR}"/transactional-update.XXXXXXXXXX)"; then
-	    log_error "ERROR: Couldn't create temporary directory for self-update."
-	    quit 1
-	fi
-	pushd "${TA_UPDATE_TMPFILE}" >/dev/null || return
-	zypper --non-interactive --pkg-cache-dir "${TA_UPDATE_TMPFILE}" download transactional-update
-	if ! find . -name 'transactional-update*.rpm' -exec rpm2cpio {} \; | cpio -idmv 2>/dev/null; then
-	    log_error "ERROR: Couldn't extract the update."
-	    quit 1
-	fi
-	# Reset CWD before restart
-	if ! popd >/dev/null; then
-	    log_error "popd failed during self-update"
-	    rm -rf "${TA_UPDATE_TMPFILE}"
-	    quit 1
-	fi
-	if ! "${TA_UPDATE_TMPFILE}/usr/sbin/transactional-update" --version >/dev/null; then
-	    log_error "Cannot execute updated transactional-update - skipping"
-	    rm -rf "${TA_UPDATE_TMPFILE}"
-	    return
-	fi
-	export TA_UPDATE_TMPFILE
-	exec "${TA_UPDATE_TMPFILE}/usr/sbin/transactional-update" "$@" 1>&${origstdout} 2>&${origstderr}
+        log_info "New version found - updating..."
+        if ! TA_UPDATE_TMPFILE="$(mktemp -d "${TMPDIR}"/transactional-update.XXXXXXXXXX)"; then
+            log_error "ERROR: Couldn't create temporary directory for self-update."
+            quit 1
+        fi
+        pushd "${TA_UPDATE_TMPFILE}" >/dev/null || return
+        zypper --non-interactive --pkg-cache-dir "${TA_UPDATE_TMPFILE}" download transactional-update
+        if ! find . -name 'transactional-update*.rpm' -exec rpm2cpio {} \; | cpio -idmv 2>/dev/null; then
+            log_error "ERROR: Couldn't extract the update."
+            quit 1
+        fi
+        # Reset CWD before restart
+        if ! popd >/dev/null; then
+            log_error "popd failed during self-update"
+            rm -rf "${TA_UPDATE_TMPFILE}"
+            quit 1
+        fi
+        if ! "${TA_UPDATE_TMPFILE}/usr/sbin/transactional-update" --version >/dev/null; then
+            log_error "Cannot execute updated transactional-update - skipping"
+            rm -rf "${TA_UPDATE_TMPFILE}"
+            return
+        fi
+        export TA_UPDATE_TMPFILE
+        exec "${TA_UPDATE_TMPFILE}/usr/sbin/transactional-update" "$@" 1>&${origstdout} 2>&${origstderr}
     fi
 }
 
@@ -180,7 +180,7 @@ log_to_file() {
 
 log_to_stdout() {
     if [ ${VERBOSITY} -ge 2 ]; then
-	echo -e "$@"
+        echo -e "$@"
     fi
 }
 
@@ -197,17 +197,17 @@ log_error() {
 bashlock() {
     echo "$$" >"$LOCKFILE.$$"
     if ! ln "$LOCKFILE.$$" "$LOCKFILE" 2>/dev/null; then
-	PID=$(head -1 "$LOCKFILE")
-	if [ -z "$PID" ]; then
-	    rm -f "$LOCKFILE"
-	else
-	   kill -0 "$PID" 2>/dev/null || rm -f "$LOCKFILE"
-	fi
+        PID=$(head -1 "$LOCKFILE")
+        if [ -z "$PID" ]; then
+            rm -f "$LOCKFILE"
+        else
+           kill -0 "$PID" 2>/dev/null || rm -f "$LOCKFILE"
+        fi
 
-	if ! ln "$LOCKFILE.$$" "$LOCKFILE" 2>/dev/null; then
-	    rm -f "$LOCKFILE.$$"
-	    return 1
-	fi
+        if ! ln "$LOCKFILE.$$" "$LOCKFILE" 2>/dev/null; then
+            rm -f "$LOCKFILE.$$"
+            return 1
+        fi
     fi
 
     rm -f "$LOCKFILE.$$"
@@ -221,24 +221,24 @@ save_state_file() {
     echo "UNUSED_SNAPSHOTS=\"${UNUSED_SNAPSHOTS}\"" >>  ${STATE_FILE}
 
     if [ "${LAST_BOOTED}" != "${BOOTED_SNAPSHOT_ID}" ]; then
-	declare -A REBOOT_ASSOCS
+        declare -A REBOOT_ASSOCS
     fi
     echo "LAST_BOOTED=\"${BOOTED_SNAPSHOT_ID}\"" >> ${STATE_FILE}
 
     if [ -n "${SNAPSHOT_ID}" ]; then
-	REBOOT_ASSOCS[${SNAPSHOT_ID}]=${REBOOT_LEVEL}
+        REBOOT_ASSOCS[${SNAPSHOT_ID}]=${REBOOT_LEVEL}
     fi
     for key in "${!REBOOT_ASSOCS[@]}"; do
-	echo "REBOOT_ASSOCS[${key}]=${REBOOT_ASSOCS[${key}]}" >> ${STATE_FILE}
+        echo "REBOOT_ASSOCS[${key}]=${REBOOT_ASSOCS[${key}]}" >> ${STATE_FILE}
     done
 
     if [ "$1" -ne 0 ] && [ ${HAS_SEPARATE_VAR} -eq 0 ]; then
-	# If /var/lib/misc is not a seperate partition / subvolume, copy the
-	# state file into the new snapshot as it will contain an outdated
-	# version from before taking the snapshot otherwise.
-	if ! grep -q var.lib.misc /proc/mounts; then
-	    cp -a ${STATE_FILE} "/.snapshots/$1/snapshot${STATE_FILE}"
-	fi
+        # If /var/lib/misc is not a seperate partition / subvolume, copy the
+        # state file into the new snapshot as it will contain an outdated
+        # version from before taking the snapshot otherwise.
+        if ! grep -q var.lib.misc /proc/mounts; then
+            cp -a ${STATE_FILE} "/.snapshots/$1/snapshot${STATE_FILE}"
+        fi
     fi
 }
 
@@ -249,11 +249,11 @@ is_bls() {
 
 rebuild_kdump_initrd() {
     if tukit -q call "$1" systemctl is-enabled --quiet kdump.service; then
-	tukit ${TUKIT_OPTS} call "$1" /sbin/mkdumprd |& tee -a ${LOGFILE} 1>&${origstdout}
-	return "${PIPESTATUS[0]}"
+        tukit ${TUKIT_OPTS} call "$1" /sbin/mkdumprd |& tee -a ${LOGFILE} 1>&${origstdout}
+        return "${PIPESTATUS[0]}"
     elif [ ${SETUP_KDUMP} -ge 1 ]; then
-	log_info "INFO: Requested rebuild of kdump initrd, but kdump is not enabled."
-	log_info "      Did you mean 'setup-kdump'?"
+        log_info "INFO: Requested rebuild of kdump initrd, but kdump is not enabled."
+        log_info "      Did you mean 'setup-kdump'?"
     fi
     return 0;
 }
@@ -264,14 +264,14 @@ quit() {
 
     # Reset reboot level
     if [ "${REBOOT_LEVEL_PREV}" == "none" ]; then
-	rm -f "${NEEDS_RESTARTING_FILE}"
+        rm -f "${NEEDS_RESTARTING_FILE}"
     else
-	echo -n "${REBOOT_LEVEL_PREV}" > "${NEEDS_RESTARTING_FILE}"
+        echo -n "${REBOOT_LEVEL_PREV}" > "${NEEDS_RESTARTING_FILE}"
     fi
 
     if [ -n "${SNAPSHOT_ID}" ] ; then
-	log_error "Removing snapshot #${SNAPSHOT_ID}..."
-	tukit ${TUKIT_OPTS} abort "${SNAPSHOT_ID}" |& tee -a ${LOGFILE}
+        log_error "Removing snapshot #${SNAPSHOT_ID}..."
+        tukit ${TUKIT_OPTS} abort "${SNAPSHOT_ID}" |& tee -a ${LOGFILE}
     fi
     log_info "transactional-update finished"
     exit "$1"
@@ -284,16 +284,16 @@ teardown() {
     rm -f "${TMPFILE}"
 
     if [ -d "${APPLYWORKDIR}" ]; then
-	if mountpoint --quiet "${APPLYWORKDIR}/mount"; then
-	    umount --recursive "${APPLYWORKDIR}/mount"
-	fi
-	rmdir "${APPLYWORKDIR}/mount"
-	rmdir "${APPLYWORKDIR}"
+        if mountpoint --quiet "${APPLYWORKDIR}/mount"; then
+            umount --recursive "${APPLYWORKDIR}/mount"
+        fi
+        rmdir "${APPLYWORKDIR}/mount"
+        rmdir "${APPLYWORKDIR}"
     fi
 
     # The following commands only make sense if snapshot dir is set already
     if [ "${SNAPSHOT_DIR}" = "" ]; then
-	return
+        return
     fi
 
     # systemd-tmpfiles creates directories/files even if /run is no tmpfs:
@@ -302,118 +302,118 @@ teardown() {
 
 do_apply() {
     if [ -n "${SNAPSHOT_ID}" ] || [ "${ROLLBACK_SNAPSHOT}" -ne 0 ] || [ "${DEFAULT_SNAPSHOT_ID}" != "${CURRENT_SNAPSHOT_ID}" ]; then
-	NEW_DEFAULT_SNAPSHOT_ID=$(btrfs subvolume get-default / | sed -e 's|.*.snapshots/\(.*\)/snapshot|\1|g')
-	if ! APPLYWORKDIR="$(mktemp -d /tmp/transactional-update.apply.XXXXXXXX)"; then
-	    log_error "ERROR during apply: Temporary directory template failed."
-	fi
-	if ! mkdir "${APPLYWORKDIR}/mount"; then
-	    log_error "ERROR during apply: Couldn't create mount directory."
-	fi
+        NEW_DEFAULT_SNAPSHOT_ID=$(btrfs subvolume get-default / | sed -e 's|.*.snapshots/\(.*\)/snapshot|\1|g')
+        if ! APPLYWORKDIR="$(mktemp -d /tmp/transactional-update.apply.XXXXXXXX)"; then
+            log_error "ERROR during apply: Temporary directory template failed."
+        fi
+        if ! mkdir "${APPLYWORKDIR}/mount"; then
+            log_error "ERROR during apply: Couldn't create mount directory."
+        fi
 
-	sourcedevice="$(findmnt --target /usr --raw --noheadings --output SOURCE --nofsroot | tail -n 1)"
-	# Mount new snapshot as base
-	if ! mount "${sourcedevice}" "${APPLYWORKDIR}/mount"; then
-	    log_error "ERROR during apply: Mounting ${sourcedevice} to ${APPLYWORKDIR}/mount failed."
-	    quit 2
-	fi
-	# Mount new /etc
-	etcfstype="$(findmnt --tab-file "${APPLYWORKDIR}/mount/etc/fstab" --noheadings --nofsroot --output FSTYPE /etc | tail -n 1)"
-	if [ "${etcfstype}" == "overlay" ]; then
-	    oldetcopts="$(findmnt --tab-file "${APPLYWORKDIR}/mount/etc/fstab" --noheadings --nofsroot --output OPTIONS /etc | sed 's/\/sysroot//g' | sed 's/:\/etc,/:\/.snapshots\/'"${NEW_DEFAULT_SNAPSHOT_ID}"'\/snapshot\/etc,/g')"
-	    oldetcdev="$(findmnt --tab-file "${APPLYWORKDIR}/mount/etc/fstab" --noheadings --nofsroot --output SOURCE /etc)"
-	    oldetcfs="$(findmnt --tab-file "${APPLYWORKDIR}/mount/etc/fstab" --noheadings --nofsroot --output FSTYPE /etc)"
-	    if ! mount "${oldetcdev}" -t "${oldetcfs}" -o "${oldetcopts}" "${APPLYWORKDIR}/mount/etc"; then
-		log_error "ERROR during apply: Mounting new /etc failed."
-		quit 2
-	    fi
-	fi
-	# Find and mount potential submounts
-	VISIBLEMOUNTS=(/usr /etc /boot)
-	for line in $(findmnt --raw --noheadings --nofsroot --output TARGET -d forward | grep -E "^/(usr|etc|boot)"); do
-	    for i in "${!VISIBLEMOUNTS[@]}"; do
-		if [[ $line == "${VISIBLEMOUNTS[$i]}" ]]; then
-		    while [ "$i" -lt ${#VISIBLEMOUNTS[@]} ]; do
-			if [[ ${VISIBLEMOUNTS[$i]} == ${line}* ]]; then
-			    unset -v 'VISIBLEMOUNTS[$i]'
-			    VISIBLEMOUNTS=("${VISIBLEMOUNTS[@]}")
-			else
-			    ((i++))
-			fi
-		    done
-		    break
-		fi
-	    done
-	    VISIBLEMOUNTS+=("${line}")
-	done
-	for dir in "${VISIBLEMOUNTS[@]}"; do
-	    if [[ $dir =~ ^/(usr|etc|boot)$ ]]; then
-		continue;
-	    fi
-	    dir="$(echo -e "${dir}")"
-	    if ! mount --bind "${dir}" "${APPLYWORKDIR}/mount/${dir}"; then
-		log_error "ERROR during apply: Bind-mounting ${dir} failed."
-		quit 2
-	    fi
-	done
-	if ! mount --make-rprivate "${APPLYWORKDIR}/mount"; then
-	    log_error "ERROR during apply: make-rprivate failed."
-	    quit 2
-	fi
+        sourcedevice="$(findmnt --target /usr --raw --noheadings --output SOURCE --nofsroot | tail -n 1)"
+        # Mount new snapshot as base
+        if ! mount "${sourcedevice}" "${APPLYWORKDIR}/mount"; then
+            log_error "ERROR during apply: Mounting ${sourcedevice} to ${APPLYWORKDIR}/mount failed."
+            quit 2
+        fi
+        # Mount new /etc
+        etcfstype="$(findmnt --tab-file "${APPLYWORKDIR}/mount/etc/fstab" --noheadings --nofsroot --output FSTYPE /etc | tail -n 1)"
+        if [ "${etcfstype}" == "overlay" ]; then
+            oldetcopts="$(findmnt --tab-file "${APPLYWORKDIR}/mount/etc/fstab" --noheadings --nofsroot --output OPTIONS /etc | sed 's/\/sysroot//g' | sed 's/:\/etc,/:\/.snapshots\/'"${NEW_DEFAULT_SNAPSHOT_ID}"'\/snapshot\/etc,/g')"
+            oldetcdev="$(findmnt --tab-file "${APPLYWORKDIR}/mount/etc/fstab" --noheadings --nofsroot --output SOURCE /etc)"
+            oldetcfs="$(findmnt --tab-file "${APPLYWORKDIR}/mount/etc/fstab" --noheadings --nofsroot --output FSTYPE /etc)"
+            if ! mount "${oldetcdev}" -t "${oldetcfs}" -o "${oldetcopts}" "${APPLYWORKDIR}/mount/etc"; then
+                log_error "ERROR during apply: Mounting new /etc failed."
+                quit 2
+            fi
+        fi
+        # Find and mount potential submounts
+        VISIBLEMOUNTS=(/usr /etc /boot)
+        for line in $(findmnt --raw --noheadings --nofsroot --output TARGET -d forward | grep -E "^/(usr|etc|boot)"); do
+            for i in "${!VISIBLEMOUNTS[@]}"; do
+                if [[ $line == "${VISIBLEMOUNTS[$i]}" ]]; then
+                    while [ "$i" -lt ${#VISIBLEMOUNTS[@]} ]; do
+                        if [[ ${VISIBLEMOUNTS[$i]} == ${line}* ]]; then
+                            unset -v 'VISIBLEMOUNTS[$i]'
+                            VISIBLEMOUNTS=("${VISIBLEMOUNTS[@]}")
+                        else
+                            ((i++))
+                        fi
+                    done
+                    break
+                fi
+            done
+            VISIBLEMOUNTS+=("${line}")
+        done
+        for dir in "${VISIBLEMOUNTS[@]}"; do
+            if [[ $dir =~ ^/(usr|etc|boot)$ ]]; then
+                continue;
+            fi
+            dir="$(echo -e "${dir}")"
+            if ! mount --bind "${dir}" "${APPLYWORKDIR}/mount/${dir}"; then
+                log_error "ERROR during apply: Bind-mounting ${dir} failed."
+                quit 2
+            fi
+        done
+        if ! mount --make-rprivate "${APPLYWORKDIR}/mount"; then
+            log_error "ERROR during apply: make-rprivate failed."
+            quit 2
+        fi
 
-	if [ -e /usr/libexec/transactional-update-sync-etc-state ] && [ -e "/.snapshots/${NEW_DEFAULT_SNAPSHOT_ID}/snapshot/etc/etc.syncpoint" ] ; then
-	    log_info "Syncing /etc state from old snapshot..."
-	    /usr/libexec/transactional-update-sync-etc-state /etc "/.snapshots/${NEW_DEFAULT_SNAPSHOT_ID}/snapshot/etc" "/.snapshots/${NEW_DEFAULT_SNAPSHOT_ID}/snapshot/etc/etc.syncpoint"
-	fi
+        if [ -e /usr/libexec/transactional-update-sync-etc-state ] && [ -e "/.snapshots/${NEW_DEFAULT_SNAPSHOT_ID}/snapshot/etc/etc.syncpoint" ] ; then
+            log_info "Syncing /etc state from old snapshot..."
+            /usr/libexec/transactional-update-sync-etc-state /etc "/.snapshots/${NEW_DEFAULT_SNAPSHOT_ID}/snapshot/etc" "/.snapshots/${NEW_DEFAULT_SNAPSHOT_ID}/snapshot/etc/etc.syncpoint"
+        fi
 
-	log_info ""
-	log_info "Using default snapshot ${NEW_DEFAULT_SNAPSHOT_ID} to replace running system..."
+        log_info ""
+        log_info "Using default snapshot ${NEW_DEFAULT_SNAPSHOT_ID} to replace running system..."
 
-	# Mount new snapshot into running system
-	for rbinddir in usr etc boot; do
-	    log_info "Applying /${rbinddir}..."
-	    if ! mount --rbind "${APPLYWORKDIR}/mount/${rbinddir}" "/${rbinddir}"; then
-		log_error "ERROR during apply: Mounting /${rbinddir} failed!"
-		for dir in ${rbinddir_done}; do
-		    umount "/${dir}"
-		done
-		quit 2
-	    fi
-	    rbinddir_done="${rbinddir_done} ${rbinddir}"
-	done
+        # Mount new snapshot into running system
+        for rbinddir in usr etc boot; do
+            log_info "Applying /${rbinddir}..."
+            if ! mount --rbind "${APPLYWORKDIR}/mount/${rbinddir}" "/${rbinddir}"; then
+                log_error "ERROR during apply: Mounting /${rbinddir} failed!"
+                for dir in ${rbinddir_done}; do
+                    umount "/${dir}"
+                done
+                quit 2
+            fi
+            rbinddir_done="${rbinddir_done} ${rbinddir}"
+        done
 
-	umount --lazy "${APPLYWORKDIR}/mount"
-	rmdir "${APPLYWORKDIR}/mount"
-	rmdir "${APPLYWORKDIR}"
-	if [ -e "${NEEDS_RESTARTING_FILE}" ]; then
-	    grep -q soft-reboot "${NEEDS_RESTARTING_FILE}" && rm "${NEEDS_RESTARTING_FILE}" && REBOOT_AFTERWARDS=0
-	fi
+        umount --lazy "${APPLYWORKDIR}/mount"
+        rmdir "${APPLYWORKDIR}/mount"
+        rmdir "${APPLYWORKDIR}"
+        if [ -e "${NEEDS_RESTARTING_FILE}" ]; then
+            grep -q soft-reboot "${NEEDS_RESTARTING_FILE}" && rm "${NEEDS_RESTARTING_FILE}" && REBOOT_AFTERWARDS=0
+        fi
 
-	log_info "Executing systemctl daemon-reexec..."
-	systemctl daemon-reexec
-	log_info "Executing create_dirs_from_rpmdb..."
-	create_dirs_from_rpmdb
-	log_info "Executing systemd-tmpfiles --create..."
-	systemd-tmpfiles --create
+        log_info "Executing systemctl daemon-reexec..."
+        systemctl daemon-reexec
+        log_info "Executing create_dirs_from_rpmdb..."
+        create_dirs_from_rpmdb
+        log_info "Executing systemd-tmpfiles --create..."
+        systemd-tmpfiles --create
 
-	log_info "=> Applied default snapshot as new base for running system!"
-	log_info "   Running processes will not be restarted automatically."
+        log_info "=> Applied default snapshot as new base for running system!"
+        log_info "   Running processes will not be restarted automatically."
     else
-	log_info ""
-	log_info "The default snapshot is active already."
+        log_info ""
+        log_info "The default snapshot is active already."
     fi
 }
 
 set_reboot_level() {
     if [ "${REBOOT_PRIO[${1}]}" -gt "${REBOOT_PRIO[${REBOOT_LEVEL}]}" ]; then
-	REBOOT_LEVEL="${1}"
+        REBOOT_LEVEL="${1}"
     fi
 }
 
 write_needs_restarting() {
     if [ -e "${NEEDS_RESTARTING_FILE}" ]; then
-	if [ "${REBOOT_PRIO[${REBOOT_LEVEL}]}" -lt "${REBOOT_PRIO[$(cat "${NEEDS_RESTARTING_FILE}")]}" ]; then
-	    REBOOT_LEVEL="$(cat "${NEEDS_RESTARTING_FILE}")"
-	fi
+        if [ "${REBOOT_PRIO[${REBOOT_LEVEL}]}" -lt "${REBOOT_PRIO[$(cat "${NEEDS_RESTARTING_FILE}")]}" ]; then
+            REBOOT_LEVEL="$(cat "${NEEDS_RESTARTING_FILE}")"
+        fi
     fi
 
     echo -n "${REBOOT_LEVEL}" > "${NEEDS_RESTARTING_FILE}"
@@ -423,9 +423,9 @@ add_unique_id() {
     local NEW_ID="$1"
 
     for snap in ${LAST_WORKING_SNAPSHOTS}; do
-	if [ "${snap}" -eq "${NEW_ID}" ]; then
-	    return
-	fi
+        if [ "${snap}" -eq "${NEW_ID}" ]; then
+            return
+        fi
     done
     LAST_WORKING_SNAPSHOTS="${NEW_ID} ${LAST_WORKING_SNAPSHOTS}"
 }
@@ -445,285 +445,285 @@ ORIG_ARGS=("$@")
 
 parse_zypper_args_extra() {
     while true; do
-	if [ $# -eq 0 ]; then
-	    break;
-	else
-	    if [ "$1" == "--root" ]; then
+        if [ $# -eq 0 ]; then
+            break;
+        else
+            if [ "$1" == "--root" ]; then
                 log_error "ERROR: You cannot set '--root' in transactional-update."
                 quit 1
-	    fi
-	    ZYPPER_ARG_EXTRA+=("$1");
-	    shift
-	fi
+            fi
+            ZYPPER_ARG_EXTRA+=("$1");
+            shift
+        fi
     done
 }
 
 parse_args() {
     while true; do
-	if [ $# -eq 0 ]; then
-	    break
-	fi
+        if [ $# -eq 0 ]; then
+            break
+        fi
 
-	if [[ $1 != --* ]]; then
-	    HAS_COMMAND=1
-	fi
+        if [[ $1 != --* ]]; then
+            HAS_COMMAND=1
+        fi
 
-	case "$1" in
-	    cleanup)
-		DO_CLEANUP_OVERLAYS=1
-		DO_CLEANUP_SNAPSHOTS=1
-		shift
-		;;
-	    cleanup-snapshots)
-		DO_CLEANUP_SNAPSHOTS=1
-		shift
-		;;
-	    cleanup-overlays)
-		DO_CLEANUP_OVERLAYS=1
-		shift
-		;;
-	    dist-upgrade|dup)
-		DO_DUP=1
-		ZYPPER_ARG="--no-cd dup"
-		shift
-		;;
-	    update|up)
-		ZYPPER_ARG=up
-		shift
-		;;
-	    patch)
-		ZYPPER_ARG="--non-interactive-include-reboot-patches patch"
-		shift
-		;;
-	    ptf|pkg|package)
-		shift
-		if [ $# -eq 0 ]; then
-		    usage 1
-		fi
-		# Interactively run installing PTFs
-		ZYPPER_NONINTERACTIVE="${FORCE_NONINTERACTIVE:-}"
-		case "$1" in
-		    install|in)
-			ZYPPER_ARG="install"
-			shift
-			;;
-		    remove|rm)
-			ZYPPER_ARG="remove"
-			if [ -n "${ZYPPER_NONINTERACTIVE}" ]; then
-			    ZYPPER_NONINTERACTIVE="-y"
-			fi
-			shift
-			;;
-		    update|up)
-			ZYPPER_ARG="up"
-			shift
-			;;
-		    *)
-			usage 1;
-			;;
-		esac
+        case "$1" in
+            cleanup)
+                DO_CLEANUP_OVERLAYS=1
+                DO_CLEANUP_SNAPSHOTS=1
+                shift
+                ;;
+            cleanup-snapshots)
+                DO_CLEANUP_SNAPSHOTS=1
+                shift
+                ;;
+            cleanup-overlays)
+                DO_CLEANUP_OVERLAYS=1
+                shift
+                ;;
+            dist-upgrade|dup)
+                DO_DUP=1
+                ZYPPER_ARG="--no-cd dup"
+                shift
+                ;;
+            update|up)
+                ZYPPER_ARG=up
+                shift
+                ;;
+            patch)
+                ZYPPER_ARG="--non-interactive-include-reboot-patches patch"
+                shift
+                ;;
+            ptf|pkg|package)
+                shift
+                if [ $# -eq 0 ]; then
+                    usage 1
+                fi
+                # Interactively run installing PTFs
+                ZYPPER_NONINTERACTIVE="${FORCE_NONINTERACTIVE:-}"
+                case "$1" in
+                    install|in)
+                        ZYPPER_ARG="install"
+                        shift
+                        ;;
+                    remove|rm)
+                        ZYPPER_ARG="remove"
+                        if [ -n "${ZYPPER_NONINTERACTIVE}" ]; then
+                            ZYPPER_NONINTERACTIVE="-y"
+                        fi
+                        shift
+                        ;;
+                    update|up)
+                        ZYPPER_ARG="up"
+                        shift
+                        ;;
+                    *)
+                        usage 1;
+                        ;;
+                esac
 
-		if [ $# -eq 0 ]; then
-		    usage 1
-		fi
+                if [ $# -eq 0 ]; then
+                    usage 1
+                fi
 
-		parse_zypper_args_extra "$@"
-		break
-		;;
-	    migration)
-		DO_MIGRATION=1
-		ZYPPER_ARG="migration --no-snapshots --no-selfupdate"
-		if [ -n "${FORCE_NONINTERACTIVE}" ]; then
-		    # non interative option is named different for
-		    # different commands ...
-		    ZYPPER_NONINTERACTIVE="--non-interactive --auto-agree-with-licenses"
-		else
-		    ZYPPER_NONINTERACTIVE=""
-		fi
-		shift
+                parse_zypper_args_extra "$@"
+                break
+                ;;
+            migration)
+                DO_MIGRATION=1
+                ZYPPER_ARG="migration --no-snapshots --no-selfupdate"
+                if [ -n "${FORCE_NONINTERACTIVE}" ]; then
+                    # non interative option is named different for
+                    # different commands ...
+                    ZYPPER_NONINTERACTIVE="--non-interactive --auto-agree-with-licenses"
+                else
+                    ZYPPER_NONINTERACTIVE=""
+                fi
+                shift
 
-		parse_zypper_args_extra "$@"
-		break
-		;;
-	    bootloader)
-		REWRITE_BOOTLOADER=1
-		REWRITE_GRUB_CFG=1
-		shift
-		;;
-	    grub.cfg)
-		REWRITE_GRUB_CFG=1
-		shift
-		;;
-	    shell)
-		RUN_SHELL=1
-		shift
-		if [ "$1" = "-c" ]; then
-		    if [ -z "$2" ]; then
-			SHELL_CMD="-"
-		    else
-			SHELL_CMD="$2"
-			shift
-		    fi
-		    shift
-		fi
-		;;
-	    initrd)
-		REWRITE_INITRD=1
-		REBUILD_KDUMP_INITRD=1
-		shift
-		;;
-	    kdump)
-		REBUILD_KDUMP_INITRD=1
-		SETUP_KDUMP=2
-		shift
-		;;
-	    reboot)
-		REBOOT_AFTERWARDS=1
-		shift
-		;;
-	    rollback)
-		DO_ROLLBACK=1
-		DO_SELF_UPDATE=0
-		shift
-		if [ $# -eq 1 ]; then
-		    ROLLBACK_SNAPSHOT=$1
-		    shift
-		fi
-		;;
-	    apply)
-		DO_APPLY=1
-		shift
-		;;
-	    run)
-		DO_RUN=1
-		shift
+                parse_zypper_args_extra "$@"
+                break
+                ;;
+            bootloader)
+                REWRITE_BOOTLOADER=1
+                REWRITE_GRUB_CFG=1
+                shift
+                ;;
+            grub.cfg)
+                REWRITE_GRUB_CFG=1
+                shift
+                ;;
+            shell)
+                RUN_SHELL=1
+                shift
+                if [ "$1" = "-c" ]; then
+                    if [ -z "$2" ]; then
+                        SHELL_CMD="-"
+                    else
+                        SHELL_CMD="$2"
+                        shift
+                    fi
+                    shift
+                fi
+                ;;
+            initrd)
+                REWRITE_INITRD=1
+                REBUILD_KDUMP_INITRD=1
+                shift
+                ;;
+            kdump)
+                REBUILD_KDUMP_INITRD=1
+                SETUP_KDUMP=2
+                shift
+                ;;
+            reboot)
+                REBOOT_AFTERWARDS=1
+                shift
+                ;;
+            rollback)
+                DO_ROLLBACK=1
+                DO_SELF_UPDATE=0
+                shift
+                if [ $# -eq 1 ]; then
+                    ROLLBACK_SNAPSHOT=$1
+                    shift
+                fi
+                ;;
+            apply)
+                DO_APPLY=1
+                shift
+                ;;
+            run)
+                DO_RUN=1
+                shift
 
-		# Collect arguments for run
-		if [ $# -eq 0 ]; then
-		    usage 1
-		fi
+                # Collect arguments for run
+                if [ $# -eq 0 ]; then
+                    usage 1
+                fi
 
-		RUN_CMD=("$@")
-		break
-		;;
-	    setup-fips)
-		SETUP_FIPS=1
-		shift
-		;;
-	    setup-kdump)
-		SETUP_KDUMP=1
-		shift
-		if [[ $1 == --crashkernel* ]]; then
-		    if ! [[ $1 =~ ^--crashkernel=[[:digit:]]+(,[[:digit:]]+)?$ ]]; then
-			echo "Invalid --crashkernel syntax"
-			echo
-			usage 1
-		    fi
-		    KDUMP_LOW="$(echo "$1" | cut -d '=' -f 2 | cut -d ',' -f 1)"
-		    if [[ $1 =~ , ]]; then
-			KDUMP_HIGH="$(echo "$1" | cut -d '=' -f 2 | cut -d ',' -f 2)"
-		    fi
-		    shift
-		fi
-		;;
-	    setup-selinux)
-		SETUP_SELINUX=1
-		shift
-		;;
-	    -i|--interactive)
-		ZYPPER_NONINTERACTIVE=""
-		shift
-		;;
-	    -n|--non-interactive)
-		FORCE_NONINTERACTIVE="${ZYPPER_NONINTERACTIVE}"
-		shift
-		;;
-	    -c|--continue)
-		# Check whether we got an optional snapshot number argument
-		if [[ $2 =~ ^[0-9]+$ ]]; then
-		    BASE_SNAPSHOT_ID="$2"
-		    shift
-		else
-		    BASE_SNAPSHOT_ID="default"
-		fi
-		shift
-		;;
-	    --no-selfupdate)
-		DO_SELF_UPDATE=0
-		shift
-		;;
-	    -d|--drop-if-no-change)
-		TUKIT_OPTS="${TUKIT_OPTS} --discard"
-		shift
-		;;
-	    --quiet)
-		VERBOSITY=1
-		TUKIT_OPTS="${TUKIT_OPTS} --quiet"
-		DRACUT_OPTS="${DRACUT_OPTS} --quiet"
-		# ZYPPER_ARG handled below
-		shift
-		;;
-	    register)
-		DO_REGISTRATION=1
-		shift
+                RUN_CMD=("$@")
+                break
+                ;;
+            setup-fips)
+                SETUP_FIPS=1
+                shift
+                ;;
+            setup-kdump)
+                SETUP_KDUMP=1
+                shift
+                if [[ $1 == --crashkernel* ]]; then
+                    if ! [[ $1 =~ ^--crashkernel=[[:digit:]]+(,[[:digit:]]+)?$ ]]; then
+                        echo "Invalid --crashkernel syntax"
+                        echo
+                        usage 1
+                    fi
+                    KDUMP_LOW="$(echo "$1" | cut -d '=' -f 2 | cut -d ',' -f 1)"
+                    if [[ $1 =~ , ]]; then
+                        KDUMP_HIGH="$(echo "$1" | cut -d '=' -f 2 | cut -d ',' -f 2)"
+                    fi
+                    shift
+                fi
+                ;;
+            setup-selinux)
+                SETUP_SELINUX=1
+                shift
+                ;;
+            -i|--interactive)
+                ZYPPER_NONINTERACTIVE=""
+                shift
+                ;;
+            -n|--non-interactive)
+                FORCE_NONINTERACTIVE="${ZYPPER_NONINTERACTIVE}"
+                shift
+                ;;
+            -c|--continue)
+                # Check whether we got an optional snapshot number argument
+                if [[ $2 =~ ^[0-9]+$ ]]; then
+                    BASE_SNAPSHOT_ID="$2"
+                    shift
+                else
+                    BASE_SNAPSHOT_ID="default"
+                fi
+                shift
+                ;;
+            --no-selfupdate)
+                DO_SELF_UPDATE=0
+                shift
+                ;;
+            -d|--drop-if-no-change)
+                TUKIT_OPTS="${TUKIT_OPTS} --discard"
+                shift
+                ;;
+            --quiet)
+                VERBOSITY=1
+                TUKIT_OPTS="${TUKIT_OPTS} --quiet"
+                DRACUT_OPTS="${DRACUT_OPTS} --quiet"
+                # ZYPPER_ARG handled below
+                shift
+                ;;
+            register)
+                DO_REGISTRATION=1
+                shift
 
-		if [ $# -eq 0 ]; then
-		    usage 1
-		fi
-		if ! command -v SUSEConnect >/dev/null; then
-		    echo "SUSEConnect does not exist on this system."
-		    exit 1
-		fi
+                if [ $# -eq 0 ]; then
+                    usage 1
+                fi
+                if ! command -v SUSEConnect >/dev/null; then
+                    echo "SUSEConnect does not exist on this system."
+                    exit 1
+                fi
 
-		REGISTRATION_ARGS="$*";
-		shift $#
+                REGISTRATION_ARGS="$*";
+                shift $#
 
-		# A lot of commands won't change anything; discard snapshot then
-		TUKIT_OPTS="${TUKIT_OPTS} --discard"
-		;;
-	    apply-oci)
-		DO_APPLY_OCI=1
-		REWRITE_GRUB_CFG=1
-		REWRITE_INITRD=1
-		REBUILD_KDUMP_INITRD=1
-		shift
+                # A lot of commands won't change anything; discard snapshot then
+                TUKIT_OPTS="${TUKIT_OPTS} --discard"
+                ;;
+            apply-oci)
+                DO_APPLY_OCI=1
+                REWRITE_GRUB_CFG=1
+                REWRITE_INITRD=1
+                REBUILD_KDUMP_INITRD=1
+                shift
 
-		if [ $# -eq 0 ]; then
-		    usage 1
-		fi
+                if [ $# -eq 0 ]; then
+                    usage 1
+                fi
 
-		while true; do
-		    if [ $# -eq 0 ]; then
-			break;
-		    else
-			if [ "$1" == "--image" ]; then
-			    if [ -n "$2" ]; then
-				OCI_TARGET=$2
-			    else
-				log_error "ERROR: Please specify an OCI image to use as an upgrade target."
-				quit 1
-			    fi
-			fi
-			if [ "$1" == "--help" ]; then
-			    usage 1
-			fi
-		        shift
-		    fi
-		done
-		shift
-		;;
-	    -h|--help)
-		usage 0
-		;;
-	    --version)
-		print_version
-		;;
-	    *)
-		if [ $# -ge 1 ]; then
-		    usage 1;
-		fi
-		;;
-	esac
+                while true; do
+                    if [ $# -eq 0 ]; then
+                        break;
+                    else
+                        if [ "$1" == "--image" ]; then
+                            if [ -n "$2" ]; then
+                                OCI_TARGET=$2
+                            else
+                                log_error "ERROR: Please specify an OCI image to use as an upgrade target."
+                                quit 1
+                            fi
+                        fi
+                        if [ "$1" == "--help" ]; then
+                            usage 1
+                        fi
+                        shift
+                    fi
+                done
+                shift
+                ;;
+            -h|--help)
+                usage 0
+                ;;
+            --version)
+                print_version
+                ;;
+            *)
+                if [ $# -ge 1 ]; then
+                    usage 1;
+                fi
+                ;;
+        esac
     done
 }
 
@@ -738,23 +738,23 @@ exec 2> >(exec tee -i -a "${LOGFILE}" >&2)
 if [ "${VERBOSITY}" -eq 1 ]; then
     exec 1>/dev/null
     if [ -n "${ZYPPER_ARG}" ]; then
-	ZYPPER_ARG="--quiet ${ZYPPER_ARG}"
+        ZYPPER_ARG="--quiet ${ZYPPER_ARG}"
     fi
 fi
 
 # Setup FIPS
 if [ "${SETUP_FIPS}" -eq 1 ]; then
     if [ -n "${ZYPPER_ARG}" ] && [ "${ZYPPER_ARG}" != "install" ]; then
-	log_error "ERROR: Cannot combine 'setup-fips' with zypper command '${ZYPPER_ARG}'"
-	exit 1
+        log_error "ERROR: Cannot combine 'setup-fips' with zypper command '${ZYPPER_ARG}'"
+        exit 1
     fi
     # Check if we need to install packages
     fipspattern="$(rpm -q --whatprovides 'pattern()' --provides | grep '^pattern() = fips$')"
     if [ -z "${fipspattern}" ]; then
-	ZYPPER_ARG_EXTRA+=("pattern() = fips")
+        ZYPPER_ARG_EXTRA+=("pattern() = fips")
     fi
     if [ ${#ZYPPER_ARG_EXTRA[@]} -ne 0 ]; then
-	ZYPPER_ARG="install"
+        ZYPPER_ARG="install"
     fi
     REWRITE_INITRD=1
     REBUILD_KDUMP_INITRD=1
@@ -769,15 +769,15 @@ if [ "${SETUP_SELINUX}" -eq 1 ]; then
     # 4. Rebuild grub.cfg and initrd
 
     if [ -n "${ZYPPER_ARG}" ] && [ "${ZYPPER_ARG}" != "install" ]; then
-	log_error "ERROR: Cannot combine 'setup-selinux' with zypper command '${ZYPPER_ARG}'"
-	exit 1
+        log_error "ERROR: Cannot combine 'setup-selinux' with zypper command '${ZYPPER_ARG}'"
+        exit 1
     fi
     # Check if we need to install packages
     for pkg in selinux-policy-targeted container-selinux; do
-	rpm -q --quiet ${pkg} || ZYPPER_ARG_EXTRA+=("${pkg}")
+        rpm -q --quiet ${pkg} || ZYPPER_ARG_EXTRA+=("${pkg}")
     done
     if [ ${#ZYPPER_ARG_EXTRA[@]} -ne 0 ]; then
-	ZYPPER_ARG="install"
+        ZYPPER_ARG="install"
     fi
     REWRITE_INITRD=1
     REBUILD_KDUMP_INITRD=1
@@ -817,8 +817,8 @@ fi
 # check for update
 if [ -z "${TA_UPDATE_TMPFILE}" ]; then
     if ! bashlock; then
-	log_error "Couldn't get lock, is another instance already running?"
-	exit 1
+        log_error "Couldn't get lock, is another instance already running?"
+        exit 1
     fi
     self_update "${ORIG_ARGS[@]}"
 else # Set exit handler to clean up artifacts of the self-update
@@ -829,15 +829,15 @@ else # Set exit handler to clean up artifacts of the self-update
     popd >/dev/null || exit 1
     export LD_LIBRARY_PATH="${TA_UPDATE_TMPFILE}/usr/lib64:${TA_UPDATE_TMPFILE}/usr/lib"
     if "${TA_UPDATE_TMPFILE}"/usr/sbin/tukit --version >/dev/null; then
-	# tukit is executable - use new version
-	export PATH="${TA_UPDATE_TMPFILE}/usr/sbin:${PATH}"
+        # tukit is executable - use new version
+        export PATH="${TA_UPDATE_TMPFILE}/usr/sbin:${PATH}"
     elif [ -f /usr/sbin/tukit ]; then
-	log_info "WARNING: New tukit version cannot be executed - using the old one."
-	unset LD_LIBRARY_PATH
+        log_info "WARNING: New tukit version cannot be executed - using the old one."
+        unset LD_LIBRARY_PATH
     else
-	log_info "WARNING: tukit cannot be executed - falling back to old transactional-update version."
-	unset LD_LIBRARY_PATH
-	exec transactional-update --no-selfupdate "${ORIG_ARGS[@]}"
+        log_info "WARNING: tukit cannot be executed - falling back to old transactional-update version."
+        unset LD_LIBRARY_PATH
+        exec transactional-update --no-selfupdate "${ORIG_ARGS[@]}"
     fi
 fi
 
@@ -905,47 +905,47 @@ if [ ${DO_ROLLBACK} -eq 1 ]; then
     NEED_REBOOT=1
 
     if [ "${ROLLBACK_SNAPSHOT}" = "last" ]; then
-	if [ -n "${LAST_WORKING_SNAPSHOTS}" ]; then
-	    ROLLBACK_SNAPSHOT=${LAST_WORKING_SNAPSHOTS%% *}
-	else
-	    log_error "No last working snapshot saved; please use 'snapper list' for manual selection"
-	fi
+        if [ -n "${LAST_WORKING_SNAPSHOTS}" ]; then
+            ROLLBACK_SNAPSHOT=${LAST_WORKING_SNAPSHOTS%% *}
+        else
+            log_error "No last working snapshot saved; please use 'snapper list' for manual selection"
+        fi
     elif [ "${ROLLBACK_SNAPSHOT}" -eq 0 ] || [ "${ROLLBACK_SNAPSHOT}" -eq "${CURRENT_SNAPSHOT_ID}" ]; then
-	ROLLBACK_SNAPSHOT=${CURRENT_SNAPSHOT_ID}
-	NEED_REBOOT=0
+        ROLLBACK_SNAPSHOT=${CURRENT_SNAPSHOT_ID}
+        NEED_REBOOT=0
     fi
 
     log_info "Rollback to snapshot ${ROLLBACK_SNAPSHOT}..."
 
     if ! tukit rollback "${ROLLBACK_SNAPSHOT}"; then
-	log_error "ERROR: Rollback to snapshot $ROLLBACK_SNAPSHOT failed!"
-	quit 1
+        log_error "ERROR: Rollback to snapshot $ROLLBACK_SNAPSHOT failed!"
+        quit 1
     fi
     if [ "${RO_ROOT}" == "true" ]; then
-	# Create the trigger to re-register the system as new version after next
-	# reboot.
-	check_registration_on_next_reboot
-	# Remove possible cleanup algo and re-add to list
-	if ! ( echo "${LAST_WORKING_SNAPSHOTS} ${UNUSED_SNAPSHOTS}" | grep --word-regexp --quiet "${ROLLBACK_SNAPSHOT}" ); then
-	    UNUSED_SNAPSHOTS="${UNUSED_SNAPSHOTS} ${ROLLBACK_SNAPSHOT}"
-	    save_state_file 0
-	fi
+        # Create the trigger to re-register the system as new version after next
+        # reboot.
+        check_registration_on_next_reboot
+        # Remove possible cleanup algo and re-add to list
+        if ! ( echo "${LAST_WORKING_SNAPSHOTS} ${UNUSED_SNAPSHOTS}" | grep --word-regexp --quiet "${ROLLBACK_SNAPSHOT}" ); then
+            UNUSED_SNAPSHOTS="${UNUSED_SNAPSHOTS} ${ROLLBACK_SNAPSHOT}"
+            save_state_file 0
+        fi
 
-	if [ ${NEED_REBOOT} -eq 0 ]; then
-	    rm -f "${NEEDS_RESTARTING_FILE}"
-	else
-	    REBOOT_LEVEL="reboot"
-	    write_needs_restarting
-	fi
+        if [ ${NEED_REBOOT} -eq 0 ]; then
+            rm -f "${NEEDS_RESTARTING_FILE}"
+        else
+            REBOOT_LEVEL="reboot"
+            write_needs_restarting
+        fi
     else
-	NEED_REBOOT=1
+        NEED_REBOOT=1
     fi
     if [ ${NEED_REBOOT} -eq 1 ]; then
-	if [ ${DO_APPLY} -eq 1 ]; then
-	    do_apply
-	else
-	    log_error "Please reboot to finish rollback!"
-	fi
+        if [ ${DO_APPLY} -eq 1 ]; then
+            do_apply
+        else
+            log_error "Please reboot to finish rollback!"
+        fi
     fi
     log_info "transactional-update finished"
     exit 0
@@ -959,28 +959,28 @@ if [ ${DO_CLEANUP_SNAPSHOTS} -eq 1 ]; then
     # not the currently used one, the booted one (still required for health-checker rollbacks) or the
     # active one.
     if [ -n "${LAST_WORKING_SNAPSHOTS}" ]; then
-	for snap in ${LAST_WORKING_SNAPSHOTS}; do
-	    if [ "${CURRENT_SNAPSHOT_ID}" -ne "${snap}" ] && [ "${BOOTED_SNAPSHOT_ID}" -ne "${snap}" ]; then
-		log_info "Adding cleanup algorithm to snapshot #${snap}"
-		snapper modify -c number "${snap}" |& tee -a ${LOGFILE}
-		if [ "${PIPESTATUS[0]}" -ne 0 ]; then
-		    log_error "ERROR: cannot set cleanup algorithm for snapshot #${snap}"
-		fi
-		# If the old snapshot is read-write, we have already a mandatory snapshot and this one can deleted
-		# earlier. If not, mark is as important, so that it will not get deleted too fast.
-		if [ "${RO_ROOT}" == "true" ]; then
-		    log_info "Adding \"important=yes\" to snapshot #${snap}"
-		    snapper modify -u "important=yes" "${snap}" |& tee -a ${LOGFILE}
-		    if [ "${PIPESTATUS[0]}" -ne 0 ]; then
-			log_error "ERROR: cannot set \"important=yes for snapshot\" #${snap}"
-		    fi
-		fi
-	    else
-		NEW_LIST="${snap} ${NEW_LIST}"
-	    fi
-	done
-	LAST_WORKING_SNAPSHOTS="${NEW_LIST}"
-	save_state_file 0
+        for snap in ${LAST_WORKING_SNAPSHOTS}; do
+            if [ "${CURRENT_SNAPSHOT_ID}" -ne "${snap}" ] && [ "${BOOTED_SNAPSHOT_ID}" -ne "${snap}" ]; then
+                log_info "Adding cleanup algorithm to snapshot #${snap}"
+                snapper modify -c number "${snap}" |& tee -a ${LOGFILE}
+                if [ "${PIPESTATUS[0]}" -ne 0 ]; then
+                    log_error "ERROR: cannot set cleanup algorithm for snapshot #${snap}"
+                fi
+                # If the old snapshot is read-write, we have already a mandatory snapshot and this one can deleted
+                # earlier. If not, mark is as important, so that it will not get deleted too fast.
+                if [ "${RO_ROOT}" == "true" ]; then
+                    log_info "Adding \"important=yes\" to snapshot #${snap}"
+                    snapper modify -u "important=yes" "${snap}" |& tee -a ${LOGFILE}
+                    if [ "${PIPESTATUS[0]}" -ne 0 ]; then
+                        log_error "ERROR: cannot set \"important=yes for snapshot\" #${snap}"
+                    fi
+                fi
+            else
+                NEW_LIST="${snap} ${NEW_LIST}"
+            fi
+        done
+        LAST_WORKING_SNAPSHOTS="${NEW_LIST}"
+        save_state_file 0
     fi
 
     # Check for aborted transactional-updates (due to power outtage, killed
@@ -988,53 +988,53 @@ if [ ${DO_CLEANUP_SNAPSHOTS} -eq 1 ]; then
     # As snapper list output differs between versions search for the correct
     # rows first
     for snap in $(snapper --csvout list --columns number,userdata | grep 'transactional-update-in-progress=yes' | cut -d , -f 1); do
-	UNUSED_SNAPSHOTS="${UNUSED_SNAPSHOTS} ${snap}"
+        UNUSED_SNAPSHOTS="${UNUSED_SNAPSHOTS} ${snap}"
     done
 
     # Always try to cleanup all snapshots; only the current snapshot, the
     # one which the system was booted from and some parts of the system
     # may still use, and an eventual new default one needs to be kept.
     if [ -n "${UNUSED_SNAPSHOTS}" ]; then
-	_new_unused=""
-	for snap in ${UNUSED_SNAPSHOTS}; do
-	    # Don't mark our current in use snapshot for deletion
-	    if [ "${snap}" -ne "${CURRENT_SNAPSHOT_ID}" ] && \
-		[ "${snap}" -ne "${BOOTED_SNAPSHOT_ID}" ] && \
-		[ "${snap}" -ne "${DEFAULT_SNAPSHOT_ID}" ]; then
-		log_info "Mark unused snapshot #${snap} for deletion"
-		snapper modify -c number "${snap}" |& tee -a ${LOGFILE}
-		if [ "${PIPESTATUS[0]}" -ne 0 ]; then
-		    log_error "ERROR: cannot set cleanup algorithm for snapshot #${snap}"
-		    # Is the snapshot still available at all?
-		    if [ -e "/.snapshots/${snap}" ]; then
-			# Keep the snapshot in the list
-			_new_unused="${snap} ${_new_unused}"
-		    fi
-		fi
-	    elif [ "${snap}" -ne "${CURRENT_SNAPSHOT_ID}" ] && [ "${snap}" -ne "${BOOTED_SNAPSHOT_ID}" ]; then
-		# This is the snapshot which is currently in use, so keep it in
-		# the list. We would probably never clean it up later otherwise.
-		_new_unused="${snap} ${_new_unused}"
-	    fi
-	done
-	UNUSED_SNAPSHOTS="${_new_unused}"
-	save_state_file 0
+        _new_unused=""
+        for snap in ${UNUSED_SNAPSHOTS}; do
+            # Don't mark our current in use snapshot for deletion
+            if [ "${snap}" -ne "${CURRENT_SNAPSHOT_ID}" ] && \
+                [ "${snap}" -ne "${BOOTED_SNAPSHOT_ID}" ] && \
+                [ "${snap}" -ne "${DEFAULT_SNAPSHOT_ID}" ]; then
+                log_info "Mark unused snapshot #${snap} for deletion"
+                snapper modify -c number "${snap}" |& tee -a ${LOGFILE}
+                if [ "${PIPESTATUS[0]}" -ne 0 ]; then
+                    log_error "ERROR: cannot set cleanup algorithm for snapshot #${snap}"
+                    # Is the snapshot still available at all?
+                    if [ -e "/.snapshots/${snap}" ]; then
+                        # Keep the snapshot in the list
+                        _new_unused="${snap} ${_new_unused}"
+                    fi
+                fi
+            elif [ "${snap}" -ne "${CURRENT_SNAPSHOT_ID}" ] && [ "${snap}" -ne "${BOOTED_SNAPSHOT_ID}" ]; then
+                # This is the snapshot which is currently in use, so keep it in
+                # the list. We would probably never clean it up later otherwise.
+                _new_unused="${snap} ${_new_unused}"
+            fi
+        done
+        UNUSED_SNAPSHOTS="${_new_unused}"
+        save_state_file 0
     fi
 fi
 
 if [ ${DO_CLEANUP_OVERLAYS} -eq 1 ]; then
     # Clean up old unused overlays
     if [ "${RO_ROOT}" == "true" ]; then
-	snapshots="$(ls /.snapshots/*/snapshot/etc/fstab{,.sys} 2>/dev/null)"
-	for overlay in /var/lib/overlay/*; do
-	    if [ -e "${overlay}" ] && [ -n "${snapshots}" ]; then
-		grep -q "${overlay}" ${snapshots}
-		if [ $? -eq 1 ]; then
-		    log_info "Deleting unused overlay ${overlay}"
-		    rm -r "${overlay}"
-		fi
-	    fi
-	done
+        snapshots="$(ls /.snapshots/*/snapshot/etc/fstab{,.sys} 2>/dev/null)"
+        for overlay in /var/lib/overlay/*; do
+            if [ -e "${overlay}" ] && [ -n "${snapshots}" ]; then
+                grep -q "${overlay}" ${snapshots}
+                if [ $? -eq 1 ]; then
+                    log_info "Deleting unused overlay ${overlay}"
+                    rm -r "${overlay}"
+                fi
+            fi
+        done
     fi
 fi
 
@@ -1042,41 +1042,41 @@ fi
 # using systemd-boot or grub2bls
 if is_bls; then
     if [ ${REWRITE_BOOTLOADER} = 1 ]; then
-	# NOTE: pbl has partial support of BLS. It will replace the
-	# shim bootloader, so for now we make a call of sdbootutil
-	# directly (bsc#1228864)
-	if ! sdbootutil update |& tee -a ${LOGFILE} 1>&${origstdout}; then
-	    log_error "ERROR: sdbootutil update failed!"
-	    EXITCODE=1;
-	fi
-	# Drop the command from the execution chain
-	REWRITE_BOOTLOADER=0
+        # NOTE: pbl has partial support of BLS. It will replace the
+        # shim bootloader, so for now we make a call of sdbootutil
+        # directly (bsc#1228864)
+        if ! sdbootutil update |& tee -a ${LOGFILE} 1>&${origstdout}; then
+            log_error "ERROR: sdbootutil update failed!"
+            EXITCODE=1;
+        fi
+        # Drop the command from the execution chain
+        REWRITE_BOOTLOADER=0
     fi
 
     if [ ${REWRITE_GRUB_CFG} = 1 ] || [ ${REWRITE_GRUB_CFG_NO_REBOOT} = 1 ]; then
-	# The first GRUB configuration file in grub2bls is embedded in
-	# the EFI file, and the second one that contains the menu
-	# entries is generated dinamically by the new `blscfg` GRUB2
-	# command.  Also there is no configuration file to generate if
-	# systemd-boot is used.
-	REWRITE_GRUB_CFG=0
-	REWRITE_GRUB_CFG_NO_REBOOT=0
+        # The first GRUB configuration file in grub2bls is embedded in
+        # the EFI file, and the second one that contains the menu
+        # entries is generated dinamically by the new `blscfg` GRUB2
+        # command.  Also there is no configuration file to generate if
+        # systemd-boot is used.
+        REWRITE_GRUB_CFG=0
+        REWRITE_GRUB_CFG_NO_REBOOT=0
     fi
 
     if [ ${REWRITE_INITRD} = 1 ]; then
-	if ! sdbootutil mkinitrd |& tee -a ${LOGFILE} 1>&${origstdout}; then
-	    log_error "ERROR: sdbootutil mkinitrd failed!"
-	    EXITCODE=1;
-	fi
-	# Drop the command from the execution chain
-	REWRITE_INITRD=0
+        if ! sdbootutil mkinitrd |& tee -a ${LOGFILE} 1>&${origstdout}; then
+            log_error "ERROR: sdbootutil mkinitrd failed!"
+            EXITCODE=1;
+        fi
+        # Drop the command from the execution chain
+        REWRITE_INITRD=0
     fi
 
     if [ ${REBUILD_KDUMP_INITRD} = 1 ]; then
-	# mkinitrd depends on pbl, so it will fail (bsc#1226676)
-	log_info "WARNING: mkdumprd fails for this bootloader"
-	REBUILD_KDUMP_INITRD=0
-	SETUP_KDUMP=0
+        # mkinitrd depends on pbl, so it will fail (bsc#1226676)
+        log_info "WARNING: mkdumprd fails for this bootloader"
+        REBUILD_KDUMP_INITRD=0
+        SETUP_KDUMP=0
     fi
 fi
 
@@ -1087,19 +1087,19 @@ if [ -n "${ZYPPER_ARG}" ] || [ ${REWRITE_GRUB_CFG} -eq 1 ] \
     || [ ${DO_APPLY_OCI} -eq 1 ]; then
 
     if [ -z "${ZYPPER_NONINTERACTIVE}" ] && [ "${DEFAULT_SNAPSHOT_ID}" -ne "${BASE_SNAPSHOT_ID}" ]; then
-	log_info "WARNING: You are creating a snapshot from a different base (${BASE_SNAPSHOT_ID}) than the"
-	log_info "         current default snapshot (${DEFAULT_SNAPSHOT_ID})."
-	if [ "${BASE_SNAPSHOT_ID}" -eq "${CURRENT_SNAPSHOT_ID}" ]; then
-	    log_info "         If you want to continue a previous snapshot use the --continue"
-	    log_info "         option, otherwise the previous changes will be discarded."
-	fi
+        log_info "WARNING: You are creating a snapshot from a different base (${BASE_SNAPSHOT_ID}) than the"
+        log_info "         current default snapshot (${DEFAULT_SNAPSHOT_ID})."
+        if [ "${BASE_SNAPSHOT_ID}" -eq "${CURRENT_SNAPSHOT_ID}" ]; then
+            log_info "         If you want to continue a previous snapshot use the --continue"
+            log_info "         option, otherwise the previous changes will be discarded."
+        fi
     fi
 
     output="$(tukit ${TUKIT_OPTS} -c"${BASE_SNAPSHOT_ID}" open |& tee -a ${LOGFILE})"
     log_info "$output"
     SNAPSHOT_ID=$(echo "${output}" | grep -e "^ID:" | cut -d " " -f 2-)
     if [ -z "${SNAPSHOT_ID}" ]; then
-	quit 1
+        quit 1
     fi
     SNAPSHOT_DIR="/.snapshots/${SNAPSHOT_ID}/snapshot"
 
@@ -1110,259 +1110,259 @@ if [ -n "${ZYPPER_ARG}" ] || [ ${REWRITE_GRUB_CFG} -eq 1 ] \
     UNUSED_SNAPSHOTS="${SNAPSHOT_ID} ${UNUSED_SNAPSHOTS}"
 
     if [ ${DO_REGISTRATION} -eq 1 ]; then
-	tukit ${TUKIT_OPTS} callext "${SNAPSHOT_ID}" SUSEConnect --root {} ${REGISTRATION_ARGS} |& tee -a ${LOGFILE} 1>&${origstdout}
-	if [ "${PIPESTATUS[0]}" -ne 0 ]; then
-	    EXITCODE=1
-	fi
-	set_reboot_level "soft-reboot"
+        tukit ${TUKIT_OPTS} callext "${SNAPSHOT_ID}" SUSEConnect --root {} ${REGISTRATION_ARGS} |& tee -a ${LOGFILE} 1>&${origstdout}
+        if [ "${PIPESTATUS[0]}" -ne 0 ]; then
+            EXITCODE=1
+        fi
+        set_reboot_level "soft-reboot"
     fi
 
     if [ ${DO_APPLY_OCI} -eq 1 ]; then
-	# Pull desired container image and mount it ready for copy
-	log_info "INFO: Pulling image from: $OCI_TARGET"
-	podman image pull "$OCI_TARGET" || {
-	    log_error "ERROR: Couldn't pull image from $OCI_TARGET"
-	    quit 1
-	}
-	OCI_MOUNT=$(podman image mount "$OCI_TARGET")
+        # Pull desired container image and mount it ready for copy
+        log_info "INFO: Pulling image from: $OCI_TARGET"
+        podman image pull "$OCI_TARGET" || {
+            log_error "ERROR: Couldn't pull image from $OCI_TARGET"
+            quit 1
+        }
+        OCI_MOUNT=$(podman image mount "$OCI_TARGET")
 
-	# Copy over core parts of the operating system into the new snapshot, deleting files that don't exist, and ignoring partitions that aren't captured in the snapshot
-	log_info "INFO: Writing contents of ${OCI_TARGET} to snapshot directory ${SNAPSHOT_DIR}..."
-	OCI_RSYNC_EXCLUDES_LIST=()
-	for i in ${OCI_RSYNC_EXCLUDES}; do
-	    OCI_RSYNC_EXCLUDES_LIST+=("--exclude $i ")
-	done
-	rsync --delete ${OCI_RSYNC_ARGS} ${OCI_RSYNC_EXCLUDES_LIST[@]} ${OCI_MOUNT}/ ${SNAPSHOT_DIR}/ |& tee -a ${LOGFILE} 1>&${origstdout}
+        # Copy over core parts of the operating system into the new snapshot, deleting files that don't exist, and ignoring partitions that aren't captured in the snapshot
+        log_info "INFO: Writing contents of ${OCI_TARGET} to snapshot directory ${SNAPSHOT_DIR}..."
+        OCI_RSYNC_EXCLUDES_LIST=()
+        for i in ${OCI_RSYNC_EXCLUDES}; do
+            OCI_RSYNC_EXCLUDES_LIST+=("--exclude $i ")
+        done
+        rsync --delete ${OCI_RSYNC_ARGS} ${OCI_RSYNC_EXCLUDES_LIST[@]} ${OCI_MOUNT}/ ${SNAPSHOT_DIR}/ |& tee -a ${LOGFILE} 1>&${origstdout}
 
-	# Merge contents of /etc from container image but preserve existing configuration
-	log_info "INFO: Merging /etc from container image into existing snapshot, preserving existing configuration..."
-	tukit ${TUKIT_OPTS} callext "${SNAPSHOT_ID}" rsync --ignore-existing ${OCI_RSYNC_ARGS} "${OCI_MOUNT}/etc/" "${SNAPSHOT_DIR}/etc/" |& tee -a ${LOGFILE} 1>&${origstdout}
+        # Merge contents of /etc from container image but preserve existing configuration
+        log_info "INFO: Merging /etc from container image into existing snapshot, preserving existing configuration..."
+        tukit ${TUKIT_OPTS} callext "${SNAPSHOT_ID}" rsync --ignore-existing ${OCI_RSYNC_ARGS} "${OCI_MOUNT}/etc/" "${SNAPSHOT_DIR}/etc/" |& tee -a ${LOGFILE} 1>&${origstdout}
 
-	# Unmount the container image
-	podman image unmount "${OCI_TARGET}"
-	# Ensure that the filesystem is labelled correctly for SELinux.
-	log_info "Forcing SELinux relabel at next reboot."
-	touch "${SNAPSHOT_DIR}/.autorelabel"
-	# Ensure RPM database is using the desired system backend
-	tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" rpm --rebuilddb |& tee -a ${LOGFILE} 1>&${origstdout}
+        # Unmount the container image
+        podman image unmount "${OCI_TARGET}"
+        # Ensure that the filesystem is labelled correctly for SELinux.
+        log_info "Forcing SELinux relabel at next reboot."
+        touch "${SNAPSHOT_DIR}/.autorelabel"
+        # Ensure RPM database is using the desired system backend
+        tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" rpm --rebuilddb |& tee -a ${LOGFILE} 1>&${origstdout}
     fi
 
     if [ -n "${ZYPPER_ARG}" ]; then
 
-	log_info "Calling zypper ${ZYPPER_ARG}"
-	if [ ${DO_MIGRATION} -eq 1 ]; then
-	    # transactional-update migration
-	    export DISABLE_RESTART_ON_UPDATE=yes
-	    tukit ${TUKIT_OPTS} callext "${SNAPSHOT_ID}" zypper ${ZYPPER_ARG} --root {} ${ZYPPER_NONINTERACTIVE} "${ZYPPER_ARG_EXTRA[@]}" |& tee -a ${LOGFILE} 1>&${origstdout}
-	    RETVAL=${PIPESTATUS[0]}
-	else
-	    if [ ${DO_CALLEXT} -eq 1 ]; then
-		zypper_cmd="tukit ${TUKIT_OPTS} callext ${SNAPSHOT_ID} zypper -R {}"
-	    else
-		zypper_cmd="tukit ${TUKIT_OPTS} call ${SNAPSHOT_ID} zypper"
-	    fi
-	    # Check if there are updates at all.
-	    TMPFILE=$(mktemp "${TMPDIR}/transactional-update.XXXXXXXXXX")
-	    ${zypper_cmd} --xmlout ${ZYPPER_ARG} -y --auto-agree-with-product-licenses --dry-run "${ZYPPER_ARG_EXTRA[@]}" > "${TMPFILE}"
-	    PACKAGE_UPDATES=$(grep "install-summary download-size" "${TMPFILE}" | sed -e 's|.*install-summary download-size=\"\(.*\)\" space-usage-diff.*|\1|g')
-	    SIZE_OF_UPDATES=$(grep "install-summary.*space-usage-diff" "${TMPFILE}" | sed -e 's|.*install-summary.*space-usage-diff=\"\([^"]*\)\".*|\1|g')
-	    NUM_OF_UPDATES=$(grep "install-summary.*packages-to-change" "${TMPFILE}" | sed -e 's|.*install-summary.*packages-to-change=\"\([^"]*\)\".*|\1|g')
-	    INCLUDES_KERNEL_PACKAGES=$(grep 'solvable.*type="package"' "${TMPFILE}" | grep 'name="kernel-')
-	    # Workaround for broken postuninstall
-	    if grep 'solvable.*type="package"' "${TMPFILE}" | grep 'name="libfdisk1"' | grep -q -e 'edition-old="2\.38\.1-[78]\.'; then
-		log_info "Applying workaround for broken libfdisk1"
-		tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" rpm -e --justdb --nodeps libfdisk1
-	    fi
-	    rm -f "${TMPFILE}"
-	    if [ "${NUM_OF_UPDATES}" = "0" ] || { [ -z "${NUM_OF_UPDATES}" ] && [ "${PACKAGE_UPDATES}" = "0" ] && [ "${SIZE_OF_UPDATES}" = "0" ]; } then
-		log_info "zypper: nothing to update"
-		quit 0
-	    fi
+        log_info "Calling zypper ${ZYPPER_ARG}"
+        if [ ${DO_MIGRATION} -eq 1 ]; then
+            # transactional-update migration
+            export DISABLE_RESTART_ON_UPDATE=yes
+            tukit ${TUKIT_OPTS} callext "${SNAPSHOT_ID}" zypper ${ZYPPER_ARG} --root {} ${ZYPPER_NONINTERACTIVE} "${ZYPPER_ARG_EXTRA[@]}" |& tee -a ${LOGFILE} 1>&${origstdout}
+            RETVAL=${PIPESTATUS[0]}
+        else
+            if [ ${DO_CALLEXT} -eq 1 ]; then
+                zypper_cmd="tukit ${TUKIT_OPTS} callext ${SNAPSHOT_ID} zypper -R {}"
+            else
+                zypper_cmd="tukit ${TUKIT_OPTS} call ${SNAPSHOT_ID} zypper"
+            fi
+            # Check if there are updates at all.
+            TMPFILE=$(mktemp "${TMPDIR}/transactional-update.XXXXXXXXXX")
+            ${zypper_cmd} --xmlout ${ZYPPER_ARG} -y --auto-agree-with-product-licenses --dry-run "${ZYPPER_ARG_EXTRA[@]}" > "${TMPFILE}"
+            PACKAGE_UPDATES=$(grep "install-summary download-size" "${TMPFILE}" | sed -e 's|.*install-summary download-size=\"\(.*\)\" space-usage-diff.*|\1|g')
+            SIZE_OF_UPDATES=$(grep "install-summary.*space-usage-diff" "${TMPFILE}" | sed -e 's|.*install-summary.*space-usage-diff=\"\([^"]*\)\".*|\1|g')
+            NUM_OF_UPDATES=$(grep "install-summary.*packages-to-change" "${TMPFILE}" | sed -e 's|.*install-summary.*packages-to-change=\"\([^"]*\)\".*|\1|g')
+            INCLUDES_KERNEL_PACKAGES=$(grep 'solvable.*type="package"' "${TMPFILE}" | grep 'name="kernel-')
+            # Workaround for broken postuninstall
+            if grep 'solvable.*type="package"' "${TMPFILE}" | grep 'name="libfdisk1"' | grep -q -e 'edition-old="2\.38\.1-[78]\.'; then
+                log_info "Applying workaround for broken libfdisk1"
+                tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" rpm -e --justdb --nodeps libfdisk1
+            fi
+            rm -f "${TMPFILE}"
+            if [ "${NUM_OF_UPDATES}" = "0" ] || { [ -z "${NUM_OF_UPDATES}" ] && [ "${PACKAGE_UPDATES}" = "0" ] && [ "${SIZE_OF_UPDATES}" = "0" ]; } then
+                log_info "zypper: nothing to update"
+                quit 0
+            fi
 
-	    export DISABLE_RESTART_ON_UPDATE=yes
-	    ${zypper_cmd} ${ZYPPER_ARG} ${ZYPPER_NONINTERACTIVE} "${ZYPPER_ARG_EXTRA[@]}" |& tee -a ${LOGFILE} 1>&${origstdout}
-	    RETVAL=${PIPESTATUS[0]}
-	    if { [ "${RETVAL}" -eq 0 ] || [ "${RETVAL}" -eq 102 ] || [ "${RETVAL}" -eq 103 ]; } && [ -n "${INCLUDES_KERNEL_PACKAGES}" ]; then
-		${zypper_cmd} -n purge-kernels |& tee -a ${LOGFILE}
-	    fi
-	fi
-	# in case of migration, we need to do a little bit more:
-	if [ ${DO_MIGRATION} -eq 1 ]; then
-	    # Reset registration until reboot. Needed in both cases,
-	    # whether an error occured or whether we had success.
-	    test -x /usr/sbin/SUSEConnect && /usr/sbin/SUSEConnect --rollback
-	    if [ "${RETVAL}" -eq 0 ]; then
-		# Create the trigger to re-register the system as new version after next
-		# reboot.
-		check_registration_on_next_reboot
-	    fi
-	fi
+            export DISABLE_RESTART_ON_UPDATE=yes
+            ${zypper_cmd} ${ZYPPER_ARG} ${ZYPPER_NONINTERACTIVE} "${ZYPPER_ARG_EXTRA[@]}" |& tee -a ${LOGFILE} 1>&${origstdout}
+            RETVAL=${PIPESTATUS[0]}
+            if { [ "${RETVAL}" -eq 0 ] || [ "${RETVAL}" -eq 102 ] || [ "${RETVAL}" -eq 103 ]; } && [ -n "${INCLUDES_KERNEL_PACKAGES}" ]; then
+                ${zypper_cmd} -n purge-kernels |& tee -a ${LOGFILE}
+            fi
+        fi
+        # in case of migration, we need to do a little bit more:
+        if [ ${DO_MIGRATION} -eq 1 ]; then
+            # Reset registration until reboot. Needed in both cases,
+            # whether an error occured or whether we had success.
+            test -x /usr/sbin/SUSEConnect && /usr/sbin/SUSEConnect --rollback
+            if [ "${RETVAL}" -eq 0 ]; then
+                # Create the trigger to re-register the system as new version after next
+                # reboot.
+                check_registration_on_next_reboot
+            fi
+        fi
 
-	if [ "${RETVAL}" -eq 0 ] || [ "${RETVAL}" -eq 102 ] || [ "${RETVAL}" -eq 103 ] || { [ "${DO_DUP}" -eq 0 ] && [ "${RETVAL}" -eq 106 ]; } then
-	    is_bls || REBUILD_KDUMP_INITRD=1
-	    # check if products are updated and we need to re-register
-	    # at next boot.
-	    if ! diff -qr /etc/products.d "${SNAPSHOT_DIR}/etc/products.d" > /dev/null; then
-		check_registration_on_next_reboot
-	    fi
-	    # Rebuild grub.cfg if /etc/os-release changes, could change grub
-	    # menu output, too.
-	    if ! cmp -s /etc/os-release "${SNAPSHOT_DIR}/etc/os-release" && [ -x /usr/sbin/grub2-mkconfig ] && ! is_bls; then
-	        REWRITE_GRUB_CFG_NO_REBOOT=1
-	    fi
-	    source <(grep VERSION_ID "${SNAPSHOT_DIR}/etc/os-release")
-	else
-	    log_error "ERROR: zypper ${ZYPPER_ARG} on ${SNAPSHOT_DIR} failed with exit code ${RETVAL}!"
-	    if [ -n "${ZYPPER_NONINTERACTIVE}" ]; then
-		log_error "Use '--interactive' for manual problem resolution."
-	    fi
-	    EXITCODE=1
-	fi
-	# If zypp-boot-plugin is available and didn't return anything, then soft-reboot is enough
-	if rpm --quiet -q zypp-boot-plugin && [ ! -e "${NEEDS_RESTARTING_FILE}" ] ; then
-	    set_reboot_level "soft-reboot"
-	else
-	    set_reboot_level "reboot"
-	fi
+        if [ "${RETVAL}" -eq 0 ] || [ "${RETVAL}" -eq 102 ] || [ "${RETVAL}" -eq 103 ] || { [ "${DO_DUP}" -eq 0 ] && [ "${RETVAL}" -eq 106 ]; } then
+            is_bls || REBUILD_KDUMP_INITRD=1
+            # check if products are updated and we need to re-register
+            # at next boot.
+            if ! diff -qr /etc/products.d "${SNAPSHOT_DIR}/etc/products.d" > /dev/null; then
+                check_registration_on_next_reboot
+            fi
+            # Rebuild grub.cfg if /etc/os-release changes, could change grub
+            # menu output, too.
+            if ! cmp -s /etc/os-release "${SNAPSHOT_DIR}/etc/os-release" && [ -x /usr/sbin/grub2-mkconfig ] && ! is_bls; then
+                REWRITE_GRUB_CFG_NO_REBOOT=1
+            fi
+            source <(grep VERSION_ID "${SNAPSHOT_DIR}/etc/os-release")
+        else
+            log_error "ERROR: zypper ${ZYPPER_ARG} on ${SNAPSHOT_DIR} failed with exit code ${RETVAL}!"
+            if [ -n "${ZYPPER_NONINTERACTIVE}" ]; then
+                log_error "Use '--interactive' for manual problem resolution."
+            fi
+            EXITCODE=1
+        fi
+        # If zypp-boot-plugin is available and didn't return anything, then soft-reboot is enough
+        if rpm --quiet -q zypp-boot-plugin && [ ! -e "${NEEDS_RESTARTING_FILE}" ] ; then
+            set_reboot_level "soft-reboot"
+        else
+            set_reboot_level "reboot"
+        fi
     fi
 
     ETC_BASE="${SNAPSHOT_DIR}"
     if [ ${SETUP_FIPS} -eq 1 ]; then
-	if is_bls; then
-	    grep -q -w fips /etc/kernel/cmdline || \
-		tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" sed -i -e 's|$| fips=1|' "/etc/kernel/cmdline"
+        if is_bls; then
+            grep -q -w fips /etc/kernel/cmdline || \
+                tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" sed -i -e 's|$| fips=1|' "/etc/kernel/cmdline"
         else
-	    # Adjust grub configuration
+            # Adjust grub configuration
 
-	    # Check if we don't have selinux already enabled.
-	    grep ^GRUB_CMDLINE_LINUX_DEFAULT /etc/default/grub | grep -q -w fips || \
-		tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" sed -i -e 's|\(^GRUB_CMDLINE_LINUX_DEFAULT=.*\)"|\1 fips=1"|g' "/etc/default/grub"
-	    REWRITE_GRUB_CFG=1
-	fi
-	if [ -x /usr/bin/update-crypto-policies ]; then
-	    update-crypto-policies --set FIPS
-	fi
+            # Check if we don't have selinux already enabled.
+            grep ^GRUB_CMDLINE_LINUX_DEFAULT /etc/default/grub | grep -q -w fips || \
+                tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" sed -i -e 's|\(^GRUB_CMDLINE_LINUX_DEFAULT=.*\)"|\1 fips=1"|g' "/etc/default/grub"
+            REWRITE_GRUB_CFG=1
+        fi
+        if [ -x /usr/bin/update-crypto-policies ]; then
+            update-crypto-policies --set FIPS
+        fi
     fi
     if [ ${SETUP_SELINUX} -eq 1 ]; then
-	if is_bls; then
-	    grep -q -w fips /etc/kernel/cmdline || \
-		tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" sed -i -e 's|$| security=selinux selinux=1|' "/etc/kernel/cmdline"
+        if is_bls; then
+            grep -q -w fips /etc/kernel/cmdline || \
+                tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" sed -i -e 's|$| security=selinux selinux=1|' "/etc/kernel/cmdline"
         else
-	    # Adjust grub configuration
+            # Adjust grub configuration
 
-	    # Check if we don't have selinux already enabled.
-	    grep ^GRUB_CMDLINE_LINUX_DEFAULT /etc/default/grub | grep -q -w security=selinux || \
-		tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" sed -i -e 's|\(^GRUB_CMDLINE_LINUX_DEFAULT=.*\)"|\1 security=selinux selinux=1"|g' "/etc/default/grub"
-	    REWRITE_GRUB_CFG=1
+            # Check if we don't have selinux already enabled.
+            grep ^GRUB_CMDLINE_LINUX_DEFAULT /etc/default/grub | grep -q -w security=selinux || \
+                tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" sed -i -e 's|\(^GRUB_CMDLINE_LINUX_DEFAULT=.*\)"|\1 security=selinux selinux=1"|g' "/etc/default/grub"
+            REWRITE_GRUB_CFG=1
         fi
 
-	if tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" [ ! -e "/etc/selinux/config" ]; then
-	    log_error "ERROR: /etc/selinux/config does not exist!"
-	    EXITCODE=1
-	fi
-	# Adjust selinux config
-	tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" sed -i -e 's|^SELINUX=.*|SELINUX=enforcing|g' \
-	    -e 's|^SELINUXTYPE=.*|SELINUXTYPE=targeted|g' \
-	    "/etc/selinux/config"
+        if tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" [ ! -e "/etc/selinux/config" ]; then
+            log_error "ERROR: /etc/selinux/config does not exist!"
+            EXITCODE=1
+        fi
+        # Adjust selinux config
+        tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" sed -i -e 's|^SELINUX=.*|SELINUX=enforcing|g' \
+            -e 's|^SELINUXTYPE=.*|SELINUXTYPE=targeted|g' \
+            "/etc/selinux/config"
 
-	# Move an /.autorelabel file from initial installation to writeable location
-	test -f "${SNAPSHOT_DIR}/.autorelabel" && mv "${SNAPSHOT_DIR}/.autorelabel" "${ETC_BASE}/etc/selinux/.autorelabel"
+        # Move an /.autorelabel file from initial installation to writeable location
+        test -f "${SNAPSHOT_DIR}/.autorelabel" && mv "${SNAPSHOT_DIR}/.autorelabel" "${ETC_BASE}/etc/selinux/.autorelabel"
     fi
 
     if [ ${SETUP_KDUMP} -eq 1 ]; then
-	if [ -z "${KDUMP_LOW}" ]; then
-	    KDUMP_CALIBRATION="$(tukit -q call "${SNAPSHOT_ID}" kdumptool calibrate)"
-	    KDUMP_LOW="$(echo "$KDUMP_CALIBRATION" | grep ^Low: | cut -d ' ' -f 2)"
-	    KDUMP_HIGH="$(echo "$KDUMP_CALIBRATION" | grep ^High: | cut -d ' ' -f 2)"
-	fi
+        if [ -z "${KDUMP_LOW}" ]; then
+            KDUMP_CALIBRATION="$(tukit -q call "${SNAPSHOT_ID}" kdumptool calibrate)"
+            KDUMP_LOW="$(echo "$KDUMP_CALIBRATION" | grep ^Low: | cut -d ' ' -f 2)"
+            KDUMP_HIGH="$(echo "$KDUMP_CALIBRATION" | grep ^High: | cut -d ' ' -f 2)"
+        fi
 
-	if [[ ${KDUMP_HIGH} -gt 0 ]]; then
-		KDUMP_PARAM="crashkernel=${KDUMP_LOW}M,low crashkernel=${KDUMP_HIGH}M,high"
-	else
-		KDUMP_PARAM="crashkernel=${KDUMP_LOW}M"
-	fi
-
-	if is_bls; then
-	    tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" sed -i -e 's/ *crashkernel[^ "]\+//g' -e 's|$| '"${KDUMP_PARAM}"'|' /etc/kernel/cmdline
+        if [[ ${KDUMP_HIGH} -gt 0 ]]; then
+                KDUMP_PARAM="crashkernel=${KDUMP_LOW}M,low crashkernel=${KDUMP_HIGH}M,high"
         else
-	    tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" sed -i -e '/^GRUB_CMDLINE_LINUX_DEFAULT=/s/ *crashkernel[^ "]\+//g' -e 's|\(^GRUB_CMDLINE_LINUX_DEFAULT=.*\)"|\1 '"${KDUMP_PARAM}"'"|g' "/etc/default/grub"
-	    REWRITE_GRUB_CFG=1
+                KDUMP_PARAM="crashkernel=${KDUMP_LOW}M"
+        fi
+
+        if is_bls; then
+            tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" sed -i -e 's/ *crashkernel[^ "]\+//g' -e 's|$| '"${KDUMP_PARAM}"'|' /etc/kernel/cmdline
+        else
+            tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" sed -i -e '/^GRUB_CMDLINE_LINUX_DEFAULT=/s/ *crashkernel[^ "]\+//g' -e 's|\(^GRUB_CMDLINE_LINUX_DEFAULT=.*\)"|\1 '"${KDUMP_PARAM}"'"|g' "/etc/default/grub"
+            REWRITE_GRUB_CFG=1
         fi
 
         tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" systemctl enable kdump
     fi
 
     if [ ${REWRITE_INITRD} -eq 1 ]; then
-	log_info "Creating new initrd"
-	if ! tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" dracut ${DRACUT_OPTS} --force --regenerate-all |& tee -a ${LOGFILE} 1>&${origstdout}; then
-	    log_error "ERROR: initrd creation failed!"
-	    EXITCODE=1
-	else
-	    REBUILD_KDUMP_INITRD=1
-	fi
-	set_reboot_level "kexec"
+        log_info "Creating new initrd"
+        if ! tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" dracut ${DRACUT_OPTS} --force --regenerate-all |& tee -a ${LOGFILE} 1>&${origstdout}; then
+            log_error "ERROR: initrd creation failed!"
+            EXITCODE=1
+        else
+            REBUILD_KDUMP_INITRD=1
+        fi
+        set_reboot_level "kexec"
     fi
 
     if [ ${REBUILD_KDUMP_INITRD} -eq 1 ]; then
-	log_info "Trying to rebuild kdump initrd"
-	if ! rebuild_kdump_initrd "${SNAPSHOT_ID}"; then
-	    log_error "ERROR: kdump initrd creation failed!"
-	    EXITCODE=1
-	fi
-	set_reboot_level "soft-reboot"
+        log_info "Trying to rebuild kdump initrd"
+        if ! rebuild_kdump_initrd "${SNAPSHOT_ID}"; then
+            log_error "ERROR: kdump initrd creation failed!"
+            EXITCODE=1
+        fi
+        set_reboot_level "soft-reboot"
     fi
 
     if [ ${REWRITE_GRUB_CFG} -eq 1 ] || [ ${REWRITE_GRUB_CFG_NO_REBOOT} -eq 1 ]; then
-	log_info "Creating a new grub2 config"
-	if ! tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" bash -c "/usr/sbin/grub2-mkconfig > /boot/grub2/grub.cfg" |& tee -a ${LOGFILE} 1>&${origstdout}; then
-	    log_error "ERROR: grub2-mkconfig failed!"
-	    EXITCODE=1;
+        log_info "Creating a new grub2 config"
+        if ! tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" bash -c "/usr/sbin/grub2-mkconfig > /boot/grub2/grub.cfg" |& tee -a ${LOGFILE} 1>&${origstdout}; then
+            log_error "ERROR: grub2-mkconfig failed!"
+            EXITCODE=1;
         else
             if [ -x /usr/sbin/selinuxenabled ] && /usr/sbin/selinuxenabled ; then
                 chcon --reference /boot/grub2/grub.cfg "${SNAPSHOT_DIR}/boot/grub2/grub.cfg"
             fi
-	fi
-	if [ ${REWRITE_GRUB_CFG} -eq 1 ]; then
-	    set_reboot_level "reboot"
-	fi
+        fi
+        if [ ${REWRITE_GRUB_CFG} -eq 1 ]; then
+            set_reboot_level "reboot"
+        fi
     fi
 
     if [ ${REWRITE_BOOTLOADER} -eq 1 ]; then
-	log_info "Writing new bootloader"
-	if ! tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" /sbin/pbl --install |& tee -a ${LOGFILE} 1>&${origstdout}; then
-	    log_error "ERROR: /sbin/pbl --install failed!"
-	    EXITCODE=1;
-	fi
-	set_reboot_level "reboot"
+        log_info "Writing new bootloader"
+        if ! tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" /sbin/pbl --install |& tee -a ${LOGFILE} 1>&${origstdout}; then
+            log_error "ERROR: /sbin/pbl --install failed!"
+            EXITCODE=1;
+        fi
+        set_reboot_level "reboot"
     fi
 
     if [ ${DO_RUN} -eq 1 ]; then
-	tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" "${RUN_CMD[@]}" |& tee -a ${LOGFILE} 1>&${origstdout}
-	set_reboot_level "reboot"
+        tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" "${RUN_CMD[@]}" |& tee -a ${LOGFILE} 1>&${origstdout}
+        set_reboot_level "reboot"
     fi
 
     if [ ${RUN_SHELL} -eq 1 ]; then
-	log_to_stdout "Opening chroot in snapshot ${SNAPSHOT_ID}, continue with 'exit'"
+        log_to_stdout "Opening chroot in snapshot ${SNAPSHOT_ID}, continue with 'exit'"
         export PS1="transactional update \\w# "
-	tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" bash 1>&${origstdout} 2>&${origstderr}
-	set_reboot_level "reboot"
+        tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" bash 1>&${origstdout} 2>&${origstderr}
+        set_reboot_level "reboot"
     fi
 
     teardown
 
     # Somersault:
     if [ $EXITCODE -eq 0 ]; then
-	# Save the old snapshot or else it will get lost.
-	add_unique_id "${CURRENT_SNAPSHOT_ID}"
-	save_state_file "${SNAPSHOT_ID}"
-	tukit ${TUKIT_OPTS} close "${SNAPSHOT_ID}" |& tee -a ${LOGFILE}
+        # Save the old snapshot or else it will get lost.
+        add_unique_id "${CURRENT_SNAPSHOT_ID}"
+        save_state_file "${SNAPSHOT_ID}"
+        tukit ${TUKIT_OPTS} close "${SNAPSHOT_ID}" |& tee -a ${LOGFILE}
     fi
 
     # If --drop-if-no-change is used, then the snapshot may not exist any more;
     # the remaining code is not applicable in this case.
     if [ ! -e "${SNAPSHOT_DIR}/etc/fstab" ] && [ ${EXITCODE} -eq 0 ]; then
-	SNAPSHOT_ID=
-	quit 0
+        SNAPSHOT_ID=
+        quit 0
     fi
 
     # Check for installation artefacts: Packages may have created files in
@@ -1372,41 +1372,41 @@ if [ -n "${ZYPPER_ARG}" ] || [ ${REWRITE_GRUB_CFG} -eq 1 ] \
     searchdirs=""
     # Filter out commented lines and swap partition
     for mountdir in $(awk '$1 !~ "^#.*" && $2 ~ "^/.+" { print $2 }' "${SNAPSHOT_DIR}/etc/fstab"); do
-	searchdirs+="${SNAPSHOT_DIR}${mountdir} "
+        searchdirs+="${SNAPSHOT_DIR}${mountdir} "
     done
     if [ -n "${searchdirs}" ]; then
-	filelist="$(find ${searchdirs} -cnewer ${LOCKFILE} -not -type d 2>/dev/null | grep -v "${SNAPSHOT_DIR}/etc")"
-	# Filter acceptable hits
-	whitelist=""
-	for wlentry in "${NON_ROOTFS_WHITELIST[@]}"; do
-	    whitelist+="${SNAPSHOT_DIR}${wlentry}\|"
-	done
-	filelist="$(echo "$filelist" | grep -v "^\(${whitelist::-2}\)")"
+        filelist="$(find ${searchdirs} -cnewer ${LOCKFILE} -not -type d 2>/dev/null | grep -v "${SNAPSHOT_DIR}/etc")"
+        # Filter acceptable hits
+        whitelist=""
+        for wlentry in "${NON_ROOTFS_WHITELIST[@]}"; do
+            whitelist+="${SNAPSHOT_DIR}${wlentry}\|"
+        done
+        filelist="$(echo "$filelist" | grep -v "^\(${whitelist::-2}\)")"
 
-	if [ -n "$filelist" ]; then
-	    log_info
-	    log_info "Warning: The following files were changed in the snapshot, but are shadowed by"
-	    log_info "other mounts and will not be visible to the system:"
-	    log_info "${filelist}"
-	fi
+        if [ -n "$filelist" ]; then
+            log_info
+            log_info "Warning: The following files were changed in the snapshot, but are shadowed by"
+            log_info "other mounts and will not be visible to the system:"
+            log_info "${filelist}"
+        fi
     fi
 
     if [ ${EXITCODE} -ne 0 ]; then
-	quit ${EXITCODE}
+        quit ${EXITCODE}
     fi
 
     write_needs_restarting
     if [ "${REBOOT_AFTERWARDS}" -eq 0 ] && [ "${DO_APPLY}" -eq 0 ]; then
-	log_info ""
-	log_info "Please reboot your machine to activate the changes and avoid data loss."
+        log_info ""
+        log_info "Please reboot your machine to activate the changes and avoid data loss."
     fi
 
     if [ "${DEFAULT_SNAPSHOT_ID}" -ne "${BASE_SNAPSHOT_ID}" ]; then
-	log_info ""
-	log_info "WARNING: This snapshot has been created from a different base (${BASE_SNAPSHOT_ID})"
-	log_info "         than the previous default snapshot (${DEFAULT_SNAPSHOT_ID}) and does not"
-	log_info "         contain the changes from the latter."
-	log_info ""
+        log_info ""
+        log_info "WARNING: This snapshot has been created from a different base (${BASE_SNAPSHOT_ID})"
+        log_info "         than the previous default snapshot (${DEFAULT_SNAPSHOT_ID}) and does not"
+        log_info "         contain the changes from the latter."
+        log_info ""
     fi
 
     log_info "New default snapshot is #${SNAPSHOT_ID} (${SNAPSHOT_DIR})."
@@ -1425,35 +1425,35 @@ log_info "transactional-update finished"
 
 if [ ${EXITCODE} -eq 0 ]; then
     if [ $REBOOT_AFTERWARDS -eq 1 ]; then
-	trap '-' HUP INT QUIT TERM
-	case "$REBOOT_METHOD" in
-	    auto)
-		tukit reboot auto |& tee -a ${LOGFILE}
-		;;
-	    kured)
-		tukit reboot kured |& tee -a ${LOGFILE}
-		;;
-	    rebootmgr)
-		tukit reboot rebootmgr |& tee -a ${LOGFILE}
-		;;
-	    notify)
-		tukit reboot notify |& tee -a ${LOGFILE}
-		;;
-	    systemd)
-		tukit reboot systemd |& tee -a ${LOGFILE}
-		;;
-	    kexec)
-		tukit reboot kexec |& tee -a ${LOGFILE}
-		;;
-	    none)
-		tukit reboot none |& tee -a ${LOGFILE}
-		;;
-	    *)
-	        log_info "Unsupported reboot method, falling back to 'auto'; please"
-	        log_info "check your configuration in ${CONFFILE}."
-		tukit reboot auto |& tee -a ${LOGFILE}
-	        ;;
-	esac
+        trap '-' HUP INT QUIT TERM
+        case "$REBOOT_METHOD" in
+            auto)
+                tukit reboot auto |& tee -a ${LOGFILE}
+                ;;
+            kured)
+                tukit reboot kured |& tee -a ${LOGFILE}
+                ;;
+            rebootmgr)
+                tukit reboot rebootmgr |& tee -a ${LOGFILE}
+                ;;
+            notify)
+                tukit reboot notify |& tee -a ${LOGFILE}
+                ;;
+            systemd)
+                tukit reboot systemd |& tee -a ${LOGFILE}
+                ;;
+            kexec)
+                tukit reboot kexec |& tee -a ${LOGFILE}
+                ;;
+            none)
+                tukit reboot none |& tee -a ${LOGFILE}
+                ;;
+            *)
+                log_info "Unsupported reboot method, falling back to 'auto'; please"
+                log_info "check your configuration in ${CONFFILE}."
+                tukit reboot auto |& tee -a ${LOGFILE}
+                ;;
+        esac
     fi
 fi
 
