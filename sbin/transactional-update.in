@@ -86,10 +86,6 @@ DO_CALLEXT=1
 LAST_BOOTED=""
 HAS_COMMAND=0
 
-declare -A ROLES=()
-REPOS=()
-declare -A BUILDTIME=()
-
 self_update() {
     if [ ${DO_SELF_UPDATE} == 0 ]; then
 	return
@@ -338,7 +334,7 @@ do_apply() {
 		if [[ $line == "${VISIBLEMOUNTS[$i]}" ]]; then
 		    while [ "$i" -lt ${#VISIBLEMOUNTS[@]} ]; do
 			if [[ ${VISIBLEMOUNTS[$i]} == ${line}* ]]; then
-			    unset -v VISIBLEMOUNTS["$i"]
+			    unset -v 'VISIBLEMOUNTS[$i]'
 			    VISIBLEMOUNTS=("${VISIBLEMOUNTS[@]}")
 			else
 			    ((i++))
@@ -347,7 +343,7 @@ do_apply() {
 		    break
 		fi
 	    done
-	    VISIBLEMOUNTS+=(${line})
+	    VISIBLEMOUNTS+=("${line}")
 	done
 	for dir in "${VISIBLEMOUNTS[@]}"; do
 	    if [[ $dir =~ ^/(usr|etc|boot)$ ]]; then
@@ -443,11 +439,6 @@ check_registration_on_next_reboot() {
     fi
     test -d "${VARDIR}" || mkdir -p "${VARDIR}"
     touch "${VARDIR}/check-registration"
-}
-
-# Call tukit callext with the correct parameters
-callext() {
-    tukit ${TUKIT_OPTS} --quiet callext "${SNAPSHOT_ID}" "$@"
 }
 
 ORIG_ARGS=("$@")
@@ -701,7 +692,7 @@ parse_args() {
 		    usage 1
 		fi
 
-		while [ 1 ]; do
+		while true; do
 		    if [ $# -eq 0 ]; then
 			break;
 		    else
@@ -715,7 +706,6 @@ parse_args() {
 			fi
 			if [ "$1" == "--help" ]; then
 			    usage 1
-			    break
 			fi
 		        shift
 		    fi
@@ -804,9 +794,8 @@ if [ ${SETUP_KDUMP} -eq 1 ]; then
         exit 1
     fi
     # Check if we need to install packages
-    for pkg in kdump; do
-        rpm -q --quiet ${pkg} || ZYPPER_ARG_EXTRA+=("${pkg}")
-    done
+    pkg=kdump
+    rpm -q --quiet ${pkg} || ZYPPER_ARG_EXTRA+=("${pkg}")
     if [ ${#ZYPPER_ARG_EXTRA[@]} -ne 0 ]; then
         ZYPPER_ARG="install"
     fi
@@ -1056,8 +1045,7 @@ if is_bls; then
 	# NOTE: pbl has partial support of BLS. It will replace the
 	# shim bootloader, so for now we make a call of sdbootutil
 	# directly (bsc#1228864)
-	sdbootutil update |& tee -a ${LOGFILE} 1>&${origstdout}
-	if [ $? -ne 0 ]; then
+	if ! sdbootutil update |& tee -a ${LOGFILE} 1>&${origstdout}; then
 	    log_error "ERROR: sdbootutil update failed!"
 	    EXITCODE=1;
 	fi
@@ -1076,8 +1064,7 @@ if is_bls; then
     fi
 
     if [ ${REWRITE_INITRD} = 1 ]; then
-	sdbootutil mkinitrd |& tee -a ${LOGFILE} 1>&${origstdout}
-	if [ $? -ne 0 ]; then
+	if ! sdbootutil mkinitrd |& tee -a ${LOGFILE} 1>&${origstdout}; then
 	    log_error "ERROR: sdbootutil mkinitrd failed!"
 	    EXITCODE=1;
 	fi
@@ -1124,7 +1111,7 @@ if [ -n "${ZYPPER_ARG}" ] || [ ${REWRITE_GRUB_CFG} -eq 1 ] \
 
     if [ ${DO_REGISTRATION} -eq 1 ]; then
 	tukit ${TUKIT_OPTS} callext "${SNAPSHOT_ID}" SUSEConnect --root {} ${REGISTRATION_ARGS} |& tee -a ${LOGFILE} 1>&${origstdout}
-	if [ ${PIPESTATUS[0]} -ne 0 ]; then
+	if [ "${PIPESTATUS[0]}" -ne 0 ]; then
 	    EXITCODE=1
 	fi
 	set_reboot_level "soft-reboot"
@@ -1133,11 +1120,11 @@ if [ -n "${ZYPPER_ARG}" ] || [ ${REWRITE_GRUB_CFG} -eq 1 ] \
     if [ ${DO_APPLY_OCI} -eq 1 ]; then
 	# Pull desired container image and mount it ready for copy
 	log_info "INFO: Pulling image from: $OCI_TARGET"
-	podman image pull $OCI_TARGET || {
+	podman image pull "$OCI_TARGET" || {
 	    log_error "ERROR: Couldn't pull image from $OCI_TARGET"
 	    quit 1
 	}
-	OCI_MOUNT=$(podman image mount $OCI_TARGET)
+	OCI_MOUNT=$(podman image mount "$OCI_TARGET")
 
 	# Copy over core parts of the operating system into the new snapshot, deleting files that don't exist, and ignoring partitions that aren't captured in the snapshot
 	log_info "INFO: Writing contents of ${OCI_TARGET} to snapshot directory ${SNAPSHOT_DIR}..."
@@ -1149,15 +1136,15 @@ if [ -n "${ZYPPER_ARG}" ] || [ ${REWRITE_GRUB_CFG} -eq 1 ] \
 
 	# Merge contents of /etc from container image but preserve existing configuration
 	log_info "INFO: Merging /etc from container image into existing snapshot, preserving existing configuration..."
-	tukit ${TUKIT_OPTS} callext ${SNAPSHOT_ID} rsync --ignore-existing ${OCI_RSYNC_ARGS} ${OCI_MOUNT}/etc/ ${SNAPSHOT_DIR}/etc/ |& tee -a ${LOGFILE} 1>&${origstdout}
+	tukit ${TUKIT_OPTS} callext "${SNAPSHOT_ID}" rsync --ignore-existing ${OCI_RSYNC_ARGS} "${OCI_MOUNT}/etc/" "${SNAPSHOT_DIR}/etc/" |& tee -a ${LOGFILE} 1>&${origstdout}
 
 	# Unmount the container image
-	podman image unmount ${OCI_TARGET}
+	podman image unmount "${OCI_TARGET}"
 	# Ensure that the filesystem is labelled correctly for SELinux.
 	log_info "Forcing SELinux relabel at next reboot."
-	touch ${SNAPSHOT_DIR}/.autorelabel
+	touch "${SNAPSHOT_DIR}/.autorelabel"
 	# Ensure RPM database is using the desired system backend
-	tukit ${TUKIT_OPTS} call ${SNAPSHOT_ID} rpm --rebuilddb |& tee -a ${LOGFILE} 1>&${origstdout}
+	tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" rpm --rebuilddb |& tee -a ${LOGFILE} 1>&${origstdout}
     fi
 
     if [ -n "${ZYPPER_ARG}" ]; then
@@ -1220,8 +1207,7 @@ if [ -n "${ZYPPER_ARG}" ] || [ ${REWRITE_GRUB_CFG} -eq 1 ] \
 	    fi
 	    # Rebuild grub.cfg if /etc/os-release changes, could change grub
 	    # menu output, too.
-            cmp -s /etc/os-release "${SNAPSHOT_DIR}/etc/os-release"
-	    if [ $? -ne 0 ] && [ -x /usr/sbin/grub2-mkconfig ] && [ ! is_bls ]; then
+	    if ! cmp -s /etc/os-release "${SNAPSHOT_DIR}/etc/os-release" && [ -x /usr/sbin/grub2-mkconfig ] && ! is_bls; then
 	        REWRITE_GRUB_CFG_NO_REBOOT=1
 	    fi
 	    source <(grep VERSION_ID "${SNAPSHOT_DIR}/etc/os-release")
