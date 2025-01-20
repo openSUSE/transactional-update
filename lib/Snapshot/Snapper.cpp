@@ -107,7 +107,7 @@ std::string Snapper::getCurrent() {
     std::smatch match;
 
     // snapper doesn't support the `apply` command for now, so use findmnt directly.
-    std::string id = Util::exec("findmnt --target /usr --raw --noheadings --output FSROOT | tail -n 1");
+    std::string id = Util::exec("findmnt --target /usr --raw --noheadings --output FSROOT --first-only --direction backward");
     bool found = std::regex_search(id, match, std::regex(".*.snapshots/(.*)/snapshot.*"));
     if (!found)
         throw std::runtime_error{"Couldn't determine current snapshot number"};
