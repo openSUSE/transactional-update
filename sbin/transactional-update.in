@@ -7,6 +7,7 @@
 export LANG=C
 export DISABLE_SNAPPER_ZYPP_PLUGIN=1
 
+VERSION=@VERSION@
 EXITCODE=0
 VERBOSITY=2
 ZYPPER_ARG=""
@@ -170,7 +171,7 @@ usage() {
 }
 
 print_version() {
-    echo "transactional-update @VERSION@"
+    echo "transactional-update ${VERSION}"
     exit 0
 }
 
@@ -828,7 +829,11 @@ else # Set exit handler to clean up artifacts of the self-update
     find . -name '*.rpm' -exec sh -c 'rpm2cpio {} | cpio -idmv 2>/dev/null' \;
     popd >/dev/null || exit 1
     export LD_LIBRARY_PATH="${TA_UPDATE_TMPFILE}/usr/lib64:${TA_UPDATE_TMPFILE}/usr/lib"
-    if "${TA_UPDATE_TMPFILE}"/usr/sbin/tukit --version >/dev/null; then
+    if [ "$(transactional-update --version | cut -d. -f1)" -ne "$(print_version | cut -d. -f1)" ]; then
+        log_info "Selfupdate between major versions not supported - using old transactional-update."
+        unset LD_LIBRARY_PATH
+        exec transactional-update --no-selfupdate "${ORIG_ARGS[@]}"
+    elif "${TA_UPDATE_TMPFILE}"/usr/sbin/tukit --version >/dev/null; then
         # tukit is executable - use new version
         export PATH="${TA_UPDATE_TMPFILE}/usr/sbin:${PATH}"
     elif [ -f /usr/sbin/tukit ]; then
@@ -857,7 +862,7 @@ if [ -f ${STATE_FILE} ]; then
     . ${STATE_FILE}
 fi
 
-log_info "transactional-update @VERSION@ started"
+log_info "transactional-update ${VERSION} started"
 log_info "Options: ${ORIG_ARGS[*]}"
 
 SNAPPER_VERSION=$(snapper --version | head -1 | cut -d ' ' -f 2)
