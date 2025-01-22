@@ -16,18 +16,21 @@ reset_snapshot_writability() {
 }
 
 create_reference_etc() {
-  # Syncing is only necessary when the snapshot is based on the currently running system
+  if [ -d "/.snapshots/${snapshot}/snapshot/etc/etc.syncpoint" ]; then
+    rmdir "/.snapshots/${snapshot}/snapshot/etc/etc.syncpoint"
+  fi
+  # Syncing is only necessary when the snapshot is based on the currently running system.
+  # If it's the first descendant of the current system store a reference copy of the state before changes will be applied ...
   if [ "/@/.snapshots/${parent}/snapshot" = "$(findmnt --target /usr --raw --noheadings --output FSROOT | tail -n 1 | cut -d '/' -f 1-5)" ]; then
-    if [ -d "/.snapshots/${snapshot}/snapshot/etc/etc.syncpoint" ]; then
-      rmdir "/.snapshots/${snapshot}/snapshot/etc/etc.syncpoint"
-    fi
     btrfs subvolume snapshot "/.snapshots/${snapshot}/snapshot/etc" "/.snapshots/${snapshot}/snapshot/etc/etc.syncpoint"
-  # If it's a consecutive snapshot copy the syncpoint
+  # ... or if it's a consecutive snapshot, copy the already existing syncpoint
   elif [ -e "/.snapshots/${parent}/snapshot/etc/etc.syncpoint" ]; then
     btrfs subvolume snapshot "/.snapshots/${parent}/snapshot/etc/etc.syncpoint" "/.snapshots/${snapshot}/snapshot/etc/etc.syncpoint"
   fi
 
-  echo "${parent}" > "/.snapshots/${snapshot}/snapshot/etc/etc.syncpoint/transactional-update.comparewith"
+  if [ ! -e "/.snapshots/${snapshot}/snapshot/etc/etc.syncpoint/transactional-update.comparewith" ]; then
+    echo "${parent}" > "/.snapshots/${snapshot}/snapshot/etc/etc.syncpoint/transactional-update.comparewith"
+  fi
 }
 
 create_snapshot_post() {
@@ -87,7 +90,7 @@ delete_snapshot_pre() {
 if [ "$2" != "/" ]; then
   exit 0
 fi
-if [ -e /.snapshots/${4}/snapshot/etc/fstab ] && ! findmnt --mountpoint /etc --noheadings --output TARGET --tab-file /.snapshots/${4}/snapshot/etc/fstab; then
+if [ -e "/.snapshots/${4}/snapshot/etc/fstab" ] && ! findmnt --mountpoint /etc --noheadings --output TARGET --tab-file "/.snapshots/${4}/snapshot/etc/fstab"; then
   echo "/etc is not a mount point - skipping..."
   exit 0
 fi
