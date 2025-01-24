@@ -23,7 +23,6 @@ Configuration::Configuration() {
     std::map<const char*, const char*> defaults = {
         {"DRACUT_SYSROOT", "/sysroot"},
         {"LOCKFILE", "/var/run/tukit.lock"},
-        {"OVERLAY_DIR", "/var/lib/overlay"},
         {"REBOOT_ALLOW_SOFT_REBOOT", "true"},
         {"REBOOT_ALLOW_KEXEC", "false"},
         {"REBOOT_NEEDED_FILE", "/run/reboot-needed"}

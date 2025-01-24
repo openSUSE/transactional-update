@@ -190,9 +190,9 @@
       <para>
 	libtukit is a C++ library implementing the core functionality of
 	<emphasis remap='B'>transactional-update</emphasis>. It is responsible
-	for snapshot management, preparing the environment (including
-	overlay handling, see <xref linkend="tu-setup-etc" />) and executing
-	the command to run within the update environment.
+	for snapshot management (including /etc handling, see
+	<xref linkend="tu-setup-etc" />), preparing the environment and
+	executing the command to run within the update environment.
       </para>
       <para>
 	The library is designed to be a general purpose library for handling
@@ -487,144 +487,86 @@ systemctl reboot
       <para>
 	<emphasis remap='B'>transactional-update</emphasis> also supports
 	write operations to <filename class='directory'>/etc</filename> on an
-	otherwise read-only file system. To do so an
-	<emphasis>overlayfs</emphasis> layer is put on top of the system's
-	<filename class='directory'>/etc</filename> directory. All modified
-	configuration files will end up in the current snapshot's overlay in
-	<filename class='directory'>/var/lib/overlay/&lt;snapshotnum&gt;/etc</filename>,
-	with each snapshot having one associated overlay directory.
+	otherwise read-only file system. To do so
+	<filename class='directory'>/etc</filename> is created as a nested
+	BTRFS subvolume of the root file system.
+      </para>
+      <note>
+	<para>
+	  In versions prior to 5.0.0
+	  <filename class='directory'>/etc</filename> was handled via an
+	  overlay file system). Existing overlayfs based systems are converted
+	  automatically.
+	</para>
+      </note>
+      <para>
+	Sometimes files in <filename class='directory'>/etc</filename> are
+	modified after the snapshot has been taken, but before the system is
+	rebooted, e.g. if a configuration management software is still changing
+	files. These files will be copied to the new system on boot, but only
+	if the file hasn't been modified in the new system, too.
       </para>
       <para>
-	The mounted <filename class='directory'>/etc</filename> directory will
-	typically consist of three (or more) layers. In
-	<filename>/etc/fstab</filename> this may look similar as the following
-	entry:
-	<programlisting>overlay  /etc  overlay  defaults,upperdir=/sysroot/var/lib/overlay/82/etc,lowerdir=/sysroot/var/lib/overlay/81/etc:/sysroot/var/lib/overlay/76/etc:/sysroot/etc,workdir=/sysroot/var/lib/overlay/work-etc,x-systemd.requires-mounts-for=/var,x-systemd.requires-mounts-for=/var/lib/overlay,x-systemd.requires-mounts-for=/sysroot/var,x-systemd.requires-mounts-for=/sysroot/var/lib/overlay,x-initrd.mount  0  0</programlisting>
-      </para>
-      <para>
-	The important options are <option>upperdir</option> and
-	<option>lowerdir</option>. <option>upperdir</option> references the
-	write layer, i.e. the directory the system is currently writing to. If
-	a file in <filename class='directory'>/etc</filename> is opened for
-	read access, it will first try to open the file from this directory.
-	If the file is not present in this layer, then overlayfs will search
-	in the <option>lowerdir</option>s from left to right until it finds
-	the file, i.e. the layers are <emphasis>transparent</emphasis>. The
-	last layer is the reference layer and always has to have a complete
-	copy of <filename class='directory'>/etc</filename>, all the layers
-	above just contain changes to that base layer.
+	To track the changes of both the old and the new snapshot a
+	temporary third nested reference snapshot of
+	<filename class='directory'>/etc</filename> called
+	<filename class='directory'>etc.syncpoint</filename> is created in the
+	new snapshot's <filename class='directory'>/etc</filename> directory.
+	This snapshot will be deleted again after synchronization. Due to the
+	copy-on-write nature of BTRFS' snapshots this consumes only minimal
+	space and and time.
       </para>
       <example>
-	<title>/etc layers</title>
+	<title>Snapshot layout</title>
 	<programlisting>
-upperdir  (/var/lib/overlay/x/etc)   |       | file2 | file3 | file4 |       |
-lowerdir1 (/var/lib/overlay/x-1/etc) |       |       | file3 |       | file5 | file6
-lowerdir2 (/etc of snapshot x-2)     | file1 | file2 | file3 |       |       | file6
+	> btrfs subvolume list / -uq
+	ID 268 gen 39 top level 257 parent_uuid 256c1975-3b58-9540-b43e-788e32cb6d55 uuid 06388703-67ae-804f-92b0-0bf486df0a7e path @/.snapshots/2/snapshot
+	ID 269 gen 55 top level 257 parent_uuid 06388703-67ae-804f-92b0-0bf486df0a7e uuid d3d13005-95b6-1849-a28e-ba250b465c19 path @/.snapshots/3/snapshot
+	ID 270 gen 68 top level 269 parent_uuid -				    uuid f77f0c38-1b32-7744-b3fe-bc515099556f path @/.snapshots/3/snapshot/etc
+	ID 275 gen 61 top level 257 parent_uuid d3d13005-95b6-1849-a28e-ba250b465c19 uuid a279eb7b-11b0-4749-a9fd-1f0ad7d65f30 path @/.snapshots/4/snapshot
+	ID 276 gen 62 top level 275 parent_uuid f77f0c38-1b32-7744-b3fe-bc515099556f uuid 3e4d7e76-2207-6540-a54d-51f92ce9299a path @/.snapshots/4/snapshot/etc
+	ID 277 gen 62 top level 276 parent_uuid 3e4d7e76-2207-6540-a54d-51f92ce9299a uuid c8d8ec58-eccd-7a4d-8818-cde7043ba029 path @/.snapshots/4/snapshot/etc/etc.syncpoint
 	</programlisting>
-        <para>
-	  Let's have another look from the perspective while an update is
-	  running. <replaceable>x</replaceable> is the id of the new snapshot
-	  where the update is currently being performed.
-	  <replaceable>x-1</replaceable> is the id of the currently running
-	  snapshot, and <replaceable>x-2</replaceable> is the id of the
-	  snapshot before the currently running one.
-      </para>
 	<para>
-	  <filename>file1</filename> is an old file that hasn't been
-	  changed in the last two snapshots. Therefore it is only present in the
-	  base / lowest overlay. As the file cannot be found in the first two
-	  layers, the version from the base layer will be used.</para>
-	  <para><filename>file2</filename> has been changed during the update.
-	  The currently running system still sees the old version of the file
-	  from the base layer, the updated system will see the new version of
-	  the file.
+	  <replaceable>Snapshot 2</replaceable> is an old snapshot not using
+	  <filename class='directory'>/etc</filename> subvolumes yet.
 	</para>
 	<para>
-	  <filename>file3</filename> has been changed during the update,
-	  but there is also a modification in the currently running system. See
-	  the Warning below for details.
+	  <replaceable>Snapshot 3</replaceable> is a snapshot that has been
+	  used already. This is how it will usually look like.
 	</para>
 	<para>
-	  <filename>file4</filename> was only added in the new snapshot
-	  and will only be available there. The currently running system doesn't
-	  know anything about it.
-	</para>
-	<para>
-	  <filename>file5</filename> was added in the current snapshot.
-	  It will also be visible in the new snapshot.
-	</para>
-	<para>
-	  <filename>file6</filename> was modified in the current snapshot.
-	  It will also be visible in the new snapshot. Basically the same case
-	  as <filename>file5</filename>.
+	  <replaceable>Snapshot 4</replaceable> is a snapshot that has been
+	  created, but hasn't been booted yet - the synchronization snapshot
+	  is still present.
 	</para>
       </example>
       <para>
-	To reduce the number of overlays the contents of the overlays are
-	merged into the base layer if a new snapshot is created. Caveat:
-	the state of <filename class='directory'>/etc</filename> that is
-	synced into the new snapshot is not the	one from the currently
-	running system, but the previous one: the files in the current
-	system could still be changed before the reboot, and we want these
-	changes (e.g. by the admin or a configuration management software)
-	to be visible in the new system.
+	When the new snapshot is booted for the first time the systemd
+	service <command>transactional-update-sync-etc-state</command> will
+	copy changed files from the old snapshot if required.
       </para>
       <warning>
 	<para>
 	  If a file has been modified both in the new snapshot and in the
 	  currently running system <emphasis>after the snapshot was
 	  created</emphasis>, then the changes done in the currently running
-	  system will be lost in the new snapshot (see the
-	  <filename>file3</filename> case from the example above).
-	</para>
-	<para>
-	  When the new snapshot is booted for the first time the systemd
-	  service <command>transactional-update-etc-cleaner</command> will
-	  check for these conflicts and print the results to the journal.
+	  system will be lost in the new snapshot.
 	</para>
       </warning>
       <para>
-	If the <option>--continue</option> option is used multiple times to
-        extend a
-	new snapshot while the system has not been rebooted, and if that
-	snapshot is based on the currently active system, then the
-	merge will only run for the first snapshot; the additional
-	snapshot layers will be added to <option>lowerdir</option>. This is
-	to make sure that changes to the running system will still be
-	visible after booting into the new system.
-      </para>
-      <para>
-	The above <filename>/etc/fstab</filename> example is showing such a
-	case: <option>lowerdir</option> contains two numbered overlay
-	directories. The later directory with number <emphasis>76</emphasis>
-	indicates the snapshot which was used as a base. As the
-	<option>lowerdir</option> contains a second entry with number
-	<emphasis>81</emphasis> it means that the <option>--continue</option>
-	option has been used before the system was rebooted. Gaps in the
-        numbers such
-	as seen here may indicate that those snapshots were discarded or a
-	rollback to snapshot 76 was performed. The lowest snapshot is always
-	<filename class='directory'>/sysroot/etc</filename>, containing the
-	root file system's contents.
-      </para>
-      <para>
-	As <filename class='directory'>/etc</filename> is mounted by
-	<application>dracut</application> during early boot the options have to
-	be prefixed with <emphasis>/sysroot</emphasis>. The
-	<command>x-systemd</command> options are setting up the volume's
-	<application>systemd</application> dependencies correctly.
-      </para>
-      <para>
-	Overlays no longer referenced by any snapshots will be deleted during
-	the <command>transactional-update cleanup-overlays</command> run.
+	<filename class='directory'>/etc</filename> snapshot management is
+	handled via a snapper plugin
+	(<filename>/usr/lib/snapper/plugins/50-etc</filename>). This makes it
+	possible to use snapper directly, e.g. to create a manual backup
+	snapshot of the system.
       </para>
     </section>
 <!--
     <para>
-      Read-only root filesystem or Read-Write filesystem? Requirements for
-      RPMs, what is allowed and what not. Config files in /etc with
-      overlayfs. Special handling for passwd, shadow, group. Rollback. Strict
-      seperation from data and applications.
+      Read-only root filesystem or Read-Write filesystem?
+      Special handling for passwd, shadow, group. Rollback.
+      Strict seperation from data and applications.
     </para>
 -->
   </chapter>
@@ -633,37 +575,28 @@ lowerdir2 (/etc of snapshot x-2)     | file1 | file2 | file3 |       |       | f
     <title>Files</title>
     <variablelist>
       <varlistentry>
-        <term><filename>/usr/etc/transactional-update.conf</filename></term>
-        <listitem>
-          <para>
+	<term><filename>/usr/etc/transactional-update.conf</filename></term>
+	<listitem>
+	  <para>
 	    This is the reference configuration file for
 	    <command>transactional-update</command>, containing distribution
 	    default values. This file should not be changed by the
 	    administrator.
-          </para>
-        </listitem>
+	  </para>
+	</listitem>
       </varlistentry>
       <varlistentry>
-        <term><filename>/etc/transactional-update.conf</filename></term>
-        <listitem>
-          <para>
+	<term><filename>/etc/transactional-update.conf</filename></term>
+	<listitem>
+	  <para>
 	    To change the default configuration for
 	    <command>transactional-update</command> copy or create this file
 	    and change the options accordingly. See
 	    <ulink url="https://kubic.opensuse.org/documentation/man-pages/transactional-update.conf.5.html">transactional-update.conf(5)</ulink>
 	    for a description of the configuration options. Values from this
 	    file will overwride the distribution default values.
-          </para>
-        </listitem>
-      </varlistentry>
-      <varlistentry>
-        <term><filename>/var/lib/overlay/</filename></term>
-        <listitem>
-          <para>
-	    See <xref linkend="tu-setup-etc" /> for an explanation of this
-	    directory's contents.
-          </para>
-        </listitem>
+	  </para>
+	</listitem>
       </varlistentry>
     </variablelist>
   </chapter>

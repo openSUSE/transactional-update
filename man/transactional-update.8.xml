@@ -83,32 +83,25 @@ create a separate snapshot for each call, so it is possible to roll back to
 previous intermediate steps in case of errors.
 </para>
 <para>
-On <emphasis>read-only systems</emphasis> each snapshot will have a
-corresponding <filename class='directory'>/etc</filename> overlay located in
-<filename class='directory'>/var/lib/overlay</filename>. As configuration files
+On <emphasis>read-only systems</emphasis> each snapshot will have a nested
+<filename class='directory'>/etc</filename> subvolume. As configuration files
 may be modified after a snapshot was created and before a reboot is performed
-(e.g. via configuration management software) the overlay file system will use
-multiple lower layers, i.e. configuration file changes applied to the currently
-running system will be visible in the new system, but not vice versa. To keep
-the number of layers at a minimum the
-<filename class='directory'>/etc</filename> state of the previous snapshot is
-synchronized into the new root file system; unused overlays will be
-removed at a later time (see the <option>cleanup-overlays</option> option).
+(e.g. via configuration management software) on first boot into the new
+snapshot the service
+<filename>transactional-update-sync-etc-state.service</filename> will copy
+these files into the new snapshot if they weren't also changed there.
 </para>
 <warning>
 If a file in <filename class='directory'>/etc</filename> has been changed
 during the update and is <emphasis>also</emphasis> changed in the running
 system after the snapshot has been taken, then only the version of the new
 snapshot will be visible after a reboot.
-When booting into the new snapshot for the first time
-<filename>transactional-update-etc-cleaner.service</filename> will print a
-warning about such conflicts to the system log file.
 </warning>
 <para>
-Older transactional-update versions were using a single
-<filename class='directory'>/etc</filename> overlay for all snapshots; a
-migration mechanism is in place, the directory will also be removed if no
-snapshot is using it any more.
+Older transactional-update versions were using multiple
+<filename class='directory'>/etc</filename> overlays instead of BTRFS
+subvolumes; a migration mechanism is in place, the directories will still be
+removed if no snapshot is using them any more.
 </para>
 <para>
 On <emphasis>read-write systems</emphasis> please be aware that all changes

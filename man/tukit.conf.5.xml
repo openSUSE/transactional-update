@@ -86,16 +86,6 @@
       </varlistentry>
 
       <varlistentry>
-        <term><varname>OVERLAY_DIR</varname></term>
-        <listitem>
-          <para>
-            Directory where the <literal>/etc</literal> overlays are
-            stored. By default it is <literal>/var/lib/overlay</literal>.
-          </para>
-        </listitem>
-      </varlistentry>
-
-      <varlistentry>
         <term><varname>BINDDIRS</varname></term>
         <listitem>
           <para>
