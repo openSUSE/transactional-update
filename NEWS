@@ -2,6 +2,31 @@ transactional-update NEWS -- history of user-visible changes.
 
 Copyright (C) 2016-2024 Thorsten Kukuk, Ignaz Forster et al.
 
+Version 5.0.0
+* Rework /etc handling; instead of maintaining complex overlay mount
+  layers use a btrfs subvolume of the corresponding snapshot instead.
+  Syncing changes before the reboot will be done by during boot (or
+  during apply) by transactional-update-sync-etc-state instead.
+  [jsc#SMO-367]
+  Also resolves: [boo#1140472], [gh#openSUSE/transactional-update#117]
+* Add EXPERIMENTAL support for performing updates using a container
+  image [gh#openSUSE/transactional-update#128]. Note that this command
+  is only available via `transactional-update apply-oci ...` for now
+  and cannot be triggered from the API or D-Bus interface. Moreover
+  the syntax may and probably will change in future releases.
+* Removed `status` command - it was disabled by default for a long time
+  already and unmaintained
+* tukit: Fix snippet directory in man page
+* t-u: Don't apply again if snapshot is current already
+* t-u: Prevent self-updates between major t-u versions because these
+  usually require additional files
+* Fix missing files when using `make dist`
+* Unified Copyright headers
+* Make Bash scripts shellcheck compatible
+* Replace tabs with spaces in Shell scripts to avoid the complex
+  tab / space changes
+* Various other minor internal optimizations and fixes
+
 Version 4.8.3 (2024-09-24)
 * Check return value of `register` command [bsc#1230901]
 
