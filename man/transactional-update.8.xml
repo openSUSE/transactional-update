@@ -83,7 +83,7 @@ create a separate snapshot for each call, so it is possible to roll back to
 previous intermediate steps in case of errors.
 </para>
 <para>
-On <emphasis>read-only systems</emphasis> each snapshot will have a nested
+On <emphasis>read-only systems</emphasis> each snapshot will contain a nested
 <filename class='directory'>/etc</filename> subvolume. As configuration files
 may be modified after a snapshot was created and before a reboot is performed
 (e.g. via configuration management software) on first boot into the new
@@ -478,6 +478,25 @@ for more information.
 	  </listitem>
 	</varlistentry>
       </variablelist>
+    </listitem>
+  </varlistentry>
+  <varlistentry>
+    <term><option>apply-oci --image</option> <replaceable>image source</replaceable></term>
+    <listitem>
+      <warning>
+	<para>
+	  This command is under development and will change in the
+	  future. There are no checks whether the image will boot so far,
+	  and the functionality is not available via API / D-Bus yet.
+	</para>
+      </warning>
+      <para>
+	Instead of updating the existing system the given image will be written
+	into the snapshot. Only the root file system will be replaced, the
+	contents of directories such as
+	<filename class='directory'>/etc</filename> and
+	<filename class='directory'>/var</filename> will be preserved.
+      </para>
     </listitem>
   </varlistentry>
 </variablelist>
