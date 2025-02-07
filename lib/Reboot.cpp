@@ -23,9 +23,9 @@ Reboot::Reboot(std::string method) {
     std::string type = "reboot";
     if (method == "auto") {
         method = "systemd"; // Default
-        if (std::filesystem::exists("/usr/sbin/rebootmgrctl")) {
+        if (std::filesystem::exists("/usr/bin/rebootmgrctl")) {
             try {
-                Util::exec("/usr/sbin/rebootmgrctl is-active --quiet");
+                Util::exec("/usr/bin/rebootmgrctl is-active --quiet");
                 method = "rebootmgr";
             } catch (ExecutionException &e) {
             }
@@ -49,9 +49,9 @@ Reboot::Reboot(std::string method) {
 
     if (method == "rebootmgr") {
         if (type == "soft-reboot" && config.get("REBOOT_ALLOW_SOFT_REBOOT") == "true") {
-            command  = "/usr/sbin/rebootmgrctl soft-reboot";
+            command  = "/usr/bin/rebootmgrctl soft-reboot";
         } else {
-            command  = "/usr/sbin/rebootmgrctl reboot";
+            command  = "/usr/bin/rebootmgrctl reboot";
         }
     } else if (method == "notify") {
         command  = "/usr/bin/transactional-update-notifier client";
