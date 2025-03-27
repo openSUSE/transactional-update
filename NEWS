@@ -1,6 +1,6 @@
 transactional-update NEWS -- history of user-visible changes.
 
-Copyright (C) 2016-2024 Thorsten Kukuk, Ignaz Forster et al.
+Copyright (C) 2016-2025 Thorsten Kukuk, Ignaz Forster et al.
 
 Version 5.0.0
 * Rework /etc handling; instead of maintaining complex overlay mount
