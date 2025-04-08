@@ -2,7 +2,10 @@ transactional-update NEWS -- history of user-visible changes.
 
 Copyright (C) 2016-2025 Thorsten Kukuk, Ignaz Forster et al.
 
-Version 5.0.0
+Version 5.0.1 (2025-04-08)
+* Fix path to rebootmgrctl [bsc#1236908]
+
+Version 5.0.0 (2025-01-24)
 * Rework /etc handling; instead of maintaining complex overlay mount
   layers use a btrfs subvolume of the corresponding snapshot instead.
   Syncing changes before the reboot will be done by during boot (or
