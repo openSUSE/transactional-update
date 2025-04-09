@@ -57,6 +57,7 @@ NON_ROOTFS_WHITELIST=("/var/lib/YaST2/cookies" "/var/lib/rpm" "/var/lib/systemd/
 OCI_RSYNC_ARGS="-a --hard-links --xattrs --acls --inplace"
 OCI_RSYNC_EXCLUDES="/etc /var /usr/local /tmp /root /home /srv /opt /sys /dev /proc /run"
 OCI_TARGET=""
+INITRD_GENERATOR=""
 DRACUT_OPTS=""
 TUKIT_OPTS=""
 
@@ -247,6 +248,41 @@ save_state_file() {
 # Check if the system is using a BLS-compatible bootloader
 is_bls() {
     [ -e "/usr/bin/sdbootutil" ] && /usr/bin/sdbootutil is-installed
+}
+
+find_initrd_generator() {
+    INITRD_GENERATOR="$(. /etc/sysconfig/bootloader 2>/dev/null && echo "$INITRD_GENERATOR")"
+
+    # dracut is the default initrd generator
+    if [ -z "$INITRD_GENERATOR" ]; then
+        INITRD_GENERATOR="dracut"
+    elif [ "$INITRD_GENERATOR" = "mkosi" ]; then
+        INITRD_GENERATOR="mkosi-initrd"
+    fi
+
+    [ "$INITRD_GENERATOR" = "dracut" ] || [ "$INITRD_GENERATOR" = "mkosi-initrd" ] || {
+        log_error "ERROR: the initrd generator \"$INITRD_GENERATOR\" configured in /etc/sysconfig/bootloader is not supported."
+        return 1
+    }
+
+    return 0
+}
+
+# FIXME: mkosi-initrd does not provide anything like --regenerate-all yet
+mkosi_initrd_regenerate_all() {
+    local snapshot_id="$1"
+    local snapshot_dir="$2"
+    local kver
+    local ret=0
+
+    for d in "${snapshot_dir}"/usr/lib/modules/*; do
+        [ -d "$d" ] || continue
+        kver=${d##*/}
+        tukit ${TUKIT_OPTS} call "${snapshot_id}" mkosi-initrd --kernel-version "${kver}" -O "/boot" -o "initrd-${kver}" |& tee -a ${LOGFILE} 1>&${origstdout}
+        ((ret += $?))
+    done
+
+    return "${ret}"
 }
 
 rebuild_kdump_initrd() {
@@ -1305,12 +1341,27 @@ if [ -n "${ZYPPER_ARG}" ] || [ ${REWRITE_GRUB_CFG} -eq 1 ] \
     fi
 
     if [ ${REWRITE_INITRD} -eq 1 ]; then
-        log_info "Creating new initrd"
-        if ! tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" dracut ${DRACUT_OPTS} --force --regenerate-all |& tee -a ${LOGFILE} 1>&${origstdout}; then
-            log_error "ERROR: initrd creation failed!"
-            EXITCODE=1
+        if find_initrd_generator; then
+            log_info "Creating new initrd using $INITRD_GENERATOR"
+            case "$INITRD_GENERATOR" in
+                "dracut")
+                    if ! tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" dracut ${DRACUT_OPTS} --force --regenerate-all |& tee -a ${LOGFILE} 1>&${origstdout}; then
+                        EXITCODE=1
+                    fi
+                    ;;
+                "mkosi-initrd")
+                    if ! mkosi_initrd_regenerate_all "${SNAPSHOT_ID}" "${SNAPSHOT_DIR}"; then
+                        EXITCODE=1
+                    fi
+                    ;;
+            esac
+            if [ ${EXITCODE} -ne 0 ]; then
+                log_error "ERROR: initrd creation failed!"
+            else
+                REBUILD_KDUMP_INITRD=1
+            fi
         else
-            REBUILD_KDUMP_INITRD=1
+            EXITCODE=1
         fi
         set_reboot_level "kexec"
     fi
