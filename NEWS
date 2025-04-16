@@ -2,6 +2,10 @@ transactional-update NEWS -- history of user-visible changes.
 
 Copyright (C) 2016-2025 Thorsten Kukuk, Ignaz Forster et al.
 
+Version 5.0.2 (2025-04-16)
+* Fix continuing from an already booted snapshot
+* Fix check for overlayfs when using tukit open with --discard
+
 Version 5.0.1 (2025-04-08)
 * Fix path to rebootmgrctl [bsc#1236908]
 
