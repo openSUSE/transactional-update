@@ -272,7 +272,8 @@ void Transaction::init(std::string base, std::optional<std::string> description)
     pImpl->addSupplements();
     if (pImpl->discardIfNoChange) {
         std::unique_ptr<Snapshot> prevSnap = pImpl->snapshotMgr->open(base);
-        std::unique_ptr<Mount> oldEtc{new Mount{prevSnap->getRoot() / "etc"}};
+        std::unique_ptr<Mount> oldEtc{new Mount{"/etc"}};
+        oldEtc->setTabSource(prevSnap->getRoot() / "etc" / "fstab");
         if (oldEtc->getFilesystem() == "overlayfs") {
             tulog.info("Can not merge back changes in /etc into old overlayfs system - ignoring 'discardIfNoChange'.");
         } else {
