@@ -23,13 +23,12 @@ create_reference_etc() {
   # If it's the first descendant of the current system store a reference copy of the state before changes will be applied ...
   if [ "/@/.snapshots/${parent}/snapshot" = "$(findmnt --target /usr --raw --noheadings --output FSROOT | tail -n 1 | cut -d '/' -f 1-5)" ]; then
     btrfs subvolume snapshot "/.snapshots/${snapshot}/snapshot/etc" "/.snapshots/${snapshot}/snapshot/etc/etc.syncpoint"
+    echo "${parent}" > "/.snapshots/${snapshot}/snapshot/etc/etc.syncpoint/transactional-update.comparewith"
   # ... or if it's a consecutive snapshot, copy the already existing syncpoint
   elif [ -e "/.snapshots/${parent}/snapshot/etc/etc.syncpoint" ]; then
     btrfs subvolume snapshot "/.snapshots/${parent}/snapshot/etc/etc.syncpoint" "/.snapshots/${snapshot}/snapshot/etc/etc.syncpoint"
-  fi
-
-  if [ ! -e "/.snapshots/${snapshot}/snapshot/etc/etc.syncpoint/transactional-update.comparewith" ]; then
-    echo "${parent}" > "/.snapshots/${snapshot}/snapshot/etc/etc.syncpoint/transactional-update.comparewith"
+  else
+    : # consecutive snapshot without syncpoint, skip syncing altogether
   fi
 }
 
