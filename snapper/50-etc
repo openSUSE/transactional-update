@@ -46,6 +46,17 @@ create_snapshot_post() {
   rm -rf "/.snapshots/${snapshot}/snapshot/etc"
   if btrfs subvolume list / | grep -Eq " top level ${parentid} path (@/.snapshots/${parent}/snapshot/)?etc"; then
     btrfs subvolume snapshot "/.snapshots/${parent}/snapshot/etc" "/.snapshots/${snapshot}/snapshot/etc"
+
+    # If the parent snapshot was created from the running system, perform a sync now
+    if [ -e "/.snapshots/${parent}/snapshot/etc/etc.syncpoint/transactional-update.comparewith" ]; then
+       local parentcomparewith="$(cat "/.snapshots/${parent}/snapshot/etc/etc.syncpoint/transactional-update.comparewith")"
+       local currentid="$(findmnt --target /usr --raw --noheadings --output FSROOT | tail -n 1 | cut -d '/' -f 4)"
+       if [ "$parentcomparewith" = "$currentid" ]; then
+         /usr/libexec/transactional-update-sync-etc-state --keep-syncpoint "/etc" "/.snapshots/${snapshot}/snapshot/etc" "/.snapshots/${parent}/snapshot/etc/etc.syncpoint"
+         parent="$currentid"
+       fi
+    fi
+
     create_reference_etc
   else
     # Migration from old system
