@@ -198,6 +198,7 @@ bool copy_xattrs(filesystem::path ref, filesystem::path target) {
 int main(int argc, const char* argv[])
 {
     bool dry_run = false;
+    bool keep_syncpoint = false;
     int argpos = 1;
     filesystem::path syncpoint = "/etc/etc.syncpoint";
     filesystem::path currentdir = "/etc";
@@ -207,11 +208,14 @@ int main(int argc, const char* argv[])
         if (string(argv[1]) == "--dry-run" || string(argv[1]) == "-n") {
             dry_run = true;
             argpos++;
+        } else if (string(argv[1]) == "--keep-syncpoint") {
+            keep_syncpoint = true;
+            argpos++;
         }
     }
     if (argc - argpos != 3) {
         cerr << "Wrong number of arguments." << endl;
-        cerr << "Arguments: [--dry-run|-n] <parent etc> <current etc> <reference etc>" << endl;
+        cerr << "Arguments: [--dry-run|-n] [--keep-syncpoint] <parent etc> <current etc> <reference etc>" << endl;
         _exit(1);
     }
 
@@ -393,7 +397,9 @@ int main(int argc, const char* argv[])
             }
         }
 
-        filesystem::remove_all(syncpoint);
+        if (!keep_syncpoint) {
+            filesystem::remove_all(syncpoint);
+        }
     }
 
     return 0;
