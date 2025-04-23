@@ -211,10 +211,10 @@ debug() {
 		# Dir4 does not exist during snapshot creation
 		mkdir "${dir}/Dir5"
 		mkdir "${dir}/Dir5/Subdir"
-		touch mkdir "${dir}/Dir5/Subdir/FileInSubdir"
+		touch "${dir}/Dir5/Subdir/FileInSubdir"
 		mkdir "${dir}/Dir6"
 		mkdir "${dir}/Dir6/Subdir"
-		touch mkdir "${dir}/Dir6/Subdir/FileInSubdir"
+		touch "${dir}/Dir6/Subdir/FileInSubdir"
 		mkdir "${dir}/Dir7"
 		echo old > "${dir}/Dir7/ChangeInOld"
 		echo old > "${dir}/Dir7/ChangeInNew"
