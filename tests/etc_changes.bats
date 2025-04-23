@@ -9,6 +9,8 @@ setup() {
 	mockdir_syncpoint="$(mktemp --directory /tmp/transactional-update.synctest.syncdir.XXXX)"
 
 	totest="../dracut/transactional-update-sync-etc-state"
+
+	umask 022
 }
 
 teardown() {
