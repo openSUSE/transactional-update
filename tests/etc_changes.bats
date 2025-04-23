@@ -114,6 +114,7 @@ debug() {
 	# Timestamps
 	touch -a "${mockdir_old_etc}/${FILES[2]}"
 	touch -m "${mockdir_old_etc}/${FILES[3]}"
+	touch -a "${mockdir_old_etc}/${FILES[3]}"
 
 	# No changes for File4.txt
 
@@ -125,7 +126,7 @@ debug() {
 	chown :audio "${mockdir_old_etc}/${FILES[6]}"
 	touch --reference="${mockdir_syncpoint}/${FILES[6]}" "${mockdir_new_etc}/${FILES[6]}"
 
-	run $totest "${mockdir_old_etc}" "${mockdir_new_etc}" "${mockdir_syncpoint}"
+	run $totest --keep-syncpoint "${mockdir_old_etc}" "${mockdir_new_etc}" "${mockdir_syncpoint}"
 
 	echo "# Verifying appending contents to 'File0.txt' is detected"
 	[[ "${lines[*]}" == *'File changed: "'${mockdir_old_etc}'/./File0.txt"'* ]]
@@ -141,6 +142,24 @@ debug() {
 	[[ "${lines[*]}" == *'File changed: "'${mockdir_old_etc}'/./File5.txt"'* ]]
 	echo "# Verifying changing group of 'File6.txt' is detected"
 	[[ "${lines[*]}" == *'File changed: "'${mockdir_old_etc}'/./File6.txt"'* ]]
+
+	echo "# Verify changes to just atime are ignored"
+	# The human-readable %x/%y format has higher precision than %X/%Y
+	[ "$(stat -c %x "${mockdir_new_etc}/${FILES[2]}")" != "$(stat -c %x "${mockdir_old_etc}/${FILES[2]}")" ]
+	[ "$(stat -c %x "${mockdir_new_etc}/${FILES[2]}")" = "$(stat -c %x "${mockdir_syncpoint}/${FILES[2]}")" ]
+	echo "# Verify atime + mtime changes are detected and applied properly"
+	stat "${mockdir_new_etc}/${FILES[3]}" "${mockdir_old_etc}/${FILES[3]}" "${mockdir_syncpoint}/${FILES[3]}"
+	# Bug: The sync process changes atime in the source directory (https://github.com/openSUSE/transactional-update/issues/147)
+	# [ "$(stat -c %x "${mockdir_new_etc}/${FILES[3]}")" = "$(stat -c %x "${mockdir_old_etc}/${FILES[3]}")" ]
+	[ "$(stat -c %x "${mockdir_new_etc}/${FILES[3]}")" != "$(stat -c %x "${mockdir_syncpoint}/${FILES[3]}")" ]
+	[ "$(stat -c %y "${mockdir_new_etc}/${FILES[3]}")" = "$(stat -c %y "${mockdir_old_etc}/${FILES[3]}")" ]
+	[ "$(stat -c %y "${mockdir_new_etc}/${FILES[3]}")" != "$(stat -c %y "${mockdir_syncpoint}/${FILES[3]}")" ]
+	echo "# Verify that mode changes are detected and applied properly"
+	[ "$(stat -c %a "${mockdir_new_etc}/${FILES[5]}")" = "777" ]
+	echo "# Verify that owner changes are detected and applied properly"
+	[ "$(stat -c %G "${mockdir_new_etc}/${FILES[6]}")" = "audio" ]
+
+	rm -r "${mockdir_syncpoint}"
 }
 
 @test "Extended attributes" {

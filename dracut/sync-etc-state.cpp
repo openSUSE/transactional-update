@@ -383,12 +383,12 @@ int main(int argc, const char* argv[])
                     cerr << "Unsupported file type for file " << it->first << ". Skipping..." << endl;
                     continue;
                 }
-                if (lchown((parentdir / it->first).c_str(), sourcestat.stx_uid, sourcestat.stx_gid) == -1) {
+                if (lchown((currentdir / it->first).c_str(), sourcestat.stx_uid, sourcestat.stx_gid) == -1) {
                     cerr << "Error while processing " << it->first << ": ";
                     perror("lchown");
                 }
                 const struct timespec newtimes[2] = {{.tv_sec = sourcestat.stx_atime.tv_sec, .tv_nsec = sourcestat.stx_atime.tv_nsec},{.tv_sec = sourcestat.stx_mtime.tv_sec, .tv_nsec = sourcestat.stx_mtime.tv_nsec}};
-                if (utimensat(AT_FDCWD, (parentdir / it->first).c_str(), newtimes, AT_SYMLINK_NOFOLLOW) == -1) {
+                if (utimensat(AT_FDCWD, (currentdir / it->first).c_str(), newtimes, AT_SYMLINK_NOFOLLOW) == -1) {
                     cerr << "Error while processing " << it->first << ": ";
                     perror("utimensat");
                 }
