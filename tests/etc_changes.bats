@@ -349,6 +349,16 @@ debug() {
 	[ ! -e "${mockdir_new_etc}/File1" ]
 }
 
+@test "etc.syncpoint is skipped" {
+	mkdir -p "${mockdir_old_etc}/etc.syncpoint"
+	echo bla > "${mockdir_old_etc}/etc.syncpoint/file"
+
+	$totest "${mockdir_old_etc}" "${mockdir_new_etc}" "${mockdir_syncpoint}"
+
+	[ ! -e "${mockdir_new_etc}/etc.syncpoint/file" ]
+	[ ! -e "${mockdir_new_etc}/etc.syncpoint" ]
+}
+
 #cd /etc
 #
 ## Step 1: Prepare environment
