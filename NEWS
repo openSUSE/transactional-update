@@ -2,6 +2,16 @@ transactional-update NEWS -- history of user-visible changes.
 
 Copyright (C) 2016-2025 Thorsten Kukuk, Ignaz Forster et al.
 
+Version 5.0.3 (2025-04-24)
+* When continuing a transaction that was based on the running
+  system, sync new changes from /etc into the new snapshot.
+  This way it behaves as-if the snapshot was booted into
+  before continuing the transaction, which matches the
+  behaviour of versions < 5.0.
+* Fix syncing of file times and ownership
+* Do not sync /etc/etc.syncpoint/ into the running system
+  (or parent snapshot) when using --discard
+
 Version 5.0.2 (2025-04-16)
 * Fix continuing from an already booted snapshot
 * Fix check for overlayfs when using tukit open with --discard
