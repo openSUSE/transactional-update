@@ -521,7 +521,7 @@ void Transaction::finalize() {
                 tulog.info("Merging changes in /etc into the previous snapshot.");
                 targetRoot = pImpl->snapshotMgr->open(base)->getRoot();
             }
-            Util::exec("rsync --archive --inplace --xattrs --acls --exclude 'fstab' --delete --quiet '" + this->pImpl->bindDir.native() + "/etc/' " + targetRoot.native() + "/etc");
+            Util::exec("rsync --archive --inplace --xattrs --acls --exclude 'fstab' --exclude 'etc.syncpoint' --delete --quiet '" + this->pImpl->bindDir.native() + "/etc/' " + targetRoot.native() + "/etc");
         }
 
 	TransactionalUpdate::Plugins plugins_without_transaction{nullptr};
