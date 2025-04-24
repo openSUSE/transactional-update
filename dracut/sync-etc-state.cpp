@@ -198,6 +198,7 @@ bool copy_xattrs(filesystem::path ref, filesystem::path target) {
 int main(int argc, const char* argv[])
 {
     bool dry_run = false;
+    bool keep_syncpoint = false;
     int argpos = 1;
     filesystem::path syncpoint = "/etc/etc.syncpoint";
     filesystem::path currentdir = "/etc";
@@ -207,11 +208,14 @@ int main(int argc, const char* argv[])
         if (string(argv[1]) == "--dry-run" || string(argv[1]) == "-n") {
             dry_run = true;
             argpos++;
+        } else if (string(argv[1]) == "--keep-syncpoint") {
+            keep_syncpoint = true;
+            argpos++;
         }
     }
     if (argc - argpos != 3) {
         cerr << "Wrong number of arguments." << endl;
-        cerr << "Arguments: [--dry-run|-n] <parent etc> <current etc> <reference etc>" << endl;
+        cerr << "Arguments: [--dry-run|-n] [--keep-syncpoint] <parent etc> <current etc> <reference etc>" << endl;
         _exit(1);
     }
 
@@ -227,7 +231,13 @@ int main(int argc, const char* argv[])
 
     // Check which files have been changed in new snapshot
     filesystem::current_path(syncpoint);
-    for (const filesystem::directory_entry& dir_entry : filesystem::recursive_directory_iterator(".")) {
+    auto it = filesystem::recursive_directory_iterator(".");
+    for (const filesystem::directory_entry& dir_entry : it) {
+        if (dir_entry.path().native() == "./etc.syncpoint") {
+            it.disable_recursion_pending();
+            continue;
+        }
+
         if (! filesystem::exists(filesystem::symlink_status(currentdir / dir_entry))) {
             cout << "Deleted in new snapshot: " << currentdir / dir_entry << endl;
             DIFFTOCURRENT.emplace(dir_entry, SYNC_ACTIONS::RECURSIVE_SKIP);
@@ -245,18 +255,29 @@ int main(int argc, const char* argv[])
         }
     }
     filesystem::current_path(currentdir);
-    for (const filesystem::directory_entry& dir_entry : filesystem::recursive_directory_iterator(".")) {
+    it = filesystem::recursive_directory_iterator(".");
+    for (const filesystem::directory_entry& dir_entry : it) {
+        if (dir_entry.path().native() == "./etc.syncpoint") {
+            it.disable_recursion_pending();
+            continue;
+        }
+
         if (! filesystem::exists(filesystem::symlink_status(syncpoint / dir_entry))) {
-            if (dir_entry.path().native().compare(0, 15, "./etc.syncpoint") != 0) {
-                cout << "Added in new snapshot: " << currentdir / dir_entry << endl;
-                DIFFTOCURRENT.emplace(dir_entry, SYNC_ACTIONS::SKIP);
-            }
+            cout << "Added in new snapshot: " << currentdir / dir_entry << endl;
+            DIFFTOCURRENT.emplace(dir_entry, SYNC_ACTIONS::SKIP);
         }
     }
 
     // Check which files have been changed in old snapshot
     filesystem::current_path(syncpoint);
-    for (const filesystem::directory_entry& dir_entry : filesystem::recursive_directory_iterator(".")) {
+    it = filesystem::recursive_directory_iterator(".");
+    for (const filesystem::directory_entry& dir_entry : it) {
+        // The syncpoint shouldn't have syncpoint inside, but for good measure let's just skip that too
+        if (dir_entry.path().native() == "./etc.syncpoint") {
+            it.disable_recursion_pending();
+            continue;
+        }
+
         if (! filesystem::exists(filesystem::symlink_status(parentdir / dir_entry))) {
             cout << "Deleted in old snapshot: " << parentdir / dir_entry << endl;
             if (DIFFTOCURRENT.count(dir_entry) == 0) {
@@ -286,7 +307,13 @@ int main(int argc, const char* argv[])
         }
     }
     filesystem::current_path(parentdir);
-    for (const filesystem::directory_entry& dir_entry : filesystem::recursive_directory_iterator(".")) {
+    it = filesystem::recursive_directory_iterator(".");
+    for (const filesystem::directory_entry& dir_entry : it) {
+        if (dir_entry.path().native() == "./etc.syncpoint") {
+            it.disable_recursion_pending();
+            continue;
+        }
+
         if (! filesystem::exists(filesystem::symlink_status(syncpoint / dir_entry))) {
             cout << "Added in old snapshot: " << parentdir / dir_entry << endl;
             DIFFTOCURRENT.emplace(dir_entry, SYNC_ACTIONS::COPY);
@@ -356,12 +383,12 @@ int main(int argc, const char* argv[])
                     cerr << "Unsupported file type for file " << it->first << ". Skipping..." << endl;
                     continue;
                 }
-                if (lchown((parentdir / it->first).c_str(), sourcestat.stx_uid, sourcestat.stx_gid) == -1) {
+                if (lchown((currentdir / it->first).c_str(), sourcestat.stx_uid, sourcestat.stx_gid) == -1) {
                     cerr << "Error while processing " << it->first << ": ";
                     perror("lchown");
                 }
                 const struct timespec newtimes[2] = {{.tv_sec = sourcestat.stx_atime.tv_sec, .tv_nsec = sourcestat.stx_atime.tv_nsec},{.tv_sec = sourcestat.stx_mtime.tv_sec, .tv_nsec = sourcestat.stx_mtime.tv_nsec}};
-                if (utimensat(AT_FDCWD, (parentdir / it->first).c_str(), newtimes, AT_SYMLINK_NOFOLLOW) == -1) {
+                if (utimensat(AT_FDCWD, (currentdir / it->first).c_str(), newtimes, AT_SYMLINK_NOFOLLOW) == -1) {
                     cerr << "Error while processing " << it->first << ": ";
                     perror("utimensat");
                 }
@@ -370,7 +397,9 @@ int main(int argc, const char* argv[])
             }
         }
 
-        filesystem::remove_all(syncpoint);
+        if (!keep_syncpoint) {
+            filesystem::remove_all(syncpoint);
+        }
     }
 
     return 0;

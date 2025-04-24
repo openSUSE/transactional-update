@@ -20,8 +20,18 @@ create_reference_etc() {
     rmdir "/.snapshots/${snapshot}/snapshot/etc/etc.syncpoint"
   fi
   # Syncing is only necessary when the snapshot is based on the currently running system.
+  # "Current" means the snapshot number of the currently running /usr
+  current="$(findmnt --target /usr --raw --noheadings --output FSROOT | tail -n 1 | cut -d '/' -f 4)"
+
+  # If the parent snapshot was created from the running system, perform a sync now and use the current running /etc as syncpoint
+  if [ -e "/.snapshots/${parent}/snapshot/etc/etc.syncpoint/transactional-update.comparewith" ] \
+     && [ "$(cat "/.snapshots/${parent}/snapshot/etc/etc.syncpoint/transactional-update.comparewith")" = "${current}" ]; then
+    # Snapshot first, then sync to avoid racing with changes to /etc in between.
+    btrfs subvolume snapshot "/etc" "/.snapshots/${snapshot}/snapshot/etc/etc.syncpoint"
+    /usr/libexec/transactional-update-sync-etc-state --keep-syncpoint "/.snapshots/${snapshot}/snapshot/etc/etc.syncpoint" "/.snapshots/${snapshot}/snapshot/etc" "/.snapshots/${parent}/snapshot/etc/etc.syncpoint"
+    echo "${current}" > "/.snapshots/${snapshot}/snapshot/etc/etc.syncpoint/transactional-update.comparewith"
   # If it's the first descendant of the current system store a reference copy of the state before changes will be applied ...
-  if [ "/@/.snapshots/${parent}/snapshot" = "$(findmnt --target /usr --raw --noheadings --output FSROOT | tail -n 1 | cut -d '/' -f 1-5)" ]; then
+  elif [ "${parent}" = "${current}" ]; then
     btrfs subvolume snapshot "/.snapshots/${snapshot}/snapshot/etc" "/.snapshots/${snapshot}/snapshot/etc/etc.syncpoint"
     echo "${parent}" > "/.snapshots/${snapshot}/snapshot/etc/etc.syncpoint/transactional-update.comparewith"
   # ... or if it's a consecutive snapshot, copy the already existing syncpoint
@@ -37,6 +47,7 @@ create_snapshot_post() {
 
   # "Parent UUID" means which parent this snapshot was created from
   parentuuid="$(btrfs subvolume list -q / | grep -E " path @/.snapshots/${snapshot}/snapshot"$ | cut -f 9 -d ' ')"
+  # "Parent" is the number of the parent snapshot (as shown by snapper)
   parent="$(btrfs subvolume list -u / | grep " uuid ${parentuuid} " | cut -f 9- -d ' ' | cut -f 3 -d '/')"
   # "Parent ID" means the parent subvolume in the file system tree
   parentid="$(btrfs subvolume list / | grep -E " path @/.snapshots/${parent}/snapshot"$ | cut -f 2 -d ' ')"
