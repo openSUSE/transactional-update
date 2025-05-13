@@ -836,7 +836,7 @@ else # Set exit handler to clean up artifacts of the self-update
         rm -rf "${TA_UPDATE_TMPFILE}"
         unset TA_UPDATE_TMPFILE
         unset LD_LIBRARY_PATH
-        exec transactional-update --no-selfupdate "${ORIG_ARGS[@]}"
+        exec transactional-update --no-selfupdate "${ORIG_ARGS[@]}" 1>&${origstdout} 2>&${origstderr}
     elif "${TA_UPDATE_TMPFILE}"/usr/sbin/tukit --version >/dev/null; then
         # tukit is executable - use new version
         export PATH="${TA_UPDATE_TMPFILE}/usr/sbin:${PATH}"
@@ -849,7 +849,7 @@ else # Set exit handler to clean up artifacts of the self-update
         rm -rf "${TA_UPDATE_TMPFILE}"
         unset TA_UPDATE_TMPFILE
         unset LD_LIBRARY_PATH
-        exec transactional-update --no-selfupdate "${ORIG_ARGS[@]}"
+        exec transactional-update --no-selfupdate "${ORIG_ARGS[@]}" 1>&${origstdout} 2>&${origstderr}
     fi
 fi
 
