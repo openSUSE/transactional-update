@@ -1230,9 +1230,13 @@ if [ -n "${ZYPPER_ARG}" ] || [ ${REWRITE_GRUB_CFG} -eq 1 ] \
             fi
             EXITCODE=1
         fi
-        # If zypp-boot-plugin is available and didn't return anything, then soft-reboot is enough
-        if rpm --quiet -q zypp-boot-plugin && [ ! -e "${NEEDS_RESTARTING_FILE}" ] ; then
-            set_reboot_level "soft-reboot"
+        if rpm --quiet -q zypp-boot-plugin ; then
+            # If zypp-boot-plugin is available and didn't return anything, then soft-reboot is enough
+            if [ ! -e "${NEEDS_RESTARTING_FILE}" ] ; then
+                set_reboot_level "soft-reboot"
+	    else
+                set_reboot_level "$(cat "${NEEDS_RESTARTING_FILE}")"
+	    fi
         else
             set_reboot_level "reboot"
         fi
