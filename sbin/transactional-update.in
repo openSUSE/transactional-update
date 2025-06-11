@@ -93,6 +93,8 @@ self_update() {
     fi
 
     log_info "Checking for newer version."
+    # Tell zypper that we are in a read-only system, do not import keys using rpm
+    export ZYPP_READONLY_HACK=1
     if zypper --non-interactive info transactional-update | grep -q '^Status *: out-of-date'; then
         log_info "New version found - updating..."
         if ! TA_UPDATE_TMPFILE="$(mktemp -d "${TMPDIR}"/transactional-update.XXXXXXXXXX)"; then
@@ -105,6 +107,7 @@ self_update() {
             log_error "ERROR: Couldn't extract the update."
             quit 1
         fi
+        unset ZYPP_READONLY_HACK
         # Reset CWD before restart
         if ! popd >/dev/null; then
             log_error "popd failed during self-update"
@@ -119,6 +122,7 @@ self_update() {
         export TA_UPDATE_TMPFILE
         exec "${TA_UPDATE_TMPFILE}/usr/sbin/transactional-update" "$@" 1>&${origstdout} 2>&${origstderr}
     fi
+    unset ZYPP_READONLY_HACK
 }
 
 usage() {
