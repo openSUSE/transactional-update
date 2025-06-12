@@ -2,6 +2,10 @@ transactional-update NEWS -- history of user-visible changes.
 
 Copyright (C) 2016-2025 Thorsten Kukuk, Ignaz Forster et al.
 
+Version 5.0.4 (2025-06-12)
+* Don't override soft-reboot with hard reboot
+* Fix stdio when returning from selfupdate
+
 Version 5.0.3 (2025-04-24)
 * When continuing a transaction that was based on the running
   system, sync new changes from /etc into the new snapshot.
