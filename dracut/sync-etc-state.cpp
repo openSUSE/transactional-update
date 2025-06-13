@@ -362,6 +362,7 @@ int main(int argc, const char* argv[])
                         filesystem::remove_all(currentdir / it->first);
                     }
                 }
+                const struct timespec newtimes[2] = {{.tv_sec = sourcestat.stx_atime.tv_sec, .tv_nsec = sourcestat.stx_atime.tv_nsec},{.tv_sec = sourcestat.stx_mtime.tv_sec, .tv_nsec = sourcestat.stx_mtime.tv_nsec}};
                 if ((sourcestat.stx_mode & S_IFMT) == S_IFDIR) {
                     filesystem::create_directory(currentdir / it->first, parentdir / it->first);
                 } else if ((sourcestat.stx_mode & S_IFMT) == S_IFLNK) {
@@ -369,12 +370,20 @@ int main(int argc, const char* argv[])
                         filesystem::remove(currentdir / it->first);
                     }
                     filesystem::copy(parentdir / it->first, currentdir / it->first, filesystem::copy_options::copy_symlinks);
+                    if (utimensat(AT_FDCWD, (parentdir / it->first).c_str(), newtimes, AT_SYMLINK_NOFOLLOW) == -1) {
+                        cerr << "Error while processing " << it->first << ": ";
+                        perror("utimensat");
+                    }
                 } else if ((sourcestat.stx_mode & S_IFMT) == S_IFREG) {
                     if (filesystem::exists((filesystem::symlink_status((currentdir / it->first).parent_path())))) {
                         filesystem::copy_file(parentdir / it->first, currentdir / it->first, filesystem::copy_options::overwrite_existing);
                         if (lchmod((currentdir / it->first).c_str(), sourcestat.stx_mode) == -1) {
                             cerr << "Error while processing " << it->first << ": ";
                             perror("lchmod");
+                        }
+                        if (utimensat(AT_FDCWD, (parentdir / it->first).c_str(), newtimes, AT_SYMLINK_NOFOLLOW) == -1) {
+                            cerr << "Error while processing " << it->first << ": ";
+                            perror("utimensat");
                         }
                     } else {
                         cout << "Parent directory of " << it->first << " was deleted in new snapshot - skipping file..." << endl;
@@ -387,7 +396,6 @@ int main(int argc, const char* argv[])
                     cerr << "Error while processing " << it->first << ": ";
                     perror("lchown");
                 }
-                const struct timespec newtimes[2] = {{.tv_sec = sourcestat.stx_atime.tv_sec, .tv_nsec = sourcestat.stx_atime.tv_nsec},{.tv_sec = sourcestat.stx_mtime.tv_sec, .tv_nsec = sourcestat.stx_mtime.tv_nsec}};
                 if (utimensat(AT_FDCWD, (currentdir / it->first).c_str(), newtimes, AT_SYMLINK_NOFOLLOW) == -1) {
                     cerr << "Error while processing " << it->first << ": ";
                     perror("utimensat");
