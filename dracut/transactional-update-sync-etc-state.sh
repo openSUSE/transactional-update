@@ -14,4 +14,9 @@ if [ -e "/sysroot/var/lib/overlay/${parentid}" ]; then
   mount --target-prefix "/sysroot/.snapshots/${parentid}/snapshot" --fstab /tmp/tu-fstab /etc
 fi
 
-/bin/transactional-update-sync-etc-state "/sysroot/.snapshots/${parentid}/snapshot/etc" "/sysroot/etc" "/sysroot/etc/etc.syncpoint"
+mkdir /tmp/etc-sync
+mount --bind "/sysroot/.snapshots/${parentid}/snapshot/etc" /tmp/etc-sync
+mount -o remount,ro,noatime /tmp/etc-sync
+
+/bin/transactional-update-sync-etc-state /tmp/etc-sync "/sysroot/etc" "/sysroot/etc/etc.syncpoint"
+umount /tmp/etc-sync
