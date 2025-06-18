@@ -51,6 +51,8 @@ man/transactional-update.service.8.html
 man/transactional-update.timer.8.html
 man/transactional-update.conf.5.html
 man/transactional-update.index.html
+man/tukit.conf.5
+man/tukit.conf.5.html
 transactional-update-*.tar.*
 doc/html/*
 doc/transactional-update.txt
