@@ -96,7 +96,7 @@ debug() {
 
 @test "File contents and properties" {
 	shopt -s globstar dotglob
-	FILES=(File0.txt File1.txt File2.txt File3.txt File4.txt File5.txt File6.txt File7.txt File8.txt)
+	FILES=(File0.txt File1.txt File2.txt File3.txt File4.txt File5.txt)
 	createFilesIn "${mockdir_old_etc}" "${FILES[@]}"
 	createFilesIn "${mockdir_new_etc}" "${FILES[@]}"
 	createFilesIn "${mockdir_syncpoint}" "${FILES[@]}"
@@ -122,10 +122,6 @@ debug() {
 	chmod 777 "${mockdir_old_etc}/${FILES[5]}"
 	touch --reference="${mockdir_syncpoint}/${FILES[5]}" "${mockdir_new_etc}/${FILES[5]}"
 
-	# Ownership
-	chown :audio "${mockdir_old_etc}/${FILES[6]}"
-	touch --reference="${mockdir_syncpoint}/${FILES[6]}" "${mockdir_new_etc}/${FILES[6]}"
-
 	run $totest --keep-syncpoint "${mockdir_old_etc}" "${mockdir_new_etc}" "${mockdir_syncpoint}"
 
 	echo "# Verifying appending contents to 'File0.txt' is detected"
@@ -140,8 +136,6 @@ debug() {
 	[[ "${lines[*]}" != *'"./File4.txt"'* ]]
 	echo "# Verifying changing permissions of 'File5.txt' is detected"
 	[[ "${lines[*]}" == *'File changed: "'${mockdir_old_etc}'/./File5.txt"'* ]]
-	echo "# Verifying changing group of 'File6.txt' is detected"
-	[[ "${lines[*]}" == *'File changed: "'${mockdir_old_etc}'/./File6.txt"'* ]]
 
 	echo "# Verify changes to just atime are ignored"
 	# The human-readable %x/%y format has higher precision than %X/%Y
@@ -156,8 +150,29 @@ debug() {
 	[ "$(stat -c %y "${mockdir_new_etc}/${FILES[3]}")" != "$(stat -c %y "${mockdir_syncpoint}/${FILES[3]}")" ]
 	echo "# Verify that mode changes are detected and applied properly"
 	[ "$(stat -c %a "${mockdir_new_etc}/${FILES[5]}")" = "777" ]
+
+	rm -r "${mockdir_syncpoint}"
+}
+
+# bats test_tags=needroot
+@test "File contents and properties (with fakeroot)" {
+	shopt -s globstar dotglob
+	FILES=(File0.txt)
+	createFilesIn "${mockdir_old_etc}" "${FILES[@]}"
+	createFilesIn "${mockdir_new_etc}" "${FILES[@]}"
+	createFilesIn "${mockdir_syncpoint}" "${FILES[@]}"
+	syncTimestamps "${mockdir_old_etc}"/** "${mockdir_new_etc}"/** "${mockdir_syncpoint}"/**
+
+	sleep 2 # Sleep for one second to get different UNIX timestamps on file modifications
+
+	# Ownership - running in fakeroot because the user may not be part of any non-default group
+	chown :audio "${mockdir_old_etc}/${FILES[0]}"
+	touch --reference="${mockdir_syncpoint}/${FILES[0]}" "${mockdir_new_etc}/${FILES[0]}"
+
+	run $totest --keep-syncpoint "${mockdir_old_etc}" "${mockdir_new_etc}" "${mockdir_syncpoint}"
+
 	echo "# Verify that owner changes are detected and applied properly"
-	[ "$(stat -c %G "${mockdir_new_etc}/${FILES[6]}")" = "audio" ]
+	[ "$(stat -c %G "${mockdir_new_etc}/${FILES[0]}")" = "audio" ]
 
 	rm -r "${mockdir_syncpoint}"
 }
