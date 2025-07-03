@@ -93,6 +93,15 @@ self_update() {
     fi
 
     log_info "Checking for newer version."
+    # Tell zypper that we are in a read-only system, do not import keys using rpm
+    export ZYPP_READONLY_HACK=1
+    # Mark the start of the zypper logfile for the following commands
+    set -o pipefail
+    if ZYPPER_LOG_LINES=$(wc -l /var/log/zypper.log | cut -f1 -d" "); then
+        ZYPPER_LOG_LINES=0
+    fi
+    set +o pipefail
+    export ZYPPER_LOG_LINES
     if zypper --non-interactive info transactional-update | grep -q '^Status *: out-of-date'; then
         log_info "New version found - updating..."
         if ! TA_UPDATE_TMPFILE="$(mktemp -d "${TMPDIR}"/transactional-update.XXXXXXXXXX)"; then
@@ -105,6 +114,7 @@ self_update() {
             log_error "ERROR: Couldn't extract the update."
             quit 1
         fi
+        unset ZYPP_READONLY_HACK
         # Reset CWD before restart
         if ! popd >/dev/null; then
             log_error "popd failed during self-update"
@@ -119,6 +129,7 @@ self_update() {
         export TA_UPDATE_TMPFILE
         exec "${TA_UPDATE_TMPFILE}/usr/sbin/transactional-update" "$@" 1>&${origstdout} 2>&${origstderr}
     fi
+    unset ZYPP_READONLY_HACK
 }
 
 usage() {
@@ -826,6 +837,23 @@ if [ -z "${TA_UPDATE_TMPFILE}" ]; then
 else # Set exit handler to clean up artifacts of the self-update
     trap 'rm -f "$LOCKFILE" && rm -rf "${TA_UPDATE_TMPFILE}" && unset TA_UPDATE_TMPFILE' EXIT
     pushd "${TA_UPDATE_TMPFILE}" >/dev/null || exit 1
+    set -o pipefail
+    if total_log_lines=$(wc -l /var/log/zypper.log | cut -f1 -d" "); then
+        total_log_lines=0
+    fi
+    set +o pipefail
+    # The logfile has been rotated after the commands have been executed
+    if [ "$total_log_lines" -le "0$ZYPPER_LOG_LINES" ]; then
+        if grep -q "can not be imported. (READONLY MODE)" /var/log/zypper.log; then
+
+            zypper --non-interactive refresh --force
+        fi
+    else
+        new_log_lines=$((total_log_lines - ZYPPER_LOG_LINES))
+        if tail -n $new_log_lines /var/log/zypper.log | grep -q "can not be imported. (READONLY MODE)" ; then
+            zypper --non-interactive refresh --force
+        fi
+    fi
     zypper --non-interactive --pkg-cache-dir "${TA_UPDATE_TMPFILE}" download libtukit4 tukit
     find . -name '*.rpm' -exec sh -c 'rpm2cpio {} | cpio -idmv 2>/dev/null' \;
     popd >/dev/null || exit 1
