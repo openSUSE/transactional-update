@@ -9,6 +9,7 @@ LIBTOOL_REVISION=7
 AC_CANONICAL_TARGET
 AM_INIT_AUTOMAKE([foreign])
 AC_CONFIG_FILES([tukit.pc])
+AC_REQUIRE_AUX_FILE([tap-driver.sh])
 AC_PREFIX_DEFAULT(/usr)
 
 AC_SUBST(PACKAGE)
@@ -47,6 +48,7 @@ AC_SUBST(DBUSINTERFACESDIR)
 AC_SUBST(DBUSSYSTEMBUSSERVICEDIR)
 
 AC_PROG_CXX
+AC_PROG_AWK
 AX_CXX_COMPILE_STDCXX_17(, mandatory)
 AC_PROG_CC
 AC_PROG_INSTALL
@@ -110,6 +112,11 @@ AS_IF([test "x$enable_man" = "xno" -a "x$with_doc" != "xno"],
 
 AM_CONDITIONAL(ENABLE_REGENERATE_MAN,
 	test "x$enable_man" != "xno" -a "x$with_doc" != "xno")
+
+AC_PATH_PROG([BATS], [bats])
+AC_PATH_PROG([FAKEROOT], [fakeroot])
+AS_IF([test -z "$BATS" -o -z "$FAKEROOT"], [AC_MSG_WARN([To run tests please install
+       bats and fakeroot.])])
 
 AC_CONFIG_FILES([Makefile lib/Makefile tukit/Makefile sbin/Makefile man/Makefile \
 	systemd/Makefile logrotate/Makefile dracut/Makefile doc/Makefile \

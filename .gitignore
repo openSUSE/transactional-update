@@ -30,8 +30,11 @@ config.sub
 libtool
 ltmain.sh
 m4
+tap-driver.sh
 test-driver
 test-suite.log
+tests/*.log
+tests/*.trs
 check-output.*
 tukit.pc
 tukitd
