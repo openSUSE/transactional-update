@@ -37,12 +37,9 @@ createFilesIn() {
 }
 
 syncTimestamps() {
-	local referencefile
+	local referencedate="$(date -d "-10 seconds" +"%Y%m%d%H%M.%S")"
 	for file in "$@"; do
-		if [ -z "${referencefile}" ]; then
-			referencefile="${file}"
-		fi
-		touch --reference="${referencefile}" -- "$file"
+		touch --no-dereference -t "${referencedate}" -- "$file"
 	done
 }
 
@@ -101,8 +98,6 @@ debug() {
 	createFilesIn "${mockdir_new_etc}" "${FILES[@]}"
 	createFilesIn "${mockdir_syncpoint}" "${FILES[@]}"
 	syncTimestamps "${mockdir_old_etc}"/** "${mockdir_new_etc}"/** "${mockdir_syncpoint}"/**
-
-	sleep 2 # Sleep for one second to get different UNIX timestamps on file modifications
 
 	# File contents (added)
 	echo "more file contents" >> "${mockdir_old_etc}/${FILES[0]}"
@@ -163,8 +158,6 @@ debug() {
 	createFilesIn "${mockdir_syncpoint}" "${FILES[@]}"
 	syncTimestamps "${mockdir_old_etc}"/** "${mockdir_new_etc}"/** "${mockdir_syncpoint}"/**
 
-	sleep 2 # Sleep for one second to get different UNIX timestamps on file modifications
-
 	# Ownership - running in fakeroot because the user may not be part of any non-default group
 	chown :audio "${mockdir_old_etc}/${FILES[0]}"
 	touch --reference="${mockdir_syncpoint}/${FILES[0]}" "${mockdir_new_etc}/${FILES[0]}"
@@ -183,7 +176,6 @@ debug() {
 	createFilesIn "${mockdir_new_etc}" "${FILES[@]}"
 	createFilesIn "${mockdir_syncpoint}" "${FILES[@]}"
 	syncTimestamps "${mockdir_old_etc}"/** "${mockdir_new_etc}"/** "${mockdir_syncpoint}"/**
-	sleep 2
 
 	setfattr --name="user.test" --value="test" "${mockdir_old_etc}/${FILES[0]}"
 	mkdir "${mockdir_old_etc}/Dir0"
@@ -212,8 +204,6 @@ debug() {
 		popd >/dev/null
 	done
 	syncTimestamps "${mockdir_old_etc}"/** "${mockdir_new_etc}"/** "${mockdir_syncpoint}"/**
-
-	sleep 2
 
 	cd "${mockdir_old_etc}"
 	echo "Test" > File1
@@ -254,8 +244,7 @@ debug() {
 		echo old > "${dir}/Dir7/ChangeInNew"
 		echo old > "${dir}/Dir7/noChange"
 	done
-
-	sleep 2
+	syncTimestamps "${mockdir_old_etc}"/** "${mockdir_new_etc}"/** "${mockdir_syncpoint}"/**
 
 	# Create a new directory in both old and new
 	mkdir "${mockdir_old_etc}/Dir2/DirInOld"
