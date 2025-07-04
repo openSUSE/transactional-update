@@ -1287,25 +1287,21 @@ if [ -n "${ZYPPER_ARG}" ] || [ ${REWRITE_GRUB_CFG} -eq 1 ] \
 
     if [ ${SETUP_KDUMP} -eq 1 ]; then
         if [ -z "${KDUMP_LOW}" ]; then
-            KDUMP_CALIBRATION="$(tukit -q call "${SNAPSHOT_ID}" kdumptool calibrate)"
-            KDUMP_LOW="$(echo "$KDUMP_CALIBRATION" | grep ^Low: | cut -d ' ' -f 2)"
-            KDUMP_HIGH="$(echo "$KDUMP_CALIBRATION" | grep ^High: | cut -d ' ' -f 2)"
-        fi
-
-        if [[ ${KDUMP_HIGH} -gt 0 ]]; then
-                KDUMP_PARAM="crashkernel=${KDUMP_LOW}M,low crashkernel=${KDUMP_HIGH}M,high"
+             KDUMP_PARAM="auto"
         else
-                KDUMP_PARAM="crashkernel=${KDUMP_LOW}M"
+            if [[ ${KDUMP_HIGH} -gt 0 ]]; then
+                 KDUMP_PARAM="crashkernel=${KDUMP_LOW}M,low crashkernel=${KDUMP_HIGH}M,high"
+            else
+                 KDUMP_PARAM="crashkernel=${KDUMP_LOW}M"
+            fi
         fi
+        tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" sed -i -e 's/^KDUMP_CRASHKERNEL=.*/KDUMP_CRASHKERNEL="'"${KDUMP_PARAM}"'"/' /etc/sysconfig/kdump
 
-        if is_bls; then
-            tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" sed -i -e 's/ *crashkernel[^ "]\+//g' -e 's|$| '"${KDUMP_PARAM}"'|' /etc/kernel/cmdline
-        else
-            tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" sed -i -e '/^GRUB_CMDLINE_LINUX_DEFAULT=/s/ *crashkernel[^ "]\+//g' -e 's|\(^GRUB_CMDLINE_LINUX_DEFAULT=.*\)"|\1 '"${KDUMP_PARAM}"'"|g' "/etc/default/grub"
-            REWRITE_GRUB_CFG=1
-        fi
+        # prevent kdump-commandline.service from trying to update bootloader
+        tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" sed -i -e 's/^KDUMP_UPDATE_BOOTLOADER=.*/KDUMP_UPDATE_BOOTLOADER="false"/' /etc/sysconfig/kdump
 
         tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" systemctl enable kdump
+        tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" kdumptool commandline -u
     fi
 
     if [ ${REWRITE_INITRD} -eq 1 ]; then
