@@ -194,9 +194,26 @@ log_to_stdout() {
 }
 
 log_info() {
-    log_to_stdout "$@"
-    log_to_file "$@"
-    systemd-cat -p info echo "$@"
+    local log_to_orig=0
+    if [ "$1" == "-o" ]; then
+        log_to_orig=1
+        shift
+    fi
+    if [ $# != 0 ]; then
+        log_to_stdout "$@"
+        log_to_file "$@"
+        systemd-cat -p info echo "$@"
+        if [ "$log_to_orig" == 1 ]; then
+            echo "$@" 1>&${origstdout}
+        fi
+    else
+        # log_info is being called as pipe
+        if [ "$log_to_orig" == 1 ]; then
+            cat | tee -a ${LOGFILE} >(systemd-cat -p info) 1>&${origstdout}
+        else
+            cat | tee -a ${LOGFILE} >(systemd-cat -p info)
+        fi
+    fi
 }
 
 log_error() {
@@ -264,7 +281,7 @@ is_bls() {
 
 rebuild_kdump_initrd() {
     if tukit -q call "$1" systemctl is-enabled --quiet kdump.service; then
-        tukit ${TUKIT_OPTS} call "$1" /sbin/mkdumprd |& tee -a ${LOGFILE} 1>&${origstdout}
+        tukit ${TUKIT_OPTS} call "$1" /sbin/mkdumprd | log_info -o
         return "${PIPESTATUS[0]}"
     elif [ ${SETUP_KDUMP} -ge 1 ]; then
         log_info "INFO: Requested rebuild of kdump initrd, but kdump is not enabled."
@@ -286,7 +303,7 @@ quit() {
 
     if [ -n "${SNAPSHOT_ID}" ] && [ "$KEEP_SNAPSHOT" -eq 0 ]; then
         log_error "Removing snapshot #${SNAPSHOT_ID}..."
-        tukit ${TUKIT_OPTS} abort "${SNAPSHOT_ID}" |& tee -a ${LOGFILE}
+        tukit ${TUKIT_OPTS} abort "${SNAPSHOT_ID}" | log_info
     fi
     log_info "transactional-update finished"
     exit "$1"
@@ -995,7 +1012,7 @@ if [ ${DO_CLEANUP_SNAPSHOTS} -eq 1 ]; then
         for snap in ${LAST_WORKING_SNAPSHOTS}; do
             if [ "${CURRENT_SNAPSHOT_ID}" -ne "${snap}" ] && [ "${BOOTED_SNAPSHOT_ID}" -ne "${snap}" ]; then
                 log_info "Adding cleanup algorithm to snapshot #${snap}"
-                snapper modify -c number "${snap}" | tee -a ${LOGFILE} >(systemd-cat -p info)
+                snapper modify -c number "${snap}" | log_info
                 if [ "${PIPESTATUS[0]}" -ne 0 ]; then
                     log_error "ERROR: cannot set cleanup algorithm for snapshot #${snap}"
                 fi
@@ -1003,7 +1020,7 @@ if [ ${DO_CLEANUP_SNAPSHOTS} -eq 1 ]; then
                 # earlier. If not, mark is as important, so that it will not get deleted too fast.
                 if [ "${RO_ROOT}" == "true" ]; then
                     log_info "Adding \"important=yes\" to snapshot #${snap}"
-                    snapper modify -u "important=yes" "${snap}" | tee -a ${LOGFILE} >(systemd-cat -p info)
+                    snapper modify -u "important=yes" "${snap}" | log_info
                     if [ "${PIPESTATUS[0]}" -ne 0 ]; then
                         log_error "ERROR: cannot set \"important=yes for snapshot\" #${snap}"
                     fi
@@ -1035,7 +1052,7 @@ if [ ${DO_CLEANUP_SNAPSHOTS} -eq 1 ]; then
                 [ "${snap}" -ne "${BOOTED_SNAPSHOT_ID}" ] && \
                 [ "${snap}" -ne "${DEFAULT_SNAPSHOT_ID}" ]; then
                 log_info "Mark unused snapshot #${snap} for deletion"
-                snapper modify -c number "${snap}" | tee -a ${LOGFILE} >(systemd-cat -p info)
+                snapper modify -c number "${snap}" | log_info
                 if [ "${PIPESTATUS[0]}" -ne 0 ]; then
                     log_error "ERROR: cannot set cleanup algorithm for snapshot #${snap}"
                     # Is the snapshot still available at all?
@@ -1086,7 +1103,7 @@ if [ -n "${ZYPPER_ARG}" ] || [ ${REWRITE_GRUB_CFG} -eq 1 ] \
         fi
     fi
 
-    output="$(tukit ${TUKIT_OPTS} -c"${BASE_SNAPSHOT_ID}" open | tee -a ${LOGFILE} >(systemd-cat -p info))"
+    output="$(tukit ${TUKIT_OPTS} -c"${BASE_SNAPSHOT_ID}" open | log_info)"
     log_info "$output"
     SNAPSHOT_ID=$(echo "${output}" | grep -e "^ID:" | cut -d " " -f 2-)
     if [ -z "${SNAPSHOT_ID}" ]; then
@@ -1101,7 +1118,7 @@ if [ -n "${ZYPPER_ARG}" ] || [ ${REWRITE_GRUB_CFG} -eq 1 ] \
     UNUSED_SNAPSHOTS="${SNAPSHOT_ID} ${UNUSED_SNAPSHOTS}"
 
     if [ ${DO_REGISTRATION} -eq 1 ]; then
-        tukit ${TUKIT_OPTS} callext "${SNAPSHOT_ID}" SUSEConnect --root {} ${REGISTRATION_ARGS} | tee -a ${LOGFILE} >(systemd-cat -p info) 1>&${origstdout}
+        tukit ${TUKIT_OPTS} callext "${SNAPSHOT_ID}" SUSEConnect --root {} ${REGISTRATION_ARGS} | log_info -o
         if [ "${PIPESTATUS[0]}" -ne 0 ]; then
             EXITCODE=1
         fi
@@ -1123,11 +1140,11 @@ if [ -n "${ZYPPER_ARG}" ] || [ ${REWRITE_GRUB_CFG} -eq 1 ] \
         for i in ${OCI_RSYNC_EXCLUDES}; do
             OCI_RSYNC_EXCLUDES_LIST+=("--exclude $i ")
         done
-        rsync --delete ${OCI_RSYNC_ARGS} ${OCI_RSYNC_EXCLUDES_LIST[@]} ${OCI_MOUNT}/ ${SNAPSHOT_DIR}/ | tee -a ${LOGFILE} >(systemd-cat -p info) 1>&${origstdout}
+        rsync --delete ${OCI_RSYNC_ARGS} ${OCI_RSYNC_EXCLUDES_LIST[@]} ${OCI_MOUNT}/ ${SNAPSHOT_DIR}/ | log_info -o
 
         # Merge contents of /etc from container image but preserve existing configuration
         log_info "INFO: Merging /etc from container image into existing snapshot, preserving existing configuration..."
-        tukit ${TUKIT_OPTS} callext "${SNAPSHOT_ID}" rsync --ignore-existing ${OCI_RSYNC_ARGS} "${OCI_MOUNT}/etc/" "${SNAPSHOT_DIR}/etc/" | tee -a ${LOGFILE} >(systemd-cat -p info) 1>&${origstdout}
+        tukit ${TUKIT_OPTS} callext "${SNAPSHOT_ID}" rsync --ignore-existing ${OCI_RSYNC_ARGS} "${OCI_MOUNT}/etc/" "${SNAPSHOT_DIR}/etc/" | log_info -o
 
         # Unmount the container image
         podman image unmount "${OCI_TARGET}"
@@ -1135,7 +1152,7 @@ if [ -n "${ZYPPER_ARG}" ] || [ ${REWRITE_GRUB_CFG} -eq 1 ] \
         log_info "Forcing SELinux relabel at next reboot."
         touch "${SNAPSHOT_DIR}/.autorelabel"
         # Ensure RPM database is using the desired system backend
-        tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" rpm --rebuilddb | tee -a ${LOGFILE} >(systemd-cat -p info) 1>&${origstdout}
+        tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" rpm --rebuilddb | log_info -o
     fi
 
     if [ -n "${ZYPPER_ARG}" ]; then
@@ -1144,7 +1161,7 @@ if [ -n "${ZYPPER_ARG}" ] || [ ${REWRITE_GRUB_CFG} -eq 1 ] \
         if [ ${DO_MIGRATION} -eq 1 ]; then
             # transactional-update migration
             export DISABLE_RESTART_ON_UPDATE=yes
-            tukit ${TUKIT_OPTS} callext "${SNAPSHOT_ID}" zypper ${ZYPPER_ARG} --root {} ${ZYPPER_NONINTERACTIVE} "${ZYPPER_ARG_EXTRA[@]}" | tee -a ${LOGFILE} >(systemd-cat -p info) 1>&${origstdout}
+            tukit ${TUKIT_OPTS} callext "${SNAPSHOT_ID}" zypper ${ZYPPER_ARG} --root {} ${ZYPPER_NONINTERACTIVE} "${ZYPPER_ARG_EXTRA[@]}" | log_info -o
             RETVAL=${PIPESTATUS[0]}
         else
             if [ ${DO_CALLEXT} -eq 1 ]; then
@@ -1171,10 +1188,10 @@ if [ -n "${ZYPPER_ARG}" ] || [ ${REWRITE_GRUB_CFG} -eq 1 ] \
             fi
 
             export DISABLE_RESTART_ON_UPDATE=yes
-            ${zypper_cmd} ${ZYPPER_ARG} ${ZYPPER_NONINTERACTIVE} "${ZYPPER_ARG_EXTRA[@]}" | tee -a ${LOGFILE} >(systemd-cat -p info) 1>&${origstdout}
+            ${zypper_cmd} ${ZYPPER_ARG} ${ZYPPER_NONINTERACTIVE} "${ZYPPER_ARG_EXTRA[@]}" | log_info -o
             RETVAL=${PIPESTATUS[0]}
             if { [ "${RETVAL}" -eq 0 ] || [ "${RETVAL}" -eq 102 ] || [ "${RETVAL}" -eq 103 ]; } && [ -n "${INCLUDES_KERNEL_PACKAGES}" ]; then
-                ${zypper_cmd} -n purge-kernels | tee -a ${LOGFILE} >(systemd-cat -p info)
+                ${zypper_cmd} -n purge-kernels | log_info
             fi
         fi
         # in case of migration, we need to do a little bit more:
@@ -1234,7 +1251,7 @@ if [ -n "${ZYPPER_ARG}" ] || [ ${REWRITE_GRUB_CFG} -eq 1 ] \
             REWRITE_GRUB_CFG=1
         fi
         if [ -x "${SNAPSHOT_DIR}/usr/bin/update-crypto-policies" ]; then
-            tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" update-crypto-policies --set FIPS |& tee -a ${LOGFILE} 1>&${origstdout}
+            tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" update-crypto-policies --set FIPS | log_info -o
         fi
     fi
     if [ ${SETUP_SELINUX} -eq 1 ]; then
@@ -1284,10 +1301,10 @@ if [ -n "${ZYPPER_ARG}" ] || [ ${REWRITE_GRUB_CFG} -eq 1 ] \
 
     if [ ${REWRITE_INITRD} -eq 1 ]; then
         log_info "Creating new initrd"
-        if is_bls && ! sdbootutil mkinitrd "${SNAPSHOT_ID}" | tee -a ${LOGFILE} >(systemd-cat -p info) 1>&${origstdout}; then
+        if is_bls && ! sdbootutil mkinitrd "${SNAPSHOT_ID}" | log_info -o; then
             log_error "ERROR: sdbootutil mkinitrd failed!"
             EXITCODE=1;
-        elif ! is_bls && ! tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" dracut ${DRACUT_OPTS} --force --regenerate-all | tee -a ${LOGFILE} >(systemd-cat -p info) 1>&${origstdout}; then
+        elif ! is_bls && ! tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" dracut ${DRACUT_OPTS} --force --regenerate-all | log_info -o; then
             log_error "ERROR: initrd creation failed!"
             EXITCODE=1
         else
@@ -1321,7 +1338,7 @@ if [ -n "${ZYPPER_ARG}" ] || [ ${REWRITE_GRUB_CFG} -eq 1 ] \
     fi
     if [ ${REWRITE_GRUB_CFG} -eq 1 ] || [ ${REWRITE_GRUB_CFG_NO_REBOOT} -eq 1 ]; then
         log_info "Creating a new grub2 config"
-        if ! tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" bash -c "/usr/sbin/grub2-mkconfig > /boot/grub2/grub.cfg" | tee -a ${LOGFILE} >(systemd-cat -p info) 1>&${origstdout}; then
+        if ! tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" bash -c "/usr/sbin/grub2-mkconfig > /boot/grub2/grub.cfg" | log_info -o; then
             log_error "ERROR: grub2-mkconfig failed!"
             EXITCODE=1;
         else
@@ -1339,10 +1356,10 @@ if [ -n "${ZYPPER_ARG}" ] || [ ${REWRITE_GRUB_CFG} -eq 1 ] \
         # NOTE: pbl has partial support of BLS. It will replace the
         # shim bootloader, so for now we make a call of sdbootutil
         # directly (bsc#1228864)
-        if is_bls && ! sdbootutil update "${SNAPSHOT_ID}" | tee -a ${LOGFILE} >(systemd-cat -p info) 1>&${origstdout}; then
+        if is_bls && ! sdbootutil update "${SNAPSHOT_ID}" | log_info -o; then
             log_error "ERROR: sdbootutil update failed!"
             EXITCODE=1;
-        elif ! is_bls && ! tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" /sbin/pbl --install | tee -a ${LOGFILE} >(systemd-cat -p info) 1>&${origstdout}; then
+        elif ! is_bls && ! tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" /sbin/pbl --install | log_info -o; then
             log_error "ERROR: /sbin/pbl --install failed!"
             EXITCODE=1;
         fi
@@ -1350,7 +1367,7 @@ if [ -n "${ZYPPER_ARG}" ] || [ ${REWRITE_GRUB_CFG} -eq 1 ] \
     fi
 
     if [ ${DO_RUN} -eq 1 ]; then
-        tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" "${RUN_CMD[@]}" | tee -a ${LOGFILE} >(systemd-cat -p info) 1>&${origstdout}
+        tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" "${RUN_CMD[@]}" | log_info -o
         set_reboot_level "reboot"
     fi
 
@@ -1368,7 +1385,7 @@ if [ -n "${ZYPPER_ARG}" ] || [ ${REWRITE_GRUB_CFG} -eq 1 ] \
         # Save the old snapshot or else it will get lost.
         add_unique_id "${CURRENT_SNAPSHOT_ID}"
         save_state_file "${SNAPSHOT_ID}"
-        tukit ${TUKIT_OPTS} close "${SNAPSHOT_ID}" | tee -a ${LOGFILE} >(systemd-cat -p info)
+        tukit ${TUKIT_OPTS} close "${SNAPSHOT_ID}" | log_info
     fi
 
     # If --drop-if-no-change is used, then the snapshot may not exist any more;
@@ -1441,30 +1458,30 @@ if [ ${EXITCODE} -eq 0 ]; then
         trap '-' HUP INT QUIT TERM
         case "$REBOOT_METHOD" in
             auto)
-                tukit reboot auto | tee -a ${LOGFILE} >(systemd-cat -p info)
+                tukit reboot auto | log_info
                 ;;
             kured)
-                tukit reboot kured | tee -a ${LOGFILE} >(systemd-cat -p info)
+                tukit reboot kured | log_info
                 ;;
             rebootmgr)
-                tukit reboot rebootmgr | tee -a ${LOGFILE} >(systemd-cat -p info)
+                tukit reboot rebootmgr | log_info
                 ;;
             notify)
-                tukit reboot notify | tee -a ${LOGFILE} >(systemd-cat -p info)
+                tukit reboot notify | log_info
                 ;;
             systemd)
-                tukit reboot systemd | tee -a ${LOGFILE} >(systemd-cat -p info)
+                tukit reboot systemd | log_info
                 ;;
             kexec)
-                tukit reboot kexec | tee -a ${LOGFILE} >(systemd-cat -p info)
+                tukit reboot kexec | log_info
                 ;;
             none)
-                tukit reboot none | tee -a ${LOGFILE} >(systemd-cat -p info)
+                tukit reboot none | log_info
                 ;;
             *)
                 log_info "Unsupported reboot method, falling back to 'auto'; please"
                 log_info "check your configuration in ${CONFFILE}."
-                tukit reboot auto | tee -a ${LOGFILE} >(systemd-cat -p info)
+                tukit reboot auto | log_info
                 ;;
         esac
     fi
