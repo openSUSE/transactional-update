@@ -2,6 +2,13 @@ transactional-update NEWS -- history of user-visible changes.
 
 Copyright (C) 2016-2025 Thorsten Kukuk, Ignaz Forster et al.
 
+Version 5.0.6 (2025-07-09)
+* Fix missing x-initrd.mount in fstab on migration [boo#1246139]
+  When migrating overlayfs based /etc to btrfs subvolumes, then the
+  attribute was not set - this may result in failures from services
+  operating on /etc during initrd phase such as SELinux relabelling
+* Optimize execution time of tests
+
 Version 5.0.5 (2025-07-04)
 * Add support for kdump 2.1.0 [bsc#1243758]
 * Integrate test to support `make check`
