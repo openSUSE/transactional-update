@@ -203,9 +203,6 @@ log_info() {
         log_to_stdout "$@"
         log_to_file "$@"
         log_to_journal -p info echo "$@"
-        if [ "$log_to_orig" == 1 ]; then
-            echo "$@" 1>&${origstdout}
-        fi
     else
         # log_info is being called as pipe
         if [ "$log_to_orig" == 1 ]; then
@@ -217,8 +214,6 @@ log_info() {
 }
 
 log_error() {
-    systemd-cat -p err echo "$@"
-    log_to_file "$@"
     echo -e "$@" 1>&2
 }
 
@@ -1103,8 +1098,8 @@ if [ -n "${ZYPPER_ARG}" ] || [ ${REWRITE_GRUB_CFG} -eq 1 ] \
         fi
     fi
 
-    output="$(tukit ${TUKIT_OPTS} -c"${BASE_SNAPSHOT_ID}" open | log_info)"
-    log_info "$output"
+    output="$(tukit ${TUKIT_OPTS} -c"${BASE_SNAPSHOT_ID}" open)"
+    echo "${output}" | log_info
     SNAPSHOT_ID=$(echo "${output}" | grep -e "^ID:" | cut -d " " -f 2-)
     if [ -z "${SNAPSHOT_ID}" ]; then
         quit 1
