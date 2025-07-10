@@ -199,7 +199,8 @@ log_info() {
         log_to_orig=1
         shift
     fi
-    if [ $# != 0 ]; then
+
+    if [ $# -gt 0 ]; then
         log_to_stdout "$@"
         log_to_file "$@"
         log_to_journal -p info echo "$@"
