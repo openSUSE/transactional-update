@@ -179,8 +179,8 @@ print_version() {
     exit 0
 }
 
-systemd-cat() {
-    /usr/bin/systemd-cat -t transactional-update "$@"
+log_to_journal() {
+    systemd-cat -t transactional-update "$@"
 }
 
 log_to_file() {
@@ -202,16 +202,16 @@ log_info() {
     if [ $# != 0 ]; then
         log_to_stdout "$@"
         log_to_file "$@"
-        systemd-cat -p info echo "$@"
+        log_to_journal -p info echo "$@"
         if [ "$log_to_orig" == 1 ]; then
             echo "$@" 1>&${origstdout}
         fi
     else
         # log_info is being called as pipe
         if [ "$log_to_orig" == 1 ]; then
-            cat | tee -a ${LOGFILE} >(systemd-cat -p info) 1>&${origstdout}
+            cat | tee -a ${LOGFILE} >(log_to_journal -p info) 1>&${origstdout}
         else
-            cat | tee -a ${LOGFILE} >(systemd-cat -p info)
+            cat | tee -a ${LOGFILE} >(log_to_journal -p info)
         fi
     fi
 }
@@ -771,7 +771,7 @@ exec {origstdout}>&1
 exec {origstderr}>&2
 
 # Log stderr to log file in case anything goes wrong within transactional-update
-exec 2> >(exec tee -i -a "${LOGFILE}" >(systemd-cat -p err) >&2)
+exec 2> >(exec tee -i -a "${LOGFILE}" >(log_to_journal -p err) >&2)
 if [ "${VERBOSITY}" -eq 1 ]; then
     exec 1>/dev/null
     if [ -n "${ZYPPER_ARG}" ]; then
