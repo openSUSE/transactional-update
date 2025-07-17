@@ -16,7 +16,7 @@ namespace TransactionalUpdate {
 
 class Snapshot {
 public:
-    Snapshot(std::string id): snapshotId{id} {};
+    Snapshot(std::string id): snapshotId{id} {}
     virtual ~Snapshot() = default;
     virtual void close() = 0;
     virtual void abort() = 0;
@@ -25,7 +25,7 @@ public:
     virtual bool isReadOnly() = 0;
     virtual void setDefault() = 0;
     virtual void setReadOnly(bool readonly) = 0;
-    std::string getUid() { return snapshotId; };
+    std::string getUid() { return snapshotId; }
 protected:
     std::string snapshotId;
     std::string snapshotDate;
