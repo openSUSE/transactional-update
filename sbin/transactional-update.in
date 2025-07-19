@@ -312,7 +312,7 @@ do_apply() {
             log_error "ERROR during apply: Couldn't create mount directory."
         fi
 
-        sourcedevice="$(findmnt --target /usr --raw --noheadings --output SOURCE --nofsroot | tail -n 1)"
+        sourcedevice="$(findmnt --target / --raw --noheadings --output SOURCE --nofsroot --first-only)"
         # Mount new snapshot as base
         if ! mount "${sourcedevice}" "${APPLYWORKDIR}/mount"; then
             log_error "ERROR during apply: Mounting ${sourcedevice} to ${APPLYWORKDIR}/mount failed."
@@ -362,6 +362,10 @@ do_apply() {
             quit 2
         fi
 
+        if [ "$(systemd-sysext | tail -n +2 | grep " none " | wc -l)" -ne 2 ]; then
+            REFRESH_SYSEXTS=1
+        fi
+
         if [ -e /usr/libexec/transactional-update-sync-etc-state ] && [ -e "/.snapshots/${NEW_DEFAULT_SNAPSHOT_ID}/snapshot/etc/etc.syncpoint" ] ; then
             log_info "Syncing /etc state from old snapshot..."
             /usr/libexec/transactional-update-sync-etc-state /etc "/.snapshots/${NEW_DEFAULT_SNAPSHOT_ID}/snapshot/etc" "/.snapshots/${NEW_DEFAULT_SNAPSHOT_ID}/snapshot/etc/etc.syncpoint"
@@ -382,6 +386,11 @@ do_apply() {
             fi
             rbinddir_done="${rbinddir_done} ${rbinddir}"
         done
+
+	if [ "${REFRESH_SYSEXTS}" ]; then
+            log_info "Refreshing sysexts..."
+            systemd-sysext refresh
+        fi
 
         umount --lazy "${APPLYWORKDIR}/mount"
         rmdir "${APPLYWORKDIR}/mount"
@@ -903,7 +912,10 @@ if [ -n "${ZYPPER_ARG}" ] && [ "${DO_MIGRATION}" -eq 0 ] && [ ${ZYPPER_AUTO_IMPO
 fi
 
 BOOTED_SNAPSHOT_ID=$(grep subvol=/@/.snapshots/ /proc/mounts | grep "/ btrfs" | sed -e 's|.*.snapshots/\(.*\)/snapshot.*|\1|g')
-CURRENT_SNAPSHOT_ID=$(findmnt --target /usr --raw --noheadings --output FSROOT | tail -n 1 | sed -e 's|.*.snapshots/\(.*\)/snapshot.*|\1|g')
+CURRENT_SNAPSHOT_ID=$(findmnt --target /usr --raw --noheadings --output FSROOT --first-only --direction backward --types btrfs | sed -e 's|.*.snapshots/\(.*\)/snapshot.*|\1|g')
+if [ -z "${CURRENT_SNAPSHOT_ID}" ]; then
+    CURRENT_SNAPSHOT_ID=$(findmnt --target / --raw --noheadings --output FSROOT --first-only --direction backward --types btrfs | sed -e 's|.*.snapshots/\(.*\)/snapshot.*|\1|g')
+fi
 DEFAULT_SNAPSHOT_ID=$(btrfs subvolume get-default / | sed -e 's|.*.snapshots/\(.*\)/snapshot|\1|g')
 RO_ROOT=$(btrfs property get / ro | sed -e 's|ro=||')
 
