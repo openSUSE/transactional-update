@@ -150,7 +150,7 @@ debug() {
 }
 
 # bats test_tags=needroot
-@test "File contents and properties (with fakeroot)" {
+@test "File contents and properties (needs root)" {
 	shopt -s globstar dotglob
 	FILES=(File0.txt)
 	createFilesIn "${mockdir_old_etc}" "${FILES[@]}"

@@ -114,9 +114,9 @@ AM_CONDITIONAL(ENABLE_REGENERATE_MAN,
 	test "x$enable_man" != "xno" -a "x$with_doc" != "xno")
 
 AC_PATH_PROG([BATS], [bats])
-AC_PATH_PROG([FAKEROOT], [fakeroot])
-AS_IF([test -z "$BATS" -o -z "$FAKEROOT"], [AC_MSG_WARN([To run tests please install
-       bats and fakeroot.])])
+AC_PATH_PROG([ROOTLESSKIT], [rootlesskit])
+AS_IF([test -z "$BATS" -o -z "$ROOTLESSKIT"], [AC_MSG_WARN([To run tests please install
+       bats and rootlesskit.])])
 
 AC_CONFIG_FILES([Makefile lib/Makefile tukit/Makefile sbin/Makefile man/Makefile \
 	systemd/Makefile logrotate/Makefile dracut/Makefile doc/Makefile \
