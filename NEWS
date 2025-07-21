@@ -2,6 +2,15 @@ transactional-update NEWS -- history of user-visible changes.
 
 Copyright (C) 2016-2025 Thorsten Kukuk, Ignaz Forster et al.
 
+Version 5.0.7 (2025-07-21)
+* Add sysext compatibility [bsc#1246140]
+* Fix soft-reboot with btrfs subvolume based /etc
+* Sync /etc layers also on soft-reboot
+* Bind mount /run/systemd/journal to allow log calls
+  [gh#openSUSE/transactional-update#149]
+* Use rootlesskit instead of fakeroot for tests
+* Small coding style fixes
+
 Version 5.0.6 (2025-07-09)
 * Fix missing x-initrd.mount in fstab on migration [boo#1246139]
   When migrating overlayfs based /etc to btrfs subvolumes, then the
