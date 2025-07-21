@@ -2,7 +2,7 @@
 # SPDX-FileCopyrightText: Copyright SUSE LLC
 
 LOG_DRIVER = env AM_TAP_AWK='$(AWK)' $(SHELL) $(top_srcdir)/tap-driver.sh
-LOG_DRIVER_FLAGS = -- rootlesskit bats --tap --output
+LOG_DRIVER_FLAGS = -- bats --tap --output
 
 TESTS = etc_changes.bats
 

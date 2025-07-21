@@ -159,13 +159,13 @@ debug() {
 	syncTimestamps "${mockdir_old_etc}"/** "${mockdir_new_etc}"/** "${mockdir_syncpoint}"/**
 
 	# Ownership - running in fakeroot because the user may not be part of any non-default group
-	chown :audio "${mockdir_old_etc}/${FILES[0]}"
+	chown :trusted "${mockdir_old_etc}/${FILES[0]}"
 	touch --reference="${mockdir_syncpoint}/${FILES[0]}" "${mockdir_new_etc}/${FILES[0]}"
 
 	run $totest --keep-syncpoint "${mockdir_old_etc}" "${mockdir_new_etc}" "${mockdir_syncpoint}"
 
 	echo "# Verify that owner changes are detected and applied properly"
-	[ "$(stat -c %G "${mockdir_new_etc}/${FILES[0]}")" = "audio" ]
+	[ "$(stat -c %G "${mockdir_new_etc}/${FILES[0]}")" = "trusted" ]
 
 	rm -r "${mockdir_syncpoint}"
 }
