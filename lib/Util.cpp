@@ -37,7 +37,7 @@ string Util::exec(const string cmd) {
 
     tulog.debug("◸", result, "◿");
     if (rc != EXIT_SUCCESS) {
-        throw ExecutionException{"`" + cmd + "` returned with error code " + to_string(rc%255) + ".", rc, result};
+        throw ExecutionException{"`" + cmd + "` returned with error code " + to_string(rc) + ".", rc, result};
     }
 
     return result;
