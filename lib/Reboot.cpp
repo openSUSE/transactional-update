@@ -39,7 +39,7 @@ Reboot::Reboot(std::string method) {
         rebootfile.close();
     }
 
-    tulog.info("Requesting reboot using " + method + " (" + type + " required).");
+    tulog.info("Minimally required reboot level: " + type);
 
     // Deprecated
     if (method == "kexec") {
@@ -49,15 +49,19 @@ Reboot::Reboot(std::string method) {
 
     if (method == "rebootmgr") {
         if (type == "soft-reboot" && config.get("REBOOT_ALLOW_SOFT_REBOOT") == "true") {
+            tulog.info("Triggering reboot using rebootmgrctl soft-reboot.");
             command  = "/usr/bin/rebootmgrctl soft-reboot";
         } else {
+            tulog.info("Triggering reboot using rebootmgrctl reboot.");
             command  = "/usr/bin/rebootmgrctl reboot";
         }
     } else if (method == "notify") {
+        tulog.info("Triggering reboot using transactional-update-notifier client.");
         command  = "/usr/bin/transactional-update-notifier client";
     } else if (method == "systemd") {
         command  = "sync;";
         if (type == "soft-reboot" && config.get("REBOOT_ALLOW_SOFT_REBOOT") == "true") {
+            tulog.info("Triggering reboot using systemctl soft-reboot.");
             command += "systemctl soft-reboot;";
         } else if (type == "force-kexec" || ((type == "kexec" || type == "soft-reboot") && config.get("REBOOT_ALLOW_KEXEC") == "true")) {
             auto sm = SnapshotFactory::get();
@@ -81,14 +85,18 @@ Reboot::Reboot(std::string method) {
                 initrd = efi / std::filesystem::path(initrd).relative_path();
                 Util::sanitize_quotes(initrd);
             }
+            tulog.info("Triggering reboot using systemctl kexec.");
             command  = "kexec --kexec-syscall-auto -l '" + kernel + "' --initrd='" + initrd + "' --reuse-cmdline;";
             command += "systemctl kexec;";
         } else {
+            tulog.info("Triggering reboot using systemctl reboot.");
             command += "systemctl reboot;";
         }
     } else if (method == "kured") {
+        tulog.info("Triggering reboot using kured.");
         command  = "touch /var/run/reboot-required";
     } else if (method == "none") {
+        tulog.info("Reboots are disabled.");
         command  = "true;";
     } else {
         throw std::invalid_argument{"Unknown reboot method '" + method + "'."};
