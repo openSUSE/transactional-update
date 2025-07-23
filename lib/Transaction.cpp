@@ -255,9 +255,11 @@ int Transaction::impl::inotifyAdd(const char *pathname, const struct stat *sbuf,
     return 0;
 }
 
-void Transaction::init(std::string base, std::optional<std::string> description) {
+int Transaction::init(std::string base, std::optional<std::string> description) {
     TransactionalUpdate::Plugins plugins{nullptr};
-    plugins.run("init-pre", nullptr);
+    int status = plugins.run("init-pre", nullptr);
+    if (status != 0)
+        return status;
 
     if (base == "active")
         base = pImpl->snapshotMgr->getCurrent();
@@ -286,12 +288,15 @@ void Transaction::init(std::string base, std::optional<std::string> description)
     }
 
     TransactionalUpdate::Plugins plugins_with_transaction{this};
-    plugins_with_transaction.run("init-post", nullptr);
+    status = plugins_with_transaction.run("init-post", nullptr);
+    return status;
 }
 
-void Transaction::resume(std::string id) {
+int Transaction::resume(std::string id) {
     TransactionalUpdate::Plugins plugins{nullptr};
-    plugins.run("resume-pre", id);
+    int status = plugins.run("resume-pre", id);
+    if (status != 0)
+        return status;
 
     pImpl->snapshot = pImpl->snapshotMgr->open(id);
     if (! pImpl->snapshot->isInProgress()) {
@@ -305,7 +310,8 @@ void Transaction::resume(std::string id) {
     }
 
     TransactionalUpdate::Plugins plugins_with_transaction{this};
-    plugins_with_transaction.run("resume-post", nullptr);
+    status = plugins_with_transaction.run("resume-post", nullptr);
+    return status;
 }
 
 void Transaction::setDiscardIfUnchanged(bool discard) {
@@ -459,9 +465,15 @@ int Transaction::impl::runCommand(char* argv[], bool inChroot, std::string* outp
 
 int Transaction::execute(char* argv[], std::string* output) {
     TransactionalUpdate::Plugins plugins{this};
-    plugins.run("execute-pre", argv);
-    int status = this->pImpl->runCommand(argv, true, output);
-    plugins.run("execute-post", argv);
+    int status = plugins.run("execute-pre", argv);
+    if (status != 0)
+        return status;
+
+    status = this->pImpl->runCommand(argv, true, output);
+    if (status != 0)
+        return status;
+
+    status = plugins.run("execute-post", argv);
     return status;
 }
 
@@ -478,9 +490,15 @@ int Transaction::callExt(char* argv[], std::string* output) {
     }
 
     TransactionalUpdate::Plugins plugins{this};
-    plugins.run("callExt-pre", argv);
-    int status = this->pImpl->runCommand(argv, false, output);
-    plugins.run("callExt-post", argv);
+    int status = plugins.run("callExt-pre", argv);
+    if (status != 0)
+        return status;
+
+    status = this->pImpl->runCommand(argv, false, output);
+    if (status != 0)
+        return status;
+
+    status= plugins.run("callExt-post", argv);
     return status;
 }
 
@@ -492,9 +510,11 @@ void Transaction::sendSignal(int signal) {
     }
 }
 
-void Transaction::finalize() {
+int Transaction::finalize() {
     TransactionalUpdate::Plugins plugins{this};
-    plugins.run("finalize-pre", nullptr);
+    int status = plugins.run("finalize-pre", nullptr);
+    if (status != 0)
+        return status;
 
     sync();
     if (pImpl->discardIfNoChange &&
@@ -526,8 +546,8 @@ void Transaction::finalize() {
         }
 
         TransactionalUpdate::Plugins plugins_without_transaction{nullptr};
-        plugins_without_transaction.run("finalize-post", pImpl->snapshot->getUid() + " " + "discarded");
-        return;
+        status = plugins_without_transaction.run("finalize-post", pImpl->snapshot->getUid() + " " + "discarded");
+        return status;
     }
     if (fs::exists(getRoot() / "discardIfNoChange")) {
         fs::remove(getRoot() / "discardIfNoChange");
@@ -551,12 +571,16 @@ void Transaction::finalize() {
     pImpl->snapshot.reset();
 
     TransactionalUpdate::Plugins plugins_without_transaction{nullptr};
-    plugins_without_transaction.run("finalize-post", id);
+    status = plugins_without_transaction.run("finalize-post", id);
+
+    return status;
 }
 
-void Transaction::keep() {
+int Transaction::keep() {
     TransactionalUpdate::Plugins plugins{this};
-    plugins.run("keep-pre", nullptr);
+    int status = plugins.run("keep-pre", nullptr);
+    if (status != 0)
+        return status;
 
     sync();
     if (fs::exists(pImpl->snapshot->getRoot() / "discardIfNoChange") && (inotifyFd != 0 && pImpl->inotifyRead() > 0)) {
@@ -568,5 +592,6 @@ void Transaction::keep() {
     pImpl->snapshot.reset();
 
     TransactionalUpdate::Plugins plugins_without_transaction{nullptr};
-    plugins_without_transaction.run("keep-post", id);
+    status = plugins_without_transaction.run("keep-post", id);
+    return status;
 }
