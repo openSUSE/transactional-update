@@ -39,6 +39,7 @@ public:
      * @brief Open a new transaction
      * @param base Snapshot ID, "active" or "default"
      * @param description (optional) allows to customize the description of the snapshot
+     * @return plugin's return code
      *
      * Create a new snapshot, based on the given @base.
      * @base can be "active" to base the snapshot on the currently running system, "default" to
@@ -47,7 +48,7 @@ public:
      *
      * If @base is not set "active" will be used as the default.
      */
-    void init(std::string base, std::optional<std::string> description = std::nullopt);
+    int init(std::string base, std::optional<std::string> description = std::nullopt);
 
     /**
      * @brief Set flag to discard snapshots if no changes are detected
@@ -71,16 +72,17 @@ public:
     /**
      * @brief Resume an existing transaction
      * @param id Snapshot ID
+     * @return plugin's return code
      *
      * Resume a transaction closed with keep().
      */
-    void resume(std::string id);
+    int resume(std::string id);
 
     /**
      * @brief Execute the given application in the new snapshot
      * @param argv
      * @param (optional) output Variable to store the command's output to
-     * @return application's return code
+     * @return application's or plugin's return code
      *
      * Execute any given command within the new snapshot. The application's output will be
      * printed to the corresponding streams or, if set, stored in the output variable.
@@ -95,7 +97,7 @@ public:
      * @brief Replace '{}' in argv with mount directory and execute command
      * @param argv
      * @param (optional) output Variable to store the command's output to
-     * @return application's return code
+     * @return application's or plugin's return code
      *
      * Replace any standalone occurrence of '{}' in argv with the snapshot's mount directory
      * and execute the given command *outside* of the snapshot in the running system. This may
@@ -112,15 +114,17 @@ public:
 
     /**
      * @brief Close a transaction and set it as the new default snapshot
+     * @return plugin's return code
      *
      * Note that it is necessary to call this method if the snapshot is supposed to be kept.
      * Failing to do so will remove the snapshot as soon as the Transaction's destructor is
      * called.
      */
-    void finalize();
+    int finalize();
 
     /**
      * @brief Don't discard transaction on destructor call
+     * @return plugin's return code
      *
      * It is possible to keep a transaction open even though the Transaction object has been
      * destructed. Such a transaction can be resumed later using resume(), but it won't be set
@@ -129,7 +133,7 @@ public:
      * Note that such pending transactions will still be marked for cleanup by
      * transactional-update to avoid collecting unfinished / never closed snapshots
      */
-    void keep();
+    int keep();
 
     /**
      * @brief Sends a signal to the executed process

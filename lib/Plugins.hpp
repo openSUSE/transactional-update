@@ -17,8 +17,8 @@ class Plugins {
 public:
     Plugins(TransactionalUpdate::Transaction* transaction);
     virtual ~Plugins();
-    void run(std::string stage, std::string args);
-    void run(std::string stage, char* argv[]);
+    int run(std::string stage, std::string args);
+    int run(std::string stage, char* argv[]);
 protected:
     TransactionalUpdate::Transaction* transaction;
     std::vector<std::filesystem::path> plugins;

@@ -55,8 +55,9 @@ Plugins::~Plugins() {
     plugins.clear();
 }
 
-void Plugins::run(string stage, string args) {
+int Plugins::run(string stage, string args) {
     std::string output;
+    int ret;
 
     for (auto& p: plugins) {
         std::string cmd = p.string() + " " + stage;
@@ -72,9 +73,11 @@ void Plugins::run(string stage, string args) {
             tulog.error("ERROR: Plugin ", p, " failed with ", e.what());
         }
     }
+
+    return ret;
 }
 
-void Plugins::run(string stage, char* argv[]) {
+int Plugins::run(string stage, char* argv[]) {
     std::string args;
 
     if (transaction != nullptr)
@@ -89,7 +92,7 @@ void Plugins::run(string stage, char* argv[]) {
         args.append("'");
     }
 
-    run(stage, args);
+    return run(stage, args);
 }
 
 } // namespace TransactionalUpdate
