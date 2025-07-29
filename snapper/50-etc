@@ -82,7 +82,9 @@ create_snapshot_post() {
   fi
 
   # Bugfix: Older versions didn't include the x-initrd.mount flag
-  awk -i inplace '$2 == "/etc" && $4 !~ /x-initrd.mount/ { $4 = $4 ",x-initrd.mount" } { print }' /etc/fstab
+  if ! awk '$2 == "/etc" && $4 !~ /x-initrd.mount/ { exit 1 }' "/.snapshots/${snapshot}/snapshot/etc/fstab"; then
+    awk -i inplace '$2 == "/etc" && $4 !~ /x-initrd.mount/ { $4 = $4 ",x-initrd.mount" } { print }' "/.snapshots/${snapshot}/snapshot/etc/fstab"
+  fi
 
   reset_snapshot_writability
 }
