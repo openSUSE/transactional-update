@@ -1261,17 +1261,16 @@ if [ -n "${ZYPPER_ARG}" ] || [ ${REWRITE_GRUB_CFG} -eq 1 ] \
         fi
     fi
 
-    ETC_BASE="${SNAPSHOT_DIR}"
     if [ ${SETUP_FIPS} -eq 1 ]; then
         if is_bls; then
-            grep -q -w fips /etc/kernel/cmdline || \
-                tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" sed -i -e 's|$| fips=1|' "/etc/kernel/cmdline"
+            grep -q -w fips "${SNAPSHOT_DIR}/etc/kernel/cmdline" || \
+                sed -i -e 's|$| fips=1|' "${SNAPSHOT_DIR}/etc/kernel/cmdline"
         else
             # Adjust grub configuration
 
-            # Check if we don't have selinux already enabled.
-            grep ^GRUB_CMDLINE_LINUX_DEFAULT /etc/default/grub | grep -q -w fips || \
-                tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" sed -i -e 's|\(^GRUB_CMDLINE_LINUX_DEFAULT=.*\)"|\1 fips=1"|g' "/etc/default/grub"
+            # Check if we don't have fips already enabled.
+            grep ^GRUB_CMDLINE_LINUX_DEFAULT "${SNAPSHOT_DIR}/etc/default/grub" | grep -q -w fips || \
+                sed -i -e 's|\(^GRUB_CMDLINE_LINUX_DEFAULT=.*\)"|\1 fips=1"|g' "${SNAPSHOT_DIR}/etc/default/grub"
             REWRITE_GRUB_CFG=1
         fi
         if [ -x /usr/bin/update-crypto-policies ]; then
@@ -1280,28 +1279,28 @@ if [ -n "${ZYPPER_ARG}" ] || [ ${REWRITE_GRUB_CFG} -eq 1 ] \
     fi
     if [ ${SETUP_SELINUX} -eq 1 ]; then
         if is_bls; then
-            grep -q -w fips /etc/kernel/cmdline || \
-                tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" sed -i -e 's|$| security=selinux selinux=1|' "/etc/kernel/cmdline"
+            grep -q -w selinux "${SNAPSHOT_DIR}/etc/kernel/cmdline" || \
+                sed -i -e 's|$| security=selinux selinux=1|' "${SNAPSHOT_DIR}/etc/kernel/cmdline"
         else
             # Adjust grub configuration
 
             # Check if we don't have selinux already enabled.
-            grep ^GRUB_CMDLINE_LINUX_DEFAULT /etc/default/grub | grep -q -w security=selinux || \
-                tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" sed -i -e 's|\(^GRUB_CMDLINE_LINUX_DEFAULT=.*\)"|\1 security=selinux selinux=1"|g' "/etc/default/grub"
+            grep ^GRUB_CMDLINE_LINUX_DEFAULT "${SNAPSHOT_DIR}/etc/default/grub" | grep -q -w security=selinux || \
+                sed -i -e 's|\(^GRUB_CMDLINE_LINUX_DEFAULT=.*\)"|\1 security=selinux selinux=1"|g' "${SNAPSHOT_DIR}/etc/default/grub"
             REWRITE_GRUB_CFG=1
         fi
 
-        if tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" [ ! -e "/etc/selinux/config" ]; then
+        if [ ! -e "${SNAPSHOT_DIR}/etc/selinux/config" ]; then
             log_error "ERROR: /etc/selinux/config does not exist!"
             EXITCODE=1
         fi
         # Adjust selinux config
-        tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" sed -i -e 's|^SELINUX=.*|SELINUX=enforcing|g' \
+        sed -i -e 's|^SELINUX=.*|SELINUX=enforcing|g' \
             -e 's|^SELINUXTYPE=.*|SELINUXTYPE=targeted|g' \
-            "/etc/selinux/config"
+            "${SNAPSHOT_DIR}/etc/selinux/config"
 
         # Move an /.autorelabel file from initial installation to writeable location
-        test -f "${SNAPSHOT_DIR}/.autorelabel" && mv "${SNAPSHOT_DIR}/.autorelabel" "${ETC_BASE}/etc/selinux/.autorelabel"
+        test -f "${SNAPSHOT_DIR}/.autorelabel" && mv "${SNAPSHOT_DIR}/.autorelabel" "${SNAPSHOT_DIR}/etc/selinux/.autorelabel"
     fi
 
     if [ ${SETUP_KDUMP} -eq 1 ]; then
@@ -1314,10 +1313,10 @@ if [ -n "${ZYPPER_ARG}" ] || [ ${REWRITE_GRUB_CFG} -eq 1 ] \
                  KDUMP_PARAM="crashkernel=${KDUMP_LOW}M"
             fi
         fi
-        tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" sed -i -e 's/^KDUMP_CRASHKERNEL=.*/KDUMP_CRASHKERNEL="'"${KDUMP_PARAM}"'"/' /etc/sysconfig/kdump
+        sed -i -e 's/^KDUMP_CRASHKERNEL=.*/KDUMP_CRASHKERNEL="'"${KDUMP_PARAM}"'"/' "${SNAPSHOT_DIR}/etc/sysconfig/kdump"
 
         # prevent kdump-commandline.service from trying to update bootloader
-        tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" sed -i -e 's/^KDUMP_UPDATE_BOOTLOADER=.*/KDUMP_UPDATE_BOOTLOADER="false"/' /etc/sysconfig/kdump
+        sed -i -e 's/^KDUMP_UPDATE_BOOTLOADER=.*/KDUMP_UPDATE_BOOTLOADER="false"/' "${SNAPSHOT_DIR}/etc/sysconfig/kdump"
 
         tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" systemctl enable kdump
         tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" kdumptool commandline -u
