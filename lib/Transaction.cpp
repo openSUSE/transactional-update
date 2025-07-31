@@ -177,7 +177,8 @@ void Transaction::impl::snapMount() {
     mntRun->setType("tmpfs");
     mntRun->setSource("tmpfs");
     dirsToMount.push_back(std::move(mntRun));
-    dirsToMount.push_back(std::make_unique<BindMount>("/run/systemd/journal"));
+    if (fs::exists("/run/systemd/journal"))
+        dirsToMount.push_back(std::make_unique<BindMount>("/run/systemd/journal"));
     std::unique_ptr<Mount> mntVarTmp{new Mount{"/var/tmp"}};
     mntVarTmp->setType("tmpfs");
     mntVarTmp->setSource("tmpfs");
