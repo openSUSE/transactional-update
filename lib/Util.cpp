@@ -9,6 +9,7 @@
 #include "Util.hpp"
 #include "Exceptions.hpp"
 #include <algorithm>
+#include <sys/wait.h>
 
 namespace TransactionalUpdate {
 
@@ -37,7 +38,10 @@ string Util::exec(const string cmd) {
 
     tulog.debug("◸", result, "◿");
     if (rc != EXIT_SUCCESS) {
-        throw ExecutionException{"`" + cmd + "` returned with error code " + to_string(rc) + ".", rc, result};
+        if (WIFEXITED(rc))
+            throw ExecutionException{"`" + cmd + "` returned with error code " + to_string(WEXITSTATUS(rc)) + ".", rc, result};
+        if (WIFSIGNALED(rc))
+           throw ExecutionException{"`" + cmd + "` exited via signal " + to_string(WTERMSIG(rc)) + ".", rc, result};
     }
 
     return result;
