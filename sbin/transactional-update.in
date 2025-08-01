@@ -13,6 +13,7 @@ VERBOSITY=2
 ZYPPER_ARG=""
 ZYPPER_ARG_EXTRA=()
 ZYPPER_NONINTERACTIVE="-y --auto-agree-with-product-licenses"
+KEEP_SNAPSHOT=0
 REWRITE_BOOTLOADER=0
 REWRITE_GRUB_CFG=0
 REWRITE_GRUB_CFG_NO_REBOOT=0
@@ -165,6 +166,7 @@ usage() {
     echo "--continue [<number>], -c  Use latest or given snapshot as base"
     echo "--no-selfupdate            Skip checking for newer version"
     echo "--drop-if-no-change, -d    Drop the snapshot if there is no change"
+    echo "--keep, -k                 Keep the snapshot even if there is an error"
     echo "--quiet                    Don't print warnings and infos to stdout"
     echo "--help, -h                 Display this help and exit"
     echo "--version                  Display version and exit"
@@ -271,7 +273,7 @@ quit() {
         echo -n "${REBOOT_LEVEL_PREV}" > "${NEEDS_RESTARTING_FILE}"
     fi
 
-    if [ -n "${SNAPSHOT_ID}" ] ; then
+    if [ -n "${SNAPSHOT_ID}" ] && [ "$KEEP_SNAPSHOT" -eq 0 ]; then
         log_error "Removing snapshot #${SNAPSHOT_ID}..."
         tukit ${TUKIT_OPTS} abort "${SNAPSHOT_ID}" |& tee -a ${LOGFILE}
     fi
@@ -665,6 +667,11 @@ parse_args() {
                 ;;
             -d|--drop-if-no-change)
                 TUKIT_OPTS="${TUKIT_OPTS} --discard"
+                shift
+                ;;
+            -k|--keep)
+                TUKIT_OPTS="${TUKIT_OPTS} --keep"
+                KEEP_SNAPSHOT=1
                 shift
                 ;;
             --quiet)

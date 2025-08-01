@@ -15,7 +15,8 @@ namespace TransactionalUpdate {
 
 using namespace std;
 
-Plugins::Plugins(TransactionalUpdate::Transaction* transaction): transaction(transaction) {
+  Plugins::Plugins(TransactionalUpdate::Transaction* transaction, bool ignore_error)
+    : transaction{transaction}, ignore_error{ignore_error} {
     set<string> plugins_set{};
 
     const filesystem::path plugins_dir{filesystem::path(CONFDIR)/"tukit"/"plugins"};
@@ -72,7 +73,8 @@ void Plugins::run(string stage, string args) {
                 tulog.error("ERROR: ", e.what());
                 tulog.error("Output of plugin ", p, ":\n", e.output, "---");
             }
-            throw(e.returncode%255);
+            if (!ignore_error)
+                throw(e.returncode%255);
         }
     }
 }
