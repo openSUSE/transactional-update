@@ -55,6 +55,7 @@ void TUKit::displayHelp() {
     cout << "Transaction Options:\n";
     cout << "--continue[=<ID>], -c[<ID>]  Use latest or given snapshot as base\n";
     cout << "--description=<description>  Use custom snapshot description for \"open\"\n";
+    cout << "--keep, -k                   Keep snapshot even if there is an error\n";
     cout << "--discard, -d                Discard snapshot if no files were changed in root\n";
     cout << "\n";
     cout << "Snapshot Commands:\n";
@@ -81,6 +82,7 @@ int TUKit::parseOptions(int argc, char *argv[]) {
     static const struct option longopts[] = {
         { "continue", optional_argument, nullptr, 'c' },
         { "description", required_argument, nullptr, 0 },
+        { "keep", no_argument, nullptr, 'k' },
         { "discard", no_argument, nullptr, 'd' },
         { "fields", required_argument, nullptr, 'f' },
         { "help", no_argument, nullptr, 'h' },
@@ -103,6 +105,9 @@ int TUKit::parseOptions(int argc, char *argv[]) {
                 baseSnapshot = optarg;
             else
                 baseSnapshot = "default";
+            break;
+        case 'k':
+            keepSnapshot = true;
             break;
         case 'd':
             discardSnapshot = true;
@@ -138,6 +143,9 @@ int TUKit::processCommand(char *argv[]) {
     string arg = argv[0];
     if (arg == "execute") {
         TransactionalUpdate::Transaction transaction{};
+        if (keepSnapshot) {
+            transaction.setKeepIfError(true);
+        }
         if (discardSnapshot) {
             transaction.setDiscardIfUnchanged(true);
         }
@@ -152,6 +160,9 @@ int TUKit::processCommand(char *argv[]) {
     }
     else if (arg == "open") {
         TransactionalUpdate::Transaction transaction{};
+        if (keepSnapshot) {
+            transaction.setKeepIfError(true);
+        }
         if (discardSnapshot) {
             transaction.setDiscardIfUnchanged(true);
         }
@@ -166,6 +177,9 @@ int TUKit::processCommand(char *argv[]) {
             throw invalid_argument{"Missing argument for 'call'"};
         }
         TransactionalUpdate::Transaction transaction{};
+        if (keepSnapshot) {
+            transaction.setKeepIfError(true);
+        }
         transaction.resume(argv[1]);
         int status = transaction.execute(&argv[2]); // All remaining arguments
         transaction.keep();
@@ -177,6 +191,9 @@ int TUKit::processCommand(char *argv[]) {
             throw invalid_argument{"Missing argument for 'callext'"};
         }
         TransactionalUpdate::Transaction transaction{};
+        if (keepSnapshot) {
+            transaction.setKeepIfError(true);
+        }
         transaction.resume(argv[1]);
         int status = transaction.callExt(&argv[2]); // All remaining arguments
         transaction.keep();
@@ -188,6 +205,9 @@ int TUKit::processCommand(char *argv[]) {
             throw invalid_argument{"Missing argument for 'close'"};
         }
         TransactionalUpdate::Transaction transaction{};
+        if (keepSnapshot) {
+            transaction.setKeepIfError(true);
+        }
         transaction.resume(argv[1]);
         transaction.finalize();
         return 0;
@@ -198,6 +218,9 @@ int TUKit::processCommand(char *argv[]) {
             throw invalid_argument{"Missing argument for 'abort'"};
         }
         TransactionalUpdate::Transaction transaction{};
+        if (keepSnapshot) {
+            transaction.setKeepIfError(true);
+        }
         transaction.resume(argv[1]);
         return 0;
     }

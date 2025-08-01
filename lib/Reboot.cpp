@@ -104,7 +104,7 @@ Reboot::Reboot(std::string method) {
 }
 
 void Reboot::reboot() {
-    TransactionalUpdate::Plugins plugins{nullptr};
+    TransactionalUpdate::Plugins plugins{nullptr, false};
     plugins.run("reboot-pre", nullptr);
     Util::exec(command);
 }

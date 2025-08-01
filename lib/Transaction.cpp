@@ -51,6 +51,7 @@ public:
     std::vector<std::unique_ptr<Mount>> dirsToMount;
     Supplements supplements;
     pid_t pidCmd;
+    bool keepIfError = false;
     bool discardIfNoChange = false;
 };
 
@@ -80,7 +81,7 @@ Transaction::~Transaction() {
         if (isInitialized() && !getSnapshot().empty() && fs::exists(getRoot())) {
             tulog.info("Discarding snapshot ", pImpl->snapshot->getUid(), ".");
             pImpl->snapshot->abort();
-            TransactionalUpdate::Plugins plugins{nullptr};
+            TransactionalUpdate::Plugins plugins{nullptr, pImpl->keepIfError};
             plugins.run("abort-post", pImpl->snapshot->getUid());
         }
     }  catch (const std::exception &e) {
@@ -257,7 +258,7 @@ int Transaction::impl::inotifyAdd(const char *pathname, const struct stat *sbuf,
 }
 
 void Transaction::init(std::string base, std::optional<std::string> description) {
-    TransactionalUpdate::Plugins plugins{nullptr};
+    TransactionalUpdate::Plugins plugins{nullptr, pImpl->keepIfError};
     plugins.run("init-pre", nullptr);
 
     if (base == "active")
@@ -286,12 +287,12 @@ void Transaction::init(std::string base, std::optional<std::string> description)
         }
     }
 
-    TransactionalUpdate::Plugins plugins_with_transaction{this};
+    TransactionalUpdate::Plugins plugins_with_transaction{this, pImpl->keepIfError};
     plugins_with_transaction.run("init-post", nullptr);
 }
 
 void Transaction::resume(std::string id) {
-    TransactionalUpdate::Plugins plugins{nullptr};
+    TransactionalUpdate::Plugins plugins{nullptr, pImpl->keepIfError};
     plugins.run("resume-pre", id);
 
     pImpl->snapshot = pImpl->snapshotMgr->open(id);
@@ -305,8 +306,12 @@ void Transaction::resume(std::string id) {
         pImpl->discardIfNoChange = true;
     }
 
-    TransactionalUpdate::Plugins plugins_with_transaction{this};
+    TransactionalUpdate::Plugins plugins_with_transaction{this, pImpl->keepIfError};
     plugins_with_transaction.run("resume-post", nullptr);
+}
+
+void Transaction::setKeepIfError(bool keep) {
+    pImpl->keepIfError = keep;
 }
 
 void Transaction::setDiscardIfUnchanged(bool discard) {
@@ -459,7 +464,7 @@ int Transaction::impl::runCommand(char* argv[], bool inChroot, std::string* outp
 }
 
 int Transaction::execute(char* argv[], std::string* output) {
-    TransactionalUpdate::Plugins plugins{this};
+    TransactionalUpdate::Plugins plugins{this, pImpl->keepIfError};
     plugins.run("execute-pre", argv);
     int status = this->pImpl->runCommand(argv, true, output);
     plugins.run("execute-post", argv);
@@ -478,7 +483,7 @@ int Transaction::callExt(char* argv[], std::string* output) {
         argv[i] = strdup(s.c_str());
     }
 
-    TransactionalUpdate::Plugins plugins{this};
+    TransactionalUpdate::Plugins plugins{this, pImpl->keepIfError};
     plugins.run("callExt-pre", argv);
     int status = this->pImpl->runCommand(argv, false, output);
     plugins.run("callExt-post", argv);
@@ -494,7 +499,7 @@ void Transaction::sendSignal(int signal) {
 }
 
 void Transaction::finalize() {
-    TransactionalUpdate::Plugins plugins{this};
+    TransactionalUpdate::Plugins plugins{this, pImpl->keepIfError};
     plugins.run("finalize-pre", nullptr);
 
     sync();
@@ -526,7 +531,7 @@ void Transaction::finalize() {
             Util::exec("rsync --archive --inplace --xattrs --acls --exclude 'fstab' --exclude 'etc.syncpoint' --delete --quiet '" + this->pImpl->bindDir.native() + "/etc/' " + targetRoot.native() + "/etc");
         }
 
-        TransactionalUpdate::Plugins plugins_without_transaction{nullptr};
+        TransactionalUpdate::Plugins plugins_without_transaction{nullptr, pImpl->keepIfError};
         plugins_without_transaction.run("finalize-post", pImpl->snapshot->getUid() + " " + "discarded");
         return;
     }
@@ -551,12 +556,12 @@ void Transaction::finalize() {
     std::string id = pImpl->snapshot->getUid();
     pImpl->snapshot.reset();
 
-    TransactionalUpdate::Plugins plugins_without_transaction{nullptr};
+    TransactionalUpdate::Plugins plugins_without_transaction{nullptr, pImpl->keepIfError};
     plugins_without_transaction.run("finalize-post", id);
 }
 
 void Transaction::keep() {
-    TransactionalUpdate::Plugins plugins{this};
+    TransactionalUpdate::Plugins plugins{this, pImpl->keepIfError};
     plugins.run("keep-pre", nullptr);
 
     sync();
@@ -568,6 +573,6 @@ void Transaction::keep() {
     std::string id = pImpl->snapshot->getUid();
     pImpl->snapshot.reset();
 
-    TransactionalUpdate::Plugins plugins_without_transaction{nullptr};
+    TransactionalUpdate::Plugins plugins_without_transaction{nullptr, pImpl->keepIfError};
     plugins_without_transaction.run("keep-post", id);
 }
