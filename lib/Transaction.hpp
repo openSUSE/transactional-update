@@ -50,6 +50,13 @@ public:
     void init(std::string base, std::optional<std::string> description = std::nullopt);
 
     /**
+     * @brief Set flag to keep snapshots if plugins or command return error code
+     * @param keep true or false
+     *
+     */
+    void setKeepIfError(bool keep);
+
+    /**
      * @brief Set flag to discard snapshots if no changes are detected
      * @param discard true or false
      *

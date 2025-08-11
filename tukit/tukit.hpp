@@ -21,6 +21,7 @@ public:
     int processCommand(char *argv[]);
 private:
     std::string baseSnapshot = "active";
+    bool keepSnapshot = false;
     bool discardSnapshot = false;
     std::string fields;
     std::optional<std::string> description = std::nullopt;
