@@ -1236,8 +1236,8 @@ if [ -n "${ZYPPER_ARG}" ] || [ ${REWRITE_GRUB_CFG} -eq 1 ] \
                 sed -i -e 's|\(^GRUB_CMDLINE_LINUX_DEFAULT=.*\)"|\1 fips=1"|g' "${SNAPSHOT_DIR}/etc/default/grub"
             REWRITE_GRUB_CFG=1
         fi
-        if [ -x /usr/bin/update-crypto-policies ]; then
-            update-crypto-policies --set FIPS
+        if [ -x "${SNAPSHOT_DIR}/usr/bin/update-crypto-policies" ]; then
+            tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" update-crypto-policies --set FIPS |& tee -a ${LOGFILE} 1>&${origstdout}
         fi
     fi
     if [ ${SETUP_SELINUX} -eq 1 ]; then
