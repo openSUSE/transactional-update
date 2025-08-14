@@ -60,6 +60,7 @@ OCI_RSYNC_EXCLUDES="/etc /var /usr/local /tmp /root /home /srv /opt /sys /dev /p
 OCI_TARGET=""
 DRACUT_OPTS=""
 TUKIT_OPTS=""
+IS_BLS=""
 
 TMPDIR=${TMPDIR:-/tmp}
 
@@ -248,7 +249,11 @@ save_state_file() {
 
 # Check if the system is using a BLS-compatible bootloader
 is_bls() {
-    [ -e "/usr/bin/sdbootutil" ] && /usr/bin/sdbootutil is-installed
+    if [ -z "${IS_BLS}" ]; then
+        [ -e "/usr/bin/sdbootutil" ] && /usr/bin/sdbootutil is-installed
+        IS_BLS=$?
+    fi
+    return ${IS_BLS}
 }
 
 rebuild_kdump_initrd() {
