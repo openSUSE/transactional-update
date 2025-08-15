@@ -60,6 +60,7 @@ OCI_RSYNC_EXCLUDES="/etc /var /usr/local /tmp /root /home /srv /opt /sys /dev /p
 OCI_TARGET=""
 DRACUT_OPTS=""
 TUKIT_OPTS=""
+IS_BLS=""
 
 TMPDIR=${TMPDIR:-/tmp}
 
@@ -248,7 +249,11 @@ save_state_file() {
 
 # Check if the system is using a BLS-compatible bootloader
 is_bls() {
-    [ -e "/usr/bin/sdbootutil" ] && /usr/bin/sdbootutil is-installed
+    if [ -z "${IS_BLS}" ]; then
+        [ -e "/usr/bin/sdbootutil" ] && /usr/bin/sdbootutil is-installed
+        IS_BLS=$?
+    fi
+    return ${IS_BLS}
 }
 
 rebuild_kdump_initrd() {
@@ -1069,48 +1074,6 @@ if [ ${DO_CLEANUP_OVERLAYS} -eq 1 ]; then
     fi
 fi
 
-# Certain actions should happen outside the transaction when we are
-# using systemd-boot or grub2bls
-if is_bls; then
-    if [ ${REWRITE_BOOTLOADER} = 1 ]; then
-        # NOTE: pbl has partial support of BLS. It will replace the
-        # shim bootloader, so for now we make a call of sdbootutil
-        # directly (bsc#1228864)
-        if ! sdbootutil update |& tee -a ${LOGFILE} 1>&${origstdout}; then
-            log_error "ERROR: sdbootutil update failed!"
-            EXITCODE=1;
-        fi
-        # Drop the command from the execution chain
-        REWRITE_BOOTLOADER=0
-    fi
-
-    if [ ${REWRITE_GRUB_CFG} = 1 ] || [ ${REWRITE_GRUB_CFG_NO_REBOOT} = 1 ]; then
-        # The first GRUB configuration file in grub2bls is embedded in
-        # the EFI file, and the second one that contains the menu
-        # entries is generated dinamically by the new `blscfg` GRUB2
-        # command.  Also there is no configuration file to generate if
-        # systemd-boot is used.
-        REWRITE_GRUB_CFG=0
-        REWRITE_GRUB_CFG_NO_REBOOT=0
-    fi
-
-    if [ ${REWRITE_INITRD} = 1 ]; then
-        if ! sdbootutil mkinitrd |& tee -a ${LOGFILE} 1>&${origstdout}; then
-            log_error "ERROR: sdbootutil mkinitrd failed!"
-            EXITCODE=1;
-        fi
-        # Drop the command from the execution chain
-        REWRITE_INITRD=0
-    fi
-
-    if [ ${REBUILD_KDUMP_INITRD} = 1 ]; then
-        # mkinitrd depends on pbl, so it will fail (bsc#1226676)
-        log_info "WARNING: mkdumprd fails for this bootloader"
-        REBUILD_KDUMP_INITRD=0
-        SETUP_KDUMP=0
-    fi
-fi
-
 if [ -n "${ZYPPER_ARG}" ] || [ ${REWRITE_GRUB_CFG} -eq 1 ] \
     || [ ${REWRITE_INITRD} -eq 1 ] || [ ${REBUILD_KDUMP_INITRD} -eq 1 ] \
     || [ ${RUN_SHELL} -eq 1 ] || [ ${DO_RUN} -eq 1 ] \
@@ -1230,7 +1193,7 @@ if [ -n "${ZYPPER_ARG}" ] || [ ${REWRITE_GRUB_CFG} -eq 1 ] \
         fi
 
         if [ "${RETVAL}" -eq 0 ] || [ "${RETVAL}" -eq 102 ] || [ "${RETVAL}" -eq 103 ] || { [ "${DO_DUP}" -eq 0 ] && [ "${RETVAL}" -eq 106 ]; } then
-            is_bls || REBUILD_KDUMP_INITRD=1
+            REBUILD_KDUMP_INITRD=1
             # check if products are updated and we need to re-register
             # at next boot.
             if ! diff -qr /etc/products.d "${SNAPSHOT_DIR}/etc/products.d" > /dev/null; then
@@ -1238,7 +1201,7 @@ if [ -n "${ZYPPER_ARG}" ] || [ ${REWRITE_GRUB_CFG} -eq 1 ] \
             fi
             # Rebuild grub.cfg if /etc/os-release changes, could change grub
             # menu output, too.
-            if ! cmp -s /etc/os-release "${SNAPSHOT_DIR}/etc/os-release" && [ -x /usr/sbin/grub2-mkconfig ] && ! is_bls; then
+            if ! cmp -s /etc/os-release "${SNAPSHOT_DIR}/etc/os-release" && [ -x /usr/sbin/grub2-mkconfig ]; then
                 REWRITE_GRUB_CFG_NO_REBOOT=1
             fi
             source <(grep VERSION_ID "${SNAPSHOT_DIR}/etc/os-release")
@@ -1261,47 +1224,46 @@ if [ -n "${ZYPPER_ARG}" ] || [ ${REWRITE_GRUB_CFG} -eq 1 ] \
         fi
     fi
 
-    ETC_BASE="${SNAPSHOT_DIR}"
     if [ ${SETUP_FIPS} -eq 1 ]; then
         if is_bls; then
-            grep -q -w fips /etc/kernel/cmdline || \
-                tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" sed -i -e 's|$| fips=1|' "/etc/kernel/cmdline"
+            grep -q -w fips "${SNAPSHOT_DIR}/etc/kernel/cmdline" || \
+                sed -i -e 's|$| fips=1|' "${SNAPSHOT_DIR}/etc/kernel/cmdline"
         else
             # Adjust grub configuration
 
-            # Check if we don't have selinux already enabled.
-            grep ^GRUB_CMDLINE_LINUX_DEFAULT /etc/default/grub | grep -q -w fips || \
-                tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" sed -i -e 's|\(^GRUB_CMDLINE_LINUX_DEFAULT=.*\)"|\1 fips=1"|g' "/etc/default/grub"
+            # Check if we don't have fips already enabled.
+            grep ^GRUB_CMDLINE_LINUX_DEFAULT "${SNAPSHOT_DIR}/etc/default/grub" | grep -q -w fips || \
+                sed -i -e 's|\(^GRUB_CMDLINE_LINUX_DEFAULT=.*\)"|\1 fips=1"|g' "${SNAPSHOT_DIR}/etc/default/grub"
             REWRITE_GRUB_CFG=1
         fi
-        if [ -x /usr/bin/update-crypto-policies ]; then
-            update-crypto-policies --set FIPS
+        if [ -x "${SNAPSHOT_DIR}/usr/bin/update-crypto-policies" ]; then
+            tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" update-crypto-policies --set FIPS |& tee -a ${LOGFILE} 1>&${origstdout}
         fi
     fi
     if [ ${SETUP_SELINUX} -eq 1 ]; then
         if is_bls; then
-            grep -q -w fips /etc/kernel/cmdline || \
-                tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" sed -i -e 's|$| security=selinux selinux=1|' "/etc/kernel/cmdline"
+            grep -q -w selinux "${SNAPSHOT_DIR}/etc/kernel/cmdline" || \
+                sed -i -e 's|$| security=selinux selinux=1|' "${SNAPSHOT_DIR}/etc/kernel/cmdline"
         else
             # Adjust grub configuration
 
             # Check if we don't have selinux already enabled.
-            grep ^GRUB_CMDLINE_LINUX_DEFAULT /etc/default/grub | grep -q -w security=selinux || \
-                tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" sed -i -e 's|\(^GRUB_CMDLINE_LINUX_DEFAULT=.*\)"|\1 security=selinux selinux=1"|g' "/etc/default/grub"
+            grep ^GRUB_CMDLINE_LINUX_DEFAULT "${SNAPSHOT_DIR}/etc/default/grub" | grep -q -w security=selinux || \
+                sed -i -e 's|\(^GRUB_CMDLINE_LINUX_DEFAULT=.*\)"|\1 security=selinux selinux=1"|g' "${SNAPSHOT_DIR}/etc/default/grub"
             REWRITE_GRUB_CFG=1
         fi
 
-        if tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" [ ! -e "/etc/selinux/config" ]; then
+        if [ ! -e "${SNAPSHOT_DIR}/etc/selinux/config" ]; then
             log_error "ERROR: /etc/selinux/config does not exist!"
             EXITCODE=1
         fi
         # Adjust selinux config
-        tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" sed -i -e 's|^SELINUX=.*|SELINUX=enforcing|g' \
+        sed -i -e 's|^SELINUX=.*|SELINUX=enforcing|g' \
             -e 's|^SELINUXTYPE=.*|SELINUXTYPE=targeted|g' \
-            "/etc/selinux/config"
+            "${SNAPSHOT_DIR}/etc/selinux/config"
 
         # Move an /.autorelabel file from initial installation to writeable location
-        test -f "${SNAPSHOT_DIR}/.autorelabel" && mv "${SNAPSHOT_DIR}/.autorelabel" "${ETC_BASE}/etc/selinux/.autorelabel"
+        test -f "${SNAPSHOT_DIR}/.autorelabel" && mv "${SNAPSHOT_DIR}/.autorelabel" "${SNAPSHOT_DIR}/etc/selinux/.autorelabel"
     fi
 
     if [ ${SETUP_KDUMP} -eq 1 ]; then
@@ -1314,10 +1276,10 @@ if [ -n "${ZYPPER_ARG}" ] || [ ${REWRITE_GRUB_CFG} -eq 1 ] \
                  KDUMP_PARAM="crashkernel=${KDUMP_LOW}M"
             fi
         fi
-        tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" sed -i -e 's/^KDUMP_CRASHKERNEL=.*/KDUMP_CRASHKERNEL="'"${KDUMP_PARAM}"'"/' /etc/sysconfig/kdump
+        sed -i -e 's/^KDUMP_CRASHKERNEL=.*/KDUMP_CRASHKERNEL="'"${KDUMP_PARAM}"'"/' "${SNAPSHOT_DIR}/etc/sysconfig/kdump"
 
         # prevent kdump-commandline.service from trying to update bootloader
-        tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" sed -i -e 's/^KDUMP_UPDATE_BOOTLOADER=.*/KDUMP_UPDATE_BOOTLOADER="false"/' /etc/sysconfig/kdump
+        sed -i -e 's/^KDUMP_UPDATE_BOOTLOADER=.*/KDUMP_UPDATE_BOOTLOADER="false"/' "${SNAPSHOT_DIR}/etc/sysconfig/kdump"
 
         tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" systemctl enable kdump
         tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" kdumptool commandline -u
@@ -1325,7 +1287,10 @@ if [ -n "${ZYPPER_ARG}" ] || [ ${REWRITE_GRUB_CFG} -eq 1 ] \
 
     if [ ${REWRITE_INITRD} -eq 1 ]; then
         log_info "Creating new initrd"
-        if ! tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" dracut ${DRACUT_OPTS} --force --regenerate-all |& tee -a ${LOGFILE} 1>&${origstdout}; then
+        if is_bls && ! sdbootutil mkinitrd "${SNAPSHOT_ID}" |& tee -a ${LOGFILE} 1>&${origstdout}; then
+            log_error "ERROR: sdbootutil mkinitrd failed!"
+            EXITCODE=1;
+        elif ! is_bls && ! tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" dracut ${DRACUT_OPTS} --force --regenerate-all |& tee -a ${LOGFILE} 1>&${origstdout}; then
             log_error "ERROR: initrd creation failed!"
             EXITCODE=1
         else
@@ -1334,6 +1299,11 @@ if [ -n "${ZYPPER_ARG}" ] || [ ${REWRITE_GRUB_CFG} -eq 1 ] \
         set_reboot_level "kexec"
     fi
 
+    # mkinitrd depends on pbl, so it will fail (bsc#1226676)
+    if is_bls && [ ${REBUILD_KDUMP_INITRD} -eq 1 ]; then
+        log_info "WARNING: mkdumprd fails for this bootloader"
+        REBUILD_KDUMP_INITRD=0
+    fi
     if [ ${REBUILD_KDUMP_INITRD} -eq 1 ]; then
         log_info "Trying to rebuild kdump initrd"
         if ! rebuild_kdump_initrd "${SNAPSHOT_ID}"; then
@@ -1343,6 +1313,15 @@ if [ -n "${ZYPPER_ARG}" ] || [ ${REWRITE_GRUB_CFG} -eq 1 ] \
         set_reboot_level "soft-reboot"
     fi
 
+    if is_bls && ([ ${REWRITE_GRUB_CFG} = 1 ] || [ ${REWRITE_GRUB_CFG_NO_REBOOT} = 1 ]); then
+        # The first GRUB configuration file in grub2bls is embedded in
+        # the EFI file, and the second one that contains the menu
+        # entries is generated dynamically by the new `blscfg` GRUB2
+        # command.  Also there is no configuration file to generate if
+        # systemd-boot is used.
+        REWRITE_GRUB_CFG=0
+        REWRITE_GRUB_CFG_NO_REBOOT=0
+    fi
     if [ ${REWRITE_GRUB_CFG} -eq 1 ] || [ ${REWRITE_GRUB_CFG_NO_REBOOT} -eq 1 ]; then
         log_info "Creating a new grub2 config"
         if ! tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" bash -c "/usr/sbin/grub2-mkconfig > /boot/grub2/grub.cfg" |& tee -a ${LOGFILE} 1>&${origstdout}; then
@@ -1360,7 +1339,13 @@ if [ -n "${ZYPPER_ARG}" ] || [ ${REWRITE_GRUB_CFG} -eq 1 ] \
 
     if [ ${REWRITE_BOOTLOADER} -eq 1 ]; then
         log_info "Writing new bootloader"
-        if ! tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" /sbin/pbl --install |& tee -a ${LOGFILE} 1>&${origstdout}; then
+        # NOTE: pbl has partial support of BLS. It will replace the
+        # shim bootloader, so for now we make a call of sdbootutil
+        # directly (bsc#1228864)
+        if is_bls && ! sdbootutil update "${SNAPSHOT_ID}" |& tee -a ${LOGFILE} 1>&${origstdout}; then
+            log_error "ERROR: sdbootutil update failed!"
+            EXITCODE=1;
+        elif ! is_bls && ! tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" /sbin/pbl --install |& tee -a ${LOGFILE} 1>&${origstdout}; then
             log_error "ERROR: /sbin/pbl --install failed!"
             EXITCODE=1;
         fi
