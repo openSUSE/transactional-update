@@ -2,6 +2,26 @@ transactional-update NEWS -- history of user-visible changes.
 
 Copyright (C) 2016-2025 Thorsten Kukuk, Ignaz Forster et al.
 
+Version 5.1.0 (2025-08-18)
+* tukit: signalize errors from plugins; transactions will be aborted by
+  default now
+* t-u: Added `--keep` option; please only use this for debugging or recovery
+  when a tukit plugin is failing
+* setup-fips: could be called multiple times now
+* setup-fips: call update-crypto-policies in the correct context
+  [boo#1246013]
+* reboot: Print both requested and actual reboot method for [poo#163352]
+* snapper plugin: Don't touch fstab's timestamp on every run
+* t-u: Chaining commands will also work on BLS systems now; this is also
+  necessary for some regular commands (such as setup-fips or setup-selinux)
+* tukit: Only mount journal dir if available
+* tukit: Return full, non-truncated error number when calling external
+  applications
+* tests: Adopt tests to obs environment to avoid root perms
+* t-u: Simplified various calls when changing files in /etc (made possible by
+  the new btrfs subvolume based layout), tukit is called less often now
+* t-u: optimized check for BLS systems
+
 Version 5.0.7 (2025-07-21)
 * Add sysext compatibility [bsc#1246140]
 * Fix soft-reboot with btrfs subvolume based /etc
