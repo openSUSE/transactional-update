@@ -570,6 +570,14 @@ for more information.
     </listitem>
   </varlistentry>
   <varlistentry>
+    <term><option>--keep</option></term>
+    <term><option>-k</option></term>
+    <listitem>
+      <para>Do not delete the snapshot in case of errors. This option is only for debugging or recovery if a tukit
+      plugin failed - do not use this option for production snapshots!</para>
+    </listitem>
+  </varlistentry>
+  <varlistentry>
     <term><option>--quiet</option></term>
     <listitem>
       <para>Don't print warnings and informational messages to stdout
