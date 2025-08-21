@@ -369,7 +369,7 @@ do_apply() {
             quit 2
         fi
 
-        if [ "$(systemd-sysext | tail -n +2 | grep " none " | wc -l)" -ne 2 ]; then
+        if [ "$(systemd-sysext | tail -n +2 | grep -c " none ")" -ne 2 ]; then
             REFRESH_SYSEXTS=1
         fi
 
@@ -575,15 +575,6 @@ parse_args() {
             shell)
                 RUN_SHELL=1
                 shift
-                if [ "$1" = "-c" ]; then
-                    if [ -z "$2" ]; then
-                        SHELL_CMD="-"
-                    else
-                        SHELL_CMD="$2"
-                        shift
-                    fi
-                    shift
-                fi
                 ;;
             initrd)
                 REWRITE_INITRD=1
@@ -1313,7 +1304,7 @@ if [ -n "${ZYPPER_ARG}" ] || [ ${REWRITE_GRUB_CFG} -eq 1 ] \
         set_reboot_level "soft-reboot"
     fi
 
-    if is_bls && ([ ${REWRITE_GRUB_CFG} = 1 ] || [ ${REWRITE_GRUB_CFG_NO_REBOOT} = 1 ]); then
+    if is_bls && { [ ${REWRITE_GRUB_CFG} = 1 ] || [ ${REWRITE_GRUB_CFG_NO_REBOOT} = 1 ]; }; then
         # The first GRUB configuration file in grub2bls is embedded in
         # the EFI file, and the second one that contains the menu
         # entries is generated dynamically by the new `blscfg` GRUB2
