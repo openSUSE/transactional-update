@@ -21,6 +21,16 @@ const char* tukit_get_errmsg() {
 void tukit_set_loglevel(loglevel lv) {
     tulog.level = static_cast<TULogLevel>(lv);
 }
+int tukit_set_logoutput(char* fields) {
+    try {
+        tulog.setLogOutput(fields);
+    } catch (const std::exception &e) {
+        fprintf(stderr, "ERROR: %s\n", e.what());
+        errmsg = e.what();
+        return -1;
+    }
+    return 0;
+}
 tukit_tx tukit_new_tx() {
     Transaction* transaction = nullptr;
     try {
