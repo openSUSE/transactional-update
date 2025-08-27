@@ -2,8 +2,7 @@
 /* SPDX-FileCopyrightText: Copyright SUSE LLC */
 
 /*
-  This is the EXPERIMENTAL C API for tukit. For the moment it is only inteded
-  for internal use.
+  This is the C API for libtukit.
   For documentation please see the corresponding classes in the C++ header
   files.
  */
