@@ -18,10 +18,10 @@ extern "C" {
 
 typedef enum {
     None=0, Error, Info, Debug
-} loglevel;
+} tukit_loglevel;
 
 const char* tukit_get_errmsg();
-void tukit_set_loglevel(loglevel lv);
+void tukit_set_loglevel(tukit_loglevel lv);
 int tukit_set_logoutput(char *fields);
 typedef void* tukit_tx;
 tukit_tx tukit_new_tx();

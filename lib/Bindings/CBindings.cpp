@@ -18,7 +18,7 @@ thread_local std::string errmsg;
 const char* tukit_get_errmsg() {
     return errmsg.c_str();
 }
-void tukit_set_loglevel(loglevel lv) {
+void tukit_set_loglevel(tukit_loglevel lv) {
     tulog.level = static_cast<TULogLevel>(lv);
 }
 int tukit_set_logoutput(char* fields) {
