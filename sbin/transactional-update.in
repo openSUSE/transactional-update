@@ -59,7 +59,7 @@ OCI_RSYNC_ARGS="-a --hard-links --xattrs --acls --inplace"
 OCI_RSYNC_EXCLUDES="/etc /var /usr/local /tmp /root /home /srv /opt /sys /dev /proc /run"
 OCI_TARGET=""
 DRACUT_OPTS=""
-TUKIT_OPTS=""
+TUKIT_OPTS="--log=console"
 IS_BLS=""
 
 TMPDIR=${TMPDIR:-/tmp}
@@ -180,11 +180,13 @@ print_version() {
 }
 
 log_to_journal() {
-    systemd-cat -t transactional-update "$@"
+    if [ -z "${SYSTEMD_EXEC_PID}" ]; then
+        systemd-cat -t transactional-update "$@"
+    fi
 }
 
 log_to_file() {
-    echo -e "$(date "+%Y-%m-%d %H:%M")" "$@" >> ${LOGFILE}
+    echo -e "$(date "+%Y-%m-%d %T")" "$@" >> ${LOGFILE}
 }
 
 log_to_stdout() {
@@ -204,13 +206,14 @@ log_info() {
         log_to_stdout "$@"
         log_to_file "$@"
         log_to_journal -p info echo "$@"
-    else
-        # log_info is being called as pipe
-        if [ "$log_to_orig" == 1 ]; then
-            cat | tee -a ${LOGFILE} >(log_to_journal -p info) 1>&${origstdout}
-        else
-            cat | tee -a ${LOGFILE} >(log_to_journal -p info)
-        fi
+    else # input via pipe
+        while read -r line; do
+            log_to_file "${line}"
+            log_to_journal -p info echo "${line}"
+            if [ "$log_to_orig" == 1 ]; then
+                echo "${line}" 1>&${origstdout}
+            fi
+        done
     fi
 }
 
@@ -276,7 +279,7 @@ is_bls() {
 }
 
 rebuild_kdump_initrd() {
-    if tukit -q call "$1" systemctl is-enabled --quiet kdump.service; then
+    if tukit ${TUKIT_OPTS} --quiet call "$1" systemctl is-enabled --quiet kdump.service; then
         tukit ${TUKIT_OPTS} call "$1" /sbin/mkdumprd | log_info -o
         return "${PIPESTATUS[0]}"
     elif [ ${SETUP_KDUMP} -ge 1 ]; then
@@ -963,7 +966,7 @@ if [ ${DO_ROLLBACK} -eq 1 ]; then
 
     log_info "Rollback to snapshot ${ROLLBACK_SNAPSHOT}..."
 
-    if ! tukit rollback "${ROLLBACK_SNAPSHOT}"; then
+    if ! tukit ${TUKIT_OPTS} rollback "${ROLLBACK_SNAPSHOT}"; then
         log_error "ERROR: Rollback to snapshot $ROLLBACK_SNAPSHOT failed!"
         quit 1
     fi
@@ -1454,30 +1457,30 @@ if [ ${EXITCODE} -eq 0 ]; then
         trap '-' HUP INT QUIT TERM
         case "$REBOOT_METHOD" in
             auto)
-                tukit reboot auto | log_info
+                tukit ${TUKIT_OPTS} reboot auto | log_info
                 ;;
             kured)
-                tukit reboot kured | log_info
+                tukit ${TUKIT_OPTS} reboot kured | log_info
                 ;;
             rebootmgr)
-                tukit reboot rebootmgr | log_info
+                tukit ${TUKIT_OPTS} reboot rebootmgr | log_info
                 ;;
             notify)
-                tukit reboot notify | log_info
+                tukit ${TUKIT_OPTS} reboot notify | log_info
                 ;;
             systemd)
-                tukit reboot systemd | log_info
+                tukit ${TUKIT_OPTS} reboot systemd | log_info
                 ;;
             kexec)
-                tukit reboot kexec | log_info
+                tukit ${TUKIT_OPTS} reboot kexec | log_info
                 ;;
             none)
-                tukit reboot none | log_info
+                tukit ${TUKIT_OPTS} reboot none | log_info
                 ;;
             *)
                 log_info "Unsupported reboot method, falling back to 'auto'; please"
                 log_info "check your configuration in ${CONFFILE}."
-                tukit reboot auto | log_info
+                tukit ${TUKIT_OPTS} reboot auto | log_info
                 ;;
         esac
     fi
