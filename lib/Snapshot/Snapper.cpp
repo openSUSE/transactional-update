@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: LGPL-2.1-or-later */
-/* SPDX-FileCopyrightText: 2020 SUSE LLC */
+/* SPDX-FileCopyrightText: Copyright SUSE LLC */
 
 /*
   Snapper backend for snapshot handling
@@ -107,10 +107,14 @@ std::string Snapper::getCurrent() {
     std::smatch match;
 
     // snapper doesn't support the `apply` command for now, so use findmnt directly.
-    std::string id = Util::exec("findmnt --target /usr --raw --noheadings --output FSROOT | tail -n 1");
+    std::string id = Util::exec("findmnt --target /usr --raw --noheadings --output FSROOT --first-only --direction backward --types btrfs");
     bool found = std::regex_search(id, match, std::regex(".*.snapshots/(.*)/snapshot.*"));
-    if (!found)
-        throw std::runtime_error{"Couldn't determine current snapshot number"};
+    if (!found) {
+        id = Util::exec("findmnt --target / --raw --noheadings --output FSROOT --first-only --direction backward --types btrfs");
+        found = std::regex_search(id, match, std::regex(".*.snapshots/(.*)/snapshot.*"));
+        if (!found)
+            throw std::runtime_error{"Couldn't determine current snapshot number"};
+    }
     return match[1].str();
 }
 

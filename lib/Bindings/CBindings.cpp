@@ -1,6 +1,5 @@
-/*
- SPDX-License-Identifier: LGPL-2.1-or-later */
-/* SPDX-FileCopyrightText: SUSE LLC */
+/* SPDX-License-Identifier: LGPL-2.1-or-later */
+/* SPDX-FileCopyrightText: Copyright SUSE LLC */
 
 #include "libtukit.h"
 #include "Log.hpp"
@@ -19,8 +18,18 @@ thread_local std::string errmsg;
 const char* tukit_get_errmsg() {
     return errmsg.c_str();
 }
-void tukit_set_loglevel(loglevel lv) {
+void tukit_set_loglevel(tukit_loglevel lv) {
     tulog.level = static_cast<TULogLevel>(lv);
+}
+int tukit_set_logoutput(char* fields) {
+    try {
+        tulog.setLogOutput(fields);
+    } catch (const std::exception &e) {
+        fprintf(stderr, "ERROR: %s\n", e.what());
+        errmsg = e.what();
+        return -1;
+    }
+    return 0;
 }
 tukit_tx tukit_new_tx() {
     Transaction* transaction = nullptr;

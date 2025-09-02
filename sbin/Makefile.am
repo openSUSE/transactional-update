@@ -1,6 +1,5 @@
-#
-# Copyright (c) 2016, 2017 Thorsten Kukuk <kukuk@suse.de>
-#
+# SPDX-License-Identifier: GPL-2.0-or-later
+# SPDX-FileCopyrightText: Copyright SUSE LLC
 
 sbin_SCRIPTS = transactional-update
 sbin_PROGRAMS = create_dirs_from_rpmdb

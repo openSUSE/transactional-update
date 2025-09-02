@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: LGPL-2.1-or-later */
-/* SPDX-FileCopyrightText: 2020-2021 SUSE LLC */
+/* SPDX-FileCopyrightText: Copyright SUSE LLC */
 
 /*
   Retrieves configuration values, set via configuration file or using
@@ -23,7 +23,6 @@ Configuration::Configuration() {
     std::map<const char*, const char*> defaults = {
         {"DRACUT_SYSROOT", "/sysroot"},
         {"LOCKFILE", "/var/run/tukit.lock"},
-        {"OVERLAY_DIR", "/var/lib/overlay"},
         {"REBOOT_ALLOW_SOFT_REBOOT", "true"},
         {"REBOOT_ALLOW_KEXEC", "false"},
         {"REBOOT_NEEDED_FILE", "/run/reboot-needed"}

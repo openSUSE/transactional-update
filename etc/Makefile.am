@@ -1,5 +1,5 @@
-# SPDX-License-Identifier: LGPL-2.1-or-later
-# SPDX-FileCopyrightText: 2018-2021 SUSE LLC
+# SPDX-License-Identifier: GPL-2.0-or-later
+# SPDX-FileCopyrightText: Copyright SUSE LLC
 
 EXTRA_DIST = transactional-update.conf tukit.conf
 configdir = $(prefix)$(sysconfdir)

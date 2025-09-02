@@ -3,22 +3,8 @@
 "http://www.oasis-open.org/docbook/xml/4.4/docbookx.dtd">
 
 <!--  \-*\- nroff \-*\- -->
-<!--  Copyright 2021 Ignaz Forster &lt;iforster@suse.com&gt; -->
-
-<!--  This file is part of transactional-update. -->
-
-<!--  This program is free software; you can redistribute it and/or -->
-<!--  modify it under the terms of the GNU General Public License -->
-<!--  as published by the Free Software Foundation; either version 2 -->
-<!--  of the License, or (at your option) any later version. -->
-
-<!--  This program is distributed in the hope that it will be useful, -->
-<!--  but WITHOUT ANY WARRANTY; without even the implied warranty of -->
-<!--  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the -->
-<!--  GNU General Public License for more details. -->
-
-<!--  You should have received a copy of the GNU General Public License -->
-<!--  along with this program; if not, see <http://www.gnu.org/licenses/>. -->
+<!--  SPDX-License-Identifier: GPL-2.0-or-later -->
+<!--  SPDX-FileCopyrightText: Copyright SUSE LLC -->
 
 <refentry id="tukit.conf.5">
   <refentryinfo>
@@ -48,7 +34,7 @@
   <refsynopsisdiv>
     <para><literallayout>
 <filename>%sysconfdir%/tukit.conf</filename>
-<filename>%sysconfdir%/tukit.d/*.conf</filename>
+<filename>%sysconfdir%/tukit.conf.d/*.conf</filename>
     </literallayout></para>
   </refsynopsisdiv>
 
@@ -67,7 +53,7 @@
     <filename>%prefix%%sysconfdir%/tukit.conf</filename>.</para>
     <para>Configuration file snippets (to overwrite only parts of the
     configuration) can also be used in
-    <filename>%sysconfdir%/tukit.d/*.conf</filename>.</para>
+    <filename>%sysconfdir%/tukit.conf.d/*.conf</filename>.</para>
   </refsect1>
 
   <refsect1>
@@ -95,16 +81,6 @@
           <para>
             Lock file path for tukit. By default it is
             <literal>/var/run/tukit.lock</literal>.
-          </para>
-        </listitem>
-      </varlistentry>
-
-      <varlistentry>
-        <term><varname>OVERLAY_DIR</varname></term>
-        <listitem>
-          <para>
-            Directory where the <literal>/etc</literal> overlays are
-            stored. By default it is <literal>/var/lib/overlay</literal>.
           </para>
         </listitem>
       </varlistentry>

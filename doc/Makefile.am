@@ -1,6 +1,5 @@
-#
-# Copyright (c) 2017 Thorsten Kukuk <kukuk@thkukuk.de>
-#
+# SPDX-License-Identifier: GPL-2.0-or-later
+# SPDX-FileCopyrightText: Copyright SUSE LLC
 
 CLEANFILES = transactional-update.fo transactional-update.txt html/*.html *~
 

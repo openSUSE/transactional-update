@@ -3,24 +3,8 @@
                    "http://www.oasis-open.org/docbook/xml/4.4/docbookx.dtd">
 
 <!--  \-*\- nroff \-*\- -->
-<!--  Copyright 2016, 2017 Thorsten Kukuk &lt;kukuk@suse.de&gt; -->
-
-<!--  This file is part of transactional\-update. -->
-
-<!--  This program is free software; you can redistribute it and/or -->
-<!--  modify it under the terms of the GNU General Public License as -->
-<!--  published by the Free Software Foundation; either version 2 of the -->
-<!--  License, or (at your option) any later version. -->
-
-<!--  This program is distributed in the hope that it will be useful, -->
-<!--  but WITHOUT ANY WARRANTY; without even the implied warranty of -->
-<!--  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU -->
-<!--  General Public License for more details. -->
-
-<!--  You should have received a copy of the GNU General Public -->
-<!--  License along with This program see the file COPYING.  If not, -->
-<!--  write to the Free Software Foundation, Inc., 51 Franklin Street \- Suite 500, -->
-<!--  Boston, MA 02111\-1307, USA. -->
+<!--  SPDX-License-Identifier: GPL-2.0-or-later -->
+<!--  SPDX-FileCopyrightText: Copyright SUSE LLC -->
 
 <refentry id='transactional-update.8'>
   <refentryinfo>
@@ -99,32 +83,25 @@ create a separate snapshot for each call, so it is possible to roll back to
 previous intermediate steps in case of errors.
 </para>
 <para>
-On <emphasis>read-only systems</emphasis> each snapshot will have a
-corresponding <filename class='directory'>/etc</filename> overlay located in
-<filename class='directory'>/var/lib/overlay</filename>. As configuration files
+On <emphasis>read-only systems</emphasis> each snapshot will contain a nested
+<filename class='directory'>/etc</filename> subvolume. As configuration files
 may be modified after a snapshot was created and before a reboot is performed
-(e.g. via configuration management software) the overlay file system will use
-multiple lower layers, i.e. configuration file changes applied to the currently
-running system will be visible in the new system, but not vice versa. To keep
-the number of layers at a minimum the
-<filename class='directory'>/etc</filename> state of the previous snapshot is
-synchronized into the new root file system; unused overlays will be
-removed at a later time (see the <option>cleanup-overlays</option> option).
+(e.g. via configuration management software) on first boot into the new
+snapshot the service
+<filename>transactional-update-sync-etc-state.service</filename> will copy
+these files into the new snapshot if they weren't also changed there.
 </para>
 <warning>
 If a file in <filename class='directory'>/etc</filename> has been changed
 during the update and is <emphasis>also</emphasis> changed in the running
 system after the snapshot has been taken, then only the version of the new
 snapshot will be visible after a reboot.
-When booting into the new snapshot for the first time
-<filename>transactional-update-etc-cleaner.service</filename> will print a
-warning about such conflicts to the system log file.
 </warning>
 <para>
-Older transactional-update versions were using a single
-<filename class='directory'>/etc</filename> overlay for all snapshots; a
-migration mechanism is in place, the directory will also be removed if no
-snapshot is using it any more.
+Older transactional-update versions were using multiple
+<filename class='directory'>/etc</filename> overlays instead of BTRFS
+subvolumes; a migration mechanism is in place, the directories will still be
+removed if no snapshot is using them any more.
 </para>
 <para>
 On <emphasis>read-write systems</emphasis> please be aware that all changes
@@ -503,6 +480,25 @@ for more information.
       </variablelist>
     </listitem>
   </varlistentry>
+  <varlistentry>
+    <term><option>apply-oci --image</option> <replaceable>image source</replaceable></term>
+    <listitem>
+      <warning>
+	<para>
+	  This command is under development and will change in the
+	  future. There are no checks whether the image will boot so far,
+	  and the functionality is not available via API / D-Bus yet.
+	</para>
+      </warning>
+      <para>
+	Instead of updating the existing system the given image will be written
+	into the snapshot. Only the root file system will be replaced, the
+	contents of directories such as
+	<filename class='directory'>/etc</filename> and
+	<filename class='directory'>/var</filename> will be preserved.
+      </para>
+    </listitem>
+  </varlistentry>
 </variablelist>
 </refsect3>
 </refsect2>
@@ -529,66 +525,6 @@ for more information.
       <para>
 	This command can be combind with the <option>apply</option> command
 	to make the snapshot effective immediately.
-      </para>
-    </listitem>
-  </varlistentry>
-  <varlistentry>
-    <term><option>status</option></term>
-    <listitem>
-      <warning>
-        <para>
-          This command is under development and will change in the
-          future. The status command is currently using a non-stable
-          feature of MicroOS, the control.xml file, that will change the
-          scope and location in future releases.
-        </para>
-      </warning>
-      <para>
-	Shows the status of current and older snapshots. The status
-	try to represent how the system diverges from an ideal base
-	image, and the list of patterns and packages added and removed
-	from it.
-      </para>
-      <para>
-	The status is represented via a hash (currently sha256) of a
-	manifest file that contains the list of expected packages and
-	the build time of those packages. The list of expected
-	packages are calculated using the <command>libsolv</command>
-	library, and resolving it for the list of default patterns
-	associated with the role used during the installation.
-      </para>
-      <para>
-	Two manifest files are created. One will use the information
-	from the repositories used for the installation. The list of
-	packages (including the full version and architecture) and the
-	build time will be extracted from the repository information.
-	The other one will use the same list of packages, but using
-	the build time from the current system (if the package is
-	present).
-      </para>
-      <para>
-	Both manifest files will be the same if we have a fresh
-	installed system. But in distributions like MicroOS, that are
-	released based on a rolling model, the subsequent updates will
-	make compromises that will result in a diverged state. In that
-	way, if two systems have the same BASE_MANIFEST_DIGEST (the
-	digest calculated from the repository information), we can
-	assume that are in the same state even if the
-	SYSTEM_MANIFEST_DIGEST is different.
-      </para>
-      <para>
-	We can require of two system to be in the exact same status,
-	and for that we can compare both digests.
-      </para>
-      <para>
-	The status also shows the differences in patterns and packages
-	from the expected situation, and will save a copy of both
-	manifest for further audit of the system.
-      </para>
-      <para>
-	To write the necessary state file
-	<option>EXPERIMENTAL_STATUS=1</option>has to be set in
-	<filename>transactional-update.conf</filename>.
       </para>
     </listitem>
   </varlistentry>
@@ -631,6 +567,14 @@ for more information.
     <listitem>
       <para>If the action does not produce a change in the underlying
       file system, the snapshot will be dropped.</para>
+    </listitem>
+  </varlistentry>
+  <varlistentry>
+    <term><option>--keep</option></term>
+    <term><option>-k</option></term>
+    <listitem>
+      <para>Do not delete the snapshot in case of errors. This option is only for debugging or recovery if a tukit
+      plugin failed - do not use this option for production snapshots!</para>
     </listitem>
   </varlistentry>
   <varlistentry>

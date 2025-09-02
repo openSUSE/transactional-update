@@ -1,13 +1,10 @@
-#
-# Copyright (c) 2016, 2017 Thorsten Kukuk, Germany
-#
-# Author: Thorsten Kukuk <kukuk@suse.de>
-#
+# SPDX-License-Identifier: GPL-2.0-or-later
+# SPDX-FileCopyrightText: Copyright SUSE LLC
 
 CLEANFILES = $(MANS) $(DATA) transactional-update.index.xml
 
 EXTRA_DIST = $(MANS) $(XMLS) $(DATA) custom-html.xsl make-man-index.py \
-	xml_helper.py transactional-update.index.xml
+	xml_helper.py transactional-update.index.xml custom-man.xsl
 
 XMLS = transactional-update.8.xml transactional-update.conf.5.xml tukit.conf.5.xml
 

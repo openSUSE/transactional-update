@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: LGPL-2.1-or-later */
-/* SPDX-FileCopyrightText: 2020 SUSE LLC */
+/* SPDX-FileCopyrightText: Copyright SUSE LLC */
 
 /*
   The Transaction class is the central API class for the lifecycle of a
@@ -11,7 +11,6 @@
 #include "Configuration.hpp"
 #include "Log.hpp"
 #include "Mount.hpp"
-#include "Overlay.hpp"
 #include "Plugins.hpp"
 #include "SnapshotManager.hpp"
 #include "Snapshot.hpp"
@@ -52,6 +51,7 @@ public:
     std::vector<std::unique_ptr<Mount>> dirsToMount;
     Supplements supplements;
     pid_t pidCmd;
+    bool keepIfError = false;
     bool discardIfNoChange = false;
 };
 
@@ -81,7 +81,7 @@ Transaction::~Transaction() {
         if (isInitialized() && !getSnapshot().empty() && fs::exists(getRoot())) {
             tulog.info("Discarding snapshot ", pImpl->snapshot->getUid(), ".");
             pImpl->snapshot->abort();
-            TransactionalUpdate::Plugins plugins{nullptr};
+            TransactionalUpdate::Plugins plugins{nullptr, pImpl->keepIfError};
             plugins.run("abort-post", pImpl->snapshot->getUid());
         }
     }  catch (const std::exception &e) {
@@ -168,13 +168,6 @@ void Transaction::impl::snapMount() {
         }
     }
 
-    std::unique_ptr<Mount> mntEtc{new Mount{"/etc"}};
-    if (mntEtc->isMount() && mntEtc->getFilesystem() == "overlay") {
-        Overlay overlay = Overlay{snapshot->getUid()};
-        overlay.setMountOptionsForMount(mntEtc);
-        dirsToMount.push_back(std::move(mntEtc));
-    }
-
     // Set up temporary directories, so changes will be discarded automatically
     dirsToMount.push_back(std::make_unique<BindMount>("/var/cache"));
     std::unique_ptr<Mount> mntTmp{new Mount{"/tmp"}};
@@ -185,6 +178,8 @@ void Transaction::impl::snapMount() {
     mntRun->setType("tmpfs");
     mntRun->setSource("tmpfs");
     dirsToMount.push_back(std::move(mntRun));
+    if (fs::exists("/run/systemd/journal"))
+        dirsToMount.push_back(std::make_unique<BindMount>("/run/systemd/journal"));
     std::unique_ptr<Mount> mntVarTmp{new Mount{"/var/tmp"}};
     mntVarTmp->setType("tmpfs");
     mntVarTmp->setSource("tmpfs");
@@ -263,7 +258,7 @@ int Transaction::impl::inotifyAdd(const char *pathname, const struct stat *sbuf,
 }
 
 void Transaction::init(std::string base, std::optional<std::string> description) {
-    TransactionalUpdate::Plugins plugins{nullptr};
+    TransactionalUpdate::Plugins plugins{nullptr, pImpl->keepIfError};
     plugins.run("init-pre", nullptr);
 
     if (base == "active")
@@ -276,38 +271,28 @@ void Transaction::init(std::string base, std::optional<std::string> description)
 
     tulog.info("Using snapshot " + base + " as base for new snapshot " + pImpl->snapshot->getUid() + ".");
 
-    // Create /etc overlay
-    std::unique_ptr<Mount> mntEtc{new Mount{"/etc"}};
-    if (mntEtc->isMount() && mntEtc->getFilesystem() == "overlay") {
-        Overlay overlay = Overlay{pImpl->snapshot->getUid()};
-        overlay.create(base, pImpl->snapshot->getUid(), getRoot());
-        overlay.setMountOptions(mntEtc);
-        // Copy current fstab into root in case the user modified it
-        if (fs::exists(fs::path{overlay.lowerdirs[0] / "fstab"})) {
-            fs::copy(fs::path{overlay.lowerdirs[0] / "fstab"}, fs::path{getRoot() / "etc"}, fs::copy_options::overwrite_existing);
-        }
-
-        mntEtc->persist(getRoot() / "etc" / "fstab");
-
-        // Make sure both the snapshot and the overlay contain all relevant fstab data, i.e.
-        // user modifications from the overlay are present in the root fs and the /etc
-        // overlay is visible in the overlay
-        fs::copy(fs::path{getRoot() / "etc" / "fstab"}, overlay.upperdir, fs::copy_options::overwrite_existing);
-    }
-
     pImpl->snapMount();
     pImpl->addSupplements();
     if (pImpl->discardIfNoChange) {
-        // Flag file to indicate this snapshot was initialized with discard flag
-        std::ofstream output(getRoot() / "discardIfNoChange");
+        std::unique_ptr<Snapshot> prevSnap = pImpl->snapshotMgr->open(base);
+        std::unique_ptr<Mount> oldEtc{new Mount{"/etc"}};
+        oldEtc->setTabSource(prevSnap->getRoot() / "etc" / "fstab");
+        if (oldEtc->getFilesystem() == "overlayfs") {
+            tulog.info("Can not merge back changes in /etc into old overlayfs system - ignoring 'discardIfNoChange'.");
+        } else {
+            // Flag file to indicate this snapshot was initialized with discard flag
+            std::ofstream output(getRoot() / "discardIfNoChange");
+            output << base;
+            output.close();
+        }
     }
 
-    TransactionalUpdate::Plugins plugins_with_transaction{this};
+    TransactionalUpdate::Plugins plugins_with_transaction{this, pImpl->keepIfError};
     plugins_with_transaction.run("init-post", nullptr);
 }
 
 void Transaction::resume(std::string id) {
-    TransactionalUpdate::Plugins plugins{nullptr};
+    TransactionalUpdate::Plugins plugins{nullptr, pImpl->keepIfError};
     plugins.run("resume-pre", id);
 
     pImpl->snapshot = pImpl->snapshotMgr->open(id);
@@ -321,8 +306,12 @@ void Transaction::resume(std::string id) {
         pImpl->discardIfNoChange = true;
     }
 
-    TransactionalUpdate::Plugins plugins_with_transaction{this};
+    TransactionalUpdate::Plugins plugins_with_transaction{this, pImpl->keepIfError};
     plugins_with_transaction.run("resume-post", nullptr);
+}
+
+void Transaction::setKeepIfError(bool keep) {
+    pImpl->keepIfError = keep;
 }
 
 void Transaction::setDiscardIfUnchanged(bool discard) {
@@ -330,7 +319,7 @@ void Transaction::setDiscardIfUnchanged(bool discard) {
 }
 
 int Transaction::impl::inotifyRead() {
-    size_t bufLen = sizeof(struct inotify_event) + NAME_MAX + 1;
+    const size_t bufLen = sizeof(struct inotify_event) + NAME_MAX + 1;
     char buf[bufLen] __attribute__((aligned(8)));
     ssize_t numRead;
     int ret;
@@ -358,6 +347,7 @@ int Transaction::impl::runCommand(char* argv[], bool inChroot, std::string* outp
 
         // Recursively register all directories of the root file system
         inotifyExcludes = MountList::getList(snapshot->getRoot());
+        inotifyExcludes.push_back(snapshot->getRoot() / "etc");
         nftw(snapshot->getRoot().c_str(), inotifyAdd, 20, FTW_MOUNT | FTW_PHYS);
     }
 
@@ -474,7 +464,7 @@ int Transaction::impl::runCommand(char* argv[], bool inChroot, std::string* outp
 }
 
 int Transaction::execute(char* argv[], std::string* output) {
-    TransactionalUpdate::Plugins plugins{this};
+    TransactionalUpdate::Plugins plugins{this, pImpl->keepIfError};
     plugins.run("execute-pre", argv);
     int status = this->pImpl->runCommand(argv, true, output);
     plugins.run("execute-post", argv);
@@ -493,7 +483,7 @@ int Transaction::callExt(char* argv[], std::string* output) {
         argv[i] = strdup(s.c_str());
     }
 
-    TransactionalUpdate::Plugins plugins{this};
+    TransactionalUpdate::Plugins plugins{this, pImpl->keepIfError};
     plugins.run("callExt-pre", argv);
     int status = this->pImpl->runCommand(argv, false, output);
     plugins.run("callExt-post", argv);
@@ -509,7 +499,7 @@ void Transaction::sendSignal(int signal) {
 }
 
 void Transaction::finalize() {
-    TransactionalUpdate::Plugins plugins{this};
+    TransactionalUpdate::Plugins plugins{this, pImpl->keepIfError};
     plugins.run("finalize-pre", nullptr);
 
     sync();
@@ -523,30 +513,26 @@ void Transaction::finalize() {
         // running system directly and delete the snapshot. Otherwise merge it back into the previous overlay
         // (using rsync instead of a plain copy to preserve xattrs).
         std::unique_ptr<Mount> mntEtc{new Mount{"/etc"}};
-        if (mntEtc->isMount() && mntEtc->getFilesystem() == "overlay") {
-            std::filesystem::path targetRoot;
+        if (mntEtc->isMount()) {
+            std::filesystem::path targetRoot = "/";
+            std::string base;
+
+            std::ifstream input(getRoot() / "discardIfNoChange");
+            input >> base;
+            input.close();
+
             std::unique_ptr<Mount> previousEtc{new Mount("/etc", 0, true)};
-            if (pImpl->snapshotMgr->getCurrent() == Overlay{pImpl->snapshot->getUid()}.getPreviousSnapshotOvlId()) {
+            if (pImpl->snapshotMgr->getCurrent() == base) {
                 tulog.info("Merging changes in /etc into the running system.");
-                targetRoot = "/";
             } else {
                 tulog.info("Merging changes in /etc into the previous snapshot.");
-
-                auto previousSnapId = Overlay{pImpl->snapshot->getUid()}.getPreviousSnapshotOvlId();
-                std::unique_ptr<Snapshot> previousSnapshot = pImpl->snapshotMgr->open(previousSnapId);
-                previousEtc->setTabSource(previousSnapshot->getRoot() / "etc" / "fstab");
-
-                Overlay previousOvl{previousSnapId};
-                previousOvl.lowerdirs.back() = previousSnapshot->getRoot();
-                previousOvl.setMountOptionsForMount(previousEtc);
-                targetRoot = previousOvl.upperdir.parent_path() / "sync";
-                previousEtc->mount(targetRoot);
+                targetRoot = pImpl->snapshotMgr->open(base)->getRoot();
             }
-            Util::exec("rsync --archive --inplace --xattrs --acls --exclude 'fstab' --delete --quiet '" + this->pImpl->bindDir.native() + "/etc/' " + targetRoot.native() + "/etc");
+            Util::exec("rsync --archive --inplace --xattrs --acls --exclude 'fstab' --exclude 'etc.syncpoint' --delete --quiet '" + this->pImpl->bindDir.native() + "/etc/' " + targetRoot.native() + "/etc");
         }
 
-	TransactionalUpdate::Plugins plugins_without_transaction{nullptr};
-	plugins_without_transaction.run("finalize-post", pImpl->snapshot->getUid() + " " + "discarded");
+        TransactionalUpdate::Plugins plugins_without_transaction{nullptr, pImpl->keepIfError};
+        plugins_without_transaction.run("finalize-post", pImpl->snapshot->getUid() + " " + "discarded");
         return;
     }
     if (fs::exists(getRoot() / "discardIfNoChange")) {
@@ -570,12 +556,12 @@ void Transaction::finalize() {
     std::string id = pImpl->snapshot->getUid();
     pImpl->snapshot.reset();
 
-    TransactionalUpdate::Plugins plugins_without_transaction{nullptr};
+    TransactionalUpdate::Plugins plugins_without_transaction{nullptr, pImpl->keepIfError};
     plugins_without_transaction.run("finalize-post", id);
 }
 
 void Transaction::keep() {
-    TransactionalUpdate::Plugins plugins{this};
+    TransactionalUpdate::Plugins plugins{this, pImpl->keepIfError};
     plugins.run("keep-pre", nullptr);
 
     sync();
@@ -587,6 +573,6 @@ void Transaction::keep() {
     std::string id = pImpl->snapshot->getUid();
     pImpl->snapshot.reset();
 
-    TransactionalUpdate::Plugins plugins_without_transaction{nullptr};
+    TransactionalUpdate::Plugins plugins_without_transaction{nullptr, pImpl->keepIfError};
     plugins_without_transaction.run("keep-post", id);
 }

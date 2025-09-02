@@ -1,6 +1,5 @@
-/*
- SPDX-License-Identifier: LGPL-2.1-or-later */
-/* SPDX-FileCopyrightText: 2020 SUSE LLC */
+/* SPDX-License-Identifier: LGPL-2.1-or-later */
+/* SPDX-FileCopyrightText: Copyright SUSE LLC */
 
 /*
   A Transaction is unique instance, shared between all classes derived from
@@ -49,6 +48,13 @@ public:
      * If @base is not set "active" will be used as the default.
      */
     void init(std::string base, std::optional<std::string> description = std::nullopt);
+
+    /**
+     * @brief Set flag to keep snapshots if plugins or command return error code
+     * @param keep true or false
+     *
+     */
+    void setKeepIfError(bool keep);
 
     /**
      * @brief Set flag to discard snapshots if no changes are detected
