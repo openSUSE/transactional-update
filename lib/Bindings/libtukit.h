@@ -2,8 +2,7 @@
 /* SPDX-FileCopyrightText: Copyright SUSE LLC */
 
 /*
-  This is the EXPERIMENTAL C API for tukit. For the moment it is only inteded
-  for internal use.
+  This is the C API for libtukit.
   For documentation please see the corresponding classes in the C++ header
   files.
  */
@@ -18,10 +17,11 @@ extern "C" {
 
 typedef enum {
     None=0, Error, Info, Debug
-} loglevel;
+} tukit_loglevel;
 
 const char* tukit_get_errmsg();
-void tukit_set_loglevel(loglevel lv);
+void tukit_set_loglevel(tukit_loglevel lv);
+int tukit_set_logoutput(char *fields);
 typedef void* tukit_tx;
 tukit_tx tukit_new_tx();
 void tukit_free_tx(tukit_tx tx);

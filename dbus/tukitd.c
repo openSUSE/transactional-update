@@ -860,7 +860,14 @@ int main() {
     sd_bus_slot *slot_snap = NULL;
     sd_bus *bus = NULL;
     sd_event *event = NULL;
-    int ret = 1;
+    int ret;
+
+    tukit_set_loglevel(Info);
+    ret = tukit_set_logoutput("syslog");
+    if (ret < 0) {
+        fprintf(stderr, "Failed to start: %s\n", tukit_get_errmsg());
+        return EXIT_FAILURE;
+    }
 
     TransactionEntry* activeTransactions = (TransactionEntry*) malloc(sizeof(TransactionEntry));
     if (activeTransactions == NULL) {

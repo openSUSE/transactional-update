@@ -72,13 +72,16 @@ void TUKit::displayHelp() {
     cout << "\n";
     cout << "Generic Options:\n";
     cout << "--help, -h                   Display this help and exit\n";
+    cout << "--log=<output1>[,<output2>,...], -l<...>\n";
+    cout << "                             Restrict output channels to the given ones\n";
+    cout << "                             Possible values: \"console\", \"syslog\"\n";
     cout << "--quiet, -q                  Decrease verbosity\n";
     cout << "--verbose, -v                Increase verbosity\n";
     cout << "--version, -V                Display version and exit\n" << endl;
 }
 
 int TUKit::parseOptions(int argc, char *argv[]) {
-    static const char optstring[] = "+c::df:hqvV";
+    static const char optstring[] = "+c::df:hl:qvV";
     static const struct option longopts[] = {
         { "continue", optional_argument, nullptr, 'c' },
         { "description", required_argument, nullptr, 0 },
@@ -86,6 +89,7 @@ int TUKit::parseOptions(int argc, char *argv[]) {
         { "discard", no_argument, nullptr, 'd' },
         { "fields", required_argument, nullptr, 'f' },
         { "help", no_argument, nullptr, 'h' },
+        { "log", required_argument, nullptr, 'l' },
         { "quiet", no_argument, nullptr, 'q' },
         { "verbose", no_argument, nullptr, 'v' },
         { "version", no_argument, nullptr, 'V' },
@@ -118,6 +122,9 @@ int TUKit::parseOptions(int argc, char *argv[]) {
         case 'h':
             displayHelp();
             return 0;
+        case 'l':
+            tulog.setLogOutput(optarg);
+            break;
         case 'q':
             tulog.level = TULogLevel::Error;
             break;
