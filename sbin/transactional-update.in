@@ -186,7 +186,13 @@ log_to_journal() {
 }
 
 log_to_file() {
-    echo -e "$(date "+%Y-%m-%d %T")" "$@" >> ${LOGFILE}
+    if [ $# -gt 0 ]; then
+        echo -e "$(date "+%Y-%m-%d %T")" "$@" >> ${LOGFILE}
+    else # input via pipe
+        while read -r line; do
+            echo -e "$(date "+%Y-%m-%d %T")" "${line}" >> ${LOGFILE}
+        done
+    fi
 }
 
 log_to_stdout() {
@@ -207,13 +213,11 @@ log_info() {
         log_to_file "$@"
         log_to_journal -p info echo "$@"
     else # input via pipe
-        while read -r line; do
-            log_to_file "${line}"
-            log_to_journal -p info echo "${line}"
-            if [ "$log_to_orig" == 1 ]; then
-                echo "${line}" 1>&${origstdout}
-            fi
-        done
+        if [ "$log_to_orig" == 1 ]; then
+            cat | tee -a >(log_to_journal -p info) >(log_to_file) 1>&${origstdout}
+        else
+            cat | tee -a >(log_to_journal -p info) >(log_to_file)
+        fi
     fi
 }
 
