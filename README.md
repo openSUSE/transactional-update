@@ -47,7 +47,7 @@ transactional-update was originally developed for the **openSUSE project** as th
 Additionally the following components support transactional-update directly:
 * **dnf**, Fedora's package management system, supports transactional systems directly via the [libdnf-plugin-txnupd](https://code.opensuse.org/microos/libdnf-plugin-txnupd) plugin (libtukit).
 * **Cockpit** can update transactional systems via the [cockpit-tukit](https://github.com/openSUSE/cockpit-tukit) plugin (tukitd).
-* **Salt** contains the [salt.modules.transactional\_update module](https://docs.saltproject.io/en/3004/ref/modules/all/salt.modules.transactional_update.html) module (transactional-update).
+* **Salt** contains the [salt.executors.transactional\_update](https://docs.saltproject.io/en/latest/ref/executors/all/salt.executors.transactional_update.html) executor (transactional-update).
 * **Ansible** also supports transactional-update via the the [community.general.zypper](https://docs.ansible.com/ansible/latest/collections/community/general/zypper_module.html) module (transactional-update).
 
 ## Caveats
