@@ -135,8 +135,10 @@ void Transaction::impl::snapMount() {
             // up in the root file system, but will always be shadowed by the real /var mount. Due to that they
             // also won't be relabelled at any time. During updates this may cause problems if packages try to
             // access those leftover directories with wrong permissions, so they have to be relabelled manually...
-            BindMount selinuxVar("/var/lib/selinux", 0, true);
-            selinuxVar.mount(bindDir);
+            if (fs::is_directory("/var/lib/selinux")) {
+                BindMount selinuxVar("/var/lib/selinux", 0, true);
+                selinuxVar.mount(bindDir);
+            }
             BindMount selinuxEtc("/etc/selinux", 0, true);
             selinuxEtc.mount(bindDir);
 
