@@ -279,7 +279,7 @@ void Transaction::init(std::string base, std::optional<std::string> description)
         std::unique_ptr<Snapshot> prevSnap = pImpl->snapshotMgr->open(base);
         std::unique_ptr<Mount> oldEtc{new Mount{"/etc"}};
         oldEtc->setTabSource(prevSnap->getRoot() / "etc" / "fstab");
-        if (oldEtc->getFilesystem() == "overlayfs") {
+        if (oldEtc->isMount() && oldEtc->getFilesystem() == "overlayfs") {
             tulog.info("Can not merge back changes in /etc into old overlayfs system - ignoring 'discardIfNoChange'.");
         } else {
             // Flag file to indicate this snapshot was initialized with discard flag
@@ -349,7 +349,10 @@ int Transaction::impl::runCommand(char* argv[], bool inChroot, std::string* outp
 
         // Recursively register all directories of the root file system
         inotifyExcludes = MountList::getList(snapshot->getRoot());
-        inotifyExcludes.push_back(snapshot->getRoot() / "etc");
+        std::unique_ptr<Mount> mntEtc{new Mount{"/etc"}};
+        if (mntEtc->isMount()) {
+            inotifyExcludes.push_back(snapshot->getRoot() / "etc");
+        }
         nftw(snapshot->getRoot().c_str(), inotifyAdd, 20, FTW_MOUNT | FTW_PHYS);
     }
 
