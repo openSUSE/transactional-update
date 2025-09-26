@@ -92,7 +92,7 @@ std::deque<std::map<std::string, std::string>> Snapper::getList(std::string colu
 /* Snapshot methods */
 
 void Snapper::close() {
-    callSnapper("modify -u 'transactional-update-in-progress=' " + snapshotId);
+    callSnapper("modify --userdata 'transactional-update-in-progress=' " + snapshotId);
 }
 
 void Snapper::abort() {
