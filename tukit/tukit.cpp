@@ -81,7 +81,7 @@ void TUKit::displayHelp() {
 }
 
 int TUKit::parseOptions(int argc, char *argv[]) {
-    static const char optstring[] = "+c::df:hl:qvV";
+    static const char optstring[] = "+c::dkf:hl:qvV";
     static const struct option longopts[] = {
         { "continue", optional_argument, nullptr, 'c' },
         { "description", required_argument, nullptr, 0 },
