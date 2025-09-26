@@ -573,8 +573,11 @@ for more information.
     <term><option>--keep</option></term>
     <term><option>-k</option></term>
     <listitem>
-      <para>Do not delete the snapshot in case of errors. This option is only for debugging or recovery if a tukit
-      plugin failed - do not use this option for production snapshots!</para>
+      <para>Do not delete the snapshot in case of errors. This option is mainly
+      meant for debugging or recovery if a tukit plugin failed, the resulting
+      snapshot should be used only after verifying the contents are as
+      expected.</para>
+      <para>The default snapshot will not be changed.</para>
     </listitem>
   </varlistentry>
   <varlistentry>

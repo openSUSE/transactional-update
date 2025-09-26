@@ -304,8 +304,12 @@ quit() {
         echo -n "${REBOOT_LEVEL_PREV}" > "${NEEDS_RESTARTING_FILE}"
     fi
 
-    if [ -n "${SNAPSHOT_ID}" ] && [ "$KEEP_SNAPSHOT" -eq 0 ]; then
-        log_error "Removing snapshot #${SNAPSHOT_ID}..."
+    if [ -n "${SNAPSHOT_ID}" ]; then
+        if [ "$KEEP_SNAPSHOT" -eq 1 ]; then
+            log_info "WARNING: Keeping snapshot as requested, but not setting as default."
+        else
+            log_error "Removing snapshot #${SNAPSHOT_ID}..."
+        fi
         tukit ${TUKIT_OPTS} abort "${SNAPSHOT_ID}" | log_info
     fi
     log_info "transactional-update finished"

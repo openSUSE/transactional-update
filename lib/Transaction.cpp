@@ -42,6 +42,7 @@ class Transaction::impl {
 public:
     void addSupplements();
     void snapMount();
+    void closeSnapshot(bool aborted=false);
     int runCommand(char* argv[], bool inChroot, std::string* buffer);
     static int inotifyAdd(const char *pathname, const struct stat *sbuf, int type, struct FTW *ftwb);
     int inotifyRead();
@@ -80,7 +81,11 @@ Transaction::~Transaction() {
     try {
         if (isInitialized() && !getSnapshot().empty() && fs::exists(getRoot())) {
             tulog.info("Discarding snapshot ", pImpl->snapshot->getUid(), ".");
-            pImpl->snapshot->abort();
+            if (pImpl->keepIfError) {
+                pImpl->closeSnapshot(true);
+            } else {
+                pImpl->snapshot->abort();
+            }
             TransactionalUpdate::Plugins plugins{nullptr, pImpl->keepIfError};
             plugins.run("abort-post", pImpl->snapshot->getUid());
         }
@@ -503,14 +508,11 @@ void Transaction::sendSignal(int signal) {
     }
 }
 
-void Transaction::finalize() {
-    TransactionalUpdate::Plugins plugins{this, pImpl->keepIfError};
-    plugins.run("finalize-pre", nullptr);
-
+void Transaction::impl::closeSnapshot(bool aborted) {
     sync();
-    if (pImpl->discardIfNoChange &&
-            ((inotifyFd != 0 && pImpl->inotifyRead() == 0) ||
-            (inotifyFd == 0 && fs::exists(getRoot() / "discardIfNoChange")))) {
+    if (discardIfNoChange &&
+            ((inotifyFd != 0 && inotifyRead() == 0) ||
+            (inotifyFd == 0 && fs::exists(snapshot->getRoot() / "discardIfNoChange")))) {
         tulog.info("No changes to the root file system - discarding snapshot.");
 
         // Even if the snapshot itself does not contain any changes, /etc may do so. If the new snapshot is a
@@ -522,41 +524,52 @@ void Transaction::finalize() {
             std::filesystem::path targetRoot = "/";
             std::string base;
 
-            std::ifstream input(getRoot() / "discardIfNoChange");
+            std::ifstream input(snapshot->getRoot() / "discardIfNoChange");
             input >> base;
             input.close();
 
             std::unique_ptr<Mount> previousEtc{new Mount("/etc", 0, true)};
-            if (pImpl->snapshotMgr->getCurrent() == base) {
+            if (snapshotMgr->getCurrent() == base) {
                 tulog.info("Merging changes in /etc into the running system.");
             } else {
                 tulog.info("Merging changes in /etc into the previous snapshot.");
-                targetRoot = pImpl->snapshotMgr->open(base)->getRoot();
+                targetRoot = snapshotMgr->open(base)->getRoot();
             }
-            Util::exec("rsync --archive --inplace --xattrs --acls --exclude 'fstab' --exclude 'etc.syncpoint' --delete --quiet '" + this->pImpl->bindDir.native() + "/etc/' " + targetRoot.native() + "/etc");
+            Util::exec("rsync --archive --inplace --xattrs --acls --exclude 'fstab' --exclude 'etc.syncpoint' --delete --quiet '" + bindDir.native() + "/etc/' " + targetRoot.native() + "/etc");
         }
 
-        TransactionalUpdate::Plugins plugins_without_transaction{nullptr, pImpl->keepIfError};
-        plugins_without_transaction.run("finalize-post", pImpl->snapshot->getUid() + " " + "discarded");
+        TransactionalUpdate::Plugins plugins_without_transaction{nullptr, keepIfError};
+        plugins_without_transaction.run("finalize-post", snapshot->getUid() + " " + "discarded");
         return;
     }
-    if (fs::exists(getRoot() / "discardIfNoChange")) {
-        fs::remove(getRoot() / "discardIfNoChange");
+    if (fs::exists(snapshot->getRoot() / "discardIfNoChange")) {
+        fs::remove(snapshot->getRoot() / "discardIfNoChange");
     }
 
     // Update /usr timestamp to support system offline update mechanism
-    if (utime((pImpl->snapshot->getRoot() / "usr").c_str(), nullptr) != 0)
+    if (utime((snapshot->getRoot() / "usr").c_str(), nullptr) != 0)
         throw std::runtime_error{"Updating /usr timestamp failed: " + std::string(strerror(errno))};
 
-    pImpl->snapshot->close();
-    pImpl->supplements.cleanup();
-    pImpl->dirsToMount.clear();
+    if (! aborted) {
+        snapshot->close();
+    }
+    supplements.cleanup();
+    dirsToMount.clear();
 
-    std::unique_ptr<Snapshot> defaultSnap = pImpl->snapshotMgr->open(pImpl->snapshotMgr->getDefault());
+    std::unique_ptr<Snapshot> defaultSnap = snapshotMgr->open(snapshotMgr->getDefault());
     if (defaultSnap->isReadOnly())
-        pImpl->snapshot->setReadOnly(true);
-    pImpl->snapshot->setDefault();
-    tulog.info("New default snapshot is #" + pImpl->snapshot->getUid() + " (" + std::string(pImpl->snapshot->getRoot()) + ").");
+        snapshot->setReadOnly(true);
+    if (! aborted) {
+        snapshot->setDefault();
+        tulog.info("New default snapshot is #" + snapshot->getUid() + " (" + std::string(snapshot->getRoot()) + ").");
+    }
+}
+
+void Transaction::finalize() {
+    TransactionalUpdate::Plugins plugins{this, pImpl->keepIfError};
+    plugins.run("finalize-pre", nullptr);
+
+    this->pImpl->closeSnapshot();
 
     std::string id = pImpl->snapshot->getUid();
     pImpl->snapshot.reset();
