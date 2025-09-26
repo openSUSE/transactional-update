@@ -1375,6 +1375,7 @@ if [ -n "${ZYPPER_ARG}" ] || [ ${REWRITE_GRUB_CFG} -eq 1 ] \
 
     if [ ${DO_RUN} -eq 1 ]; then
         tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" "${RUN_CMD[@]}" | log_info -o
+        EXITCODE=${PIPESTATUS[0]}
         set_reboot_level "reboot"
     fi
 
