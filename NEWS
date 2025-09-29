@@ -2,6 +2,32 @@ transactional-update NEWS -- history of user-visible changes.
 
 Copyright (C) 2016-2025 Thorsten Kukuk, Ignaz Forster et al.
 
+Version 5.5.0 (2025-09-29)
+This release contains changes incompatible with previous versions.
+* t-u: The "run" command will return the exit status of the command now and if
+  it is non-zero, the snapshot will be discarded. The --keep option or
+  wrapping the command into a bash script can be used if the command is
+  expected to return with a specific non-zero return code.
+* t-u / tukit: The --keep option will close the snapshot now also in error
+  case, but not set it as default or remove the in-progress attribute; with
+  this change the snapshot can be used as a base for another snapshot when
+  the changes are verified as good.
+* C API: rename loglevel to tukit_loglevel (API change)
+* C API: removed the experimental status
+* Rework logging:
+  * Also log to journald when calling t-u manually
+  * Introduce logging for libtukit: By default it will log syslog / journald.
+    This will finally make it possible to see what happened during manual
+    tukit calls or via the API
+  * Add option to specify desired logging mechanisms ("console", "syslog") via
+    tukit and API
+* Fixed --discard option on rw systems
+* Support SELinux outside /var/lib/selinux [jsc#PED-12492]
+* sync-etc-state: Detect changes in xattrs with null bytes
+* tukit: Added forgotten short option -k for tukit --keep
+* t-u: Fix shellcheck hints
+* README.md: Updated link to Salt executor
+
 Version 5.1.0 (2025-08-18)
 * tukit: signalize errors from plugins; transactions will be aborted by
   default now

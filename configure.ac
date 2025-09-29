@@ -1,9 +1,9 @@
 dnl Process this file with autoconf to produce a configure script.
-AC_INIT([transactional-update],[5.0.7])
+AC_INIT([transactional-update],[5.5.0])
 # Increase on any interface change and reset revision
-LIBTOOL_CURRENT=7
+LIBTOOL_CURRENT=8
 # On interface change increase if backwards compatible, reset otherwise
-LIBTOOL_AGE=3
+LIBTOOL_AGE=0
 # Increase on *any* C/C++ library code change, reset at interface change
 LIBTOOL_REVISION=0
 AC_CANONICAL_TARGET
