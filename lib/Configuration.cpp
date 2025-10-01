@@ -25,7 +25,8 @@ Configuration::Configuration() {
         {"LOCKFILE", "/var/run/tukit.lock"},
         {"REBOOT_ALLOW_SOFT_REBOOT", "true"},
         {"REBOOT_ALLOW_KEXEC", "false"},
-        {"REBOOT_NEEDED_FILE", "/run/reboot-needed"}
+        {"REBOOT_NEEDED_FILE", "/run/reboot-needed"},
+        {"SNAPSHOT_MANAGER", "snapper"}
     };
     for(auto &[key, value] : defaults) {
         error = econf_setStringValue(kf_defaults, "", key, value);

@@ -6,14 +6,15 @@
   implementations can be found in the "Snapshot" directory
  */
 
+#include "Configuration.hpp"
 #include "Snapshot/Snapper.hpp"
 using namespace std;
 
 namespace TransactionalUpdate {
 
-// TODO: Make configurable to be able to force a certain implementation
 unique_ptr<SnapshotManager> SnapshotFactory::get() {
-    if (filesystem::exists("/usr/bin/snapper")) {
+    string sm = config.get("SNAPSHOT_MANAGER");
+    if (sm == "snapper" && filesystem::exists("/usr/bin/snapper")) {
         return make_unique<Snapper>();
     } else {
         throw runtime_error{"No supported environment found."};
