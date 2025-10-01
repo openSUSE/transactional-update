@@ -8,6 +8,7 @@
 
 #include "Configuration.hpp"
 #include "Snapshot/Snapper.hpp"
+#include "Snapshot/Podman.hpp"
 using namespace std;
 
 namespace TransactionalUpdate {
@@ -16,6 +17,8 @@ unique_ptr<SnapshotManager> SnapshotFactory::get() {
     string sm = config.get("SNAPSHOT_MANAGER");
     if (sm == "snapper" && filesystem::exists("/usr/bin/snapper")) {
         return make_unique<Snapper>();
+    } else if (sm == "podman" && filesystem::exists("/usr/bin/podman")) {
+        return make_unique<Podman>();
     } else {
         throw runtime_error{"No supported environment found."};
     }

@@ -26,6 +26,7 @@ Configuration::Configuration() {
         {"REBOOT_ALLOW_SOFT_REBOOT", "true"},
         {"REBOOT_ALLOW_KEXEC", "false"},
         {"REBOOT_NEEDED_FILE", "/run/reboot-needed"},
+        {"OCI_TARGET", ""},
         {"SNAPSHOT_MANAGER", "snapper"}
     };
     for(auto &[key, value] : defaults) {
