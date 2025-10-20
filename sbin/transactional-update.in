@@ -1422,7 +1422,7 @@ if [ -n "${ZYPPER_ARG}" ] || [ ${REWRITE_GRUB_CFG} -eq 1 ] \
         filelist="$(echo "$filelist" | grep -v "^\(${whitelist::-2}\)")"
 
         if [ -n "$filelist" ]; then
-            log_info
+            log_info ""
             log_info "Warning: The following files were changed in the snapshot, but are shadowed by"
             log_info "other mounts and will not be visible to the system:"
             log_info "${filelist}"
