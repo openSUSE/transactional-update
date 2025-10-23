@@ -41,6 +41,16 @@ tukit_tx tukit_new_tx() {
     }
     return reinterpret_cast<tukit_tx>(transaction);
 }
+tukit_tx tukit_new_tx_set_manager(char* manager) {
+    Transaction* transaction = nullptr;
+    try {
+        transaction = new Transaction(manager);
+    } catch (const std::exception &e) {
+        fprintf(stderr, "ERROR: %s\n", e.what());
+        errmsg = e.what();
+    }
+    return reinterpret_cast<tukit_tx>(transaction);
+}
 void tukit_free_tx(tukit_tx tx) {
     if (tx != nullptr) {
         delete reinterpret_cast<Transaction*>(tx);

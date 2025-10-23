@@ -72,16 +72,17 @@ void TUKit::displayHelp() {
     cout << "\n";
     cout << "Generic Options:\n";
     cout << "--help, -h                   Display this help and exit\n";
-    cout << "--log=<output1>[,<output2>,...], -l<...>\n";
+    cout << "--log=<console,syslog>[,<...>,...], -l<...>\n";
     cout << "                             Restrict output channels to the given ones\n";
-    cout << "                             Possible values: \"console\", \"syslog\"\n";
+    cout << "--manager=<auto,snapper,podman>, -m<...>\n";
+    cout << "                             Use specific snapshot manager\n";
     cout << "--quiet, -q                  Decrease verbosity\n";
     cout << "--verbose, -v                Increase verbosity\n";
     cout << "--version, -V                Display version and exit\n" << endl;
 }
 
 int TUKit::parseOptions(int argc, char *argv[]) {
-    static const char optstring[] = "+c::dkf:hl:qvV";
+    static const char optstring[] = "+c::dkf:hl:m:qvV";
     static const struct option longopts[] = {
         { "continue", optional_argument, nullptr, 'c' },
         { "description", required_argument, nullptr, 0 },
@@ -90,6 +91,7 @@ int TUKit::parseOptions(int argc, char *argv[]) {
         { "fields", required_argument, nullptr, 'f' },
         { "help", no_argument, nullptr, 'h' },
         { "log", required_argument, nullptr, 'l' },
+        { "manager", required_argument, nullptr, 'm' },
         { "quiet", no_argument, nullptr, 'q' },
         { "verbose", no_argument, nullptr, 'v' },
         { "version", no_argument, nullptr, 'V' },
@@ -125,6 +127,9 @@ int TUKit::parseOptions(int argc, char *argv[]) {
         case 'l':
             tulog.setLogOutput(optarg);
             break;
+        case 'm':
+            manager = optarg;
+            break;
         case 'q':
             tulog.level = TULogLevel::Error;
             break;
@@ -149,7 +154,7 @@ int TUKit::processCommand(char *argv[]) {
     }
     string arg = argv[0];
     if (arg == "execute") {
-        TransactionalUpdate::Transaction transaction{};
+        TransactionalUpdate::Transaction transaction{manager};
         if (keepSnapshot) {
             transaction.setKeepIfError(true);
         }
@@ -166,7 +171,7 @@ int TUKit::processCommand(char *argv[]) {
         return 0;
     }
     else if (arg == "open") {
-        TransactionalUpdate::Transaction transaction{};
+        TransactionalUpdate::Transaction transaction{manager};
         if (keepSnapshot) {
             transaction.setKeepIfError(true);
         }
@@ -183,7 +188,7 @@ int TUKit::processCommand(char *argv[]) {
             displayHelp();
             throw invalid_argument{"Missing argument for 'call'"};
         }
-        TransactionalUpdate::Transaction transaction{};
+        TransactionalUpdate::Transaction transaction{manager};
         if (keepSnapshot) {
             transaction.setKeepIfError(true);
         }
@@ -197,7 +202,7 @@ int TUKit::processCommand(char *argv[]) {
             displayHelp();
             throw invalid_argument{"Missing argument for 'callext'"};
         }
-        TransactionalUpdate::Transaction transaction{};
+        TransactionalUpdate::Transaction transaction{manager};
         if (keepSnapshot) {
             transaction.setKeepIfError(true);
         }
@@ -211,7 +216,7 @@ int TUKit::processCommand(char *argv[]) {
             displayHelp();
             throw invalid_argument{"Missing argument for 'close'"};
         }
-        TransactionalUpdate::Transaction transaction{};
+        TransactionalUpdate::Transaction transaction{manager};
         if (keepSnapshot) {
             transaction.setKeepIfError(true);
         }
@@ -224,7 +229,7 @@ int TUKit::processCommand(char *argv[]) {
             displayHelp();
             throw invalid_argument{"Missing argument for 'abort'"};
         }
-        TransactionalUpdate::Transaction transaction{};
+        TransactionalUpdate::Transaction transaction{manager};
         if (keepSnapshot) {
             transaction.setKeepIfError(true);
         }
@@ -236,12 +241,12 @@ int TUKit::processCommand(char *argv[]) {
             displayHelp();
             throw invalid_argument{"Missing argument for 'rollback'"};
         }
-        unique_ptr<TransactionalUpdate::SnapshotManager> snapshotMgr = TransactionalUpdate::SnapshotFactory::get();
+        unique_ptr<TransactionalUpdate::SnapshotManager> snapshotMgr = TransactionalUpdate::SnapshotFactory::get(manager);
         snapshotMgr->rollbackTo(argv[1]);
         return 0;
     }
     else if (arg == "snapshots") {
-        unique_ptr<TransactionalUpdate::SnapshotManager> snapshotMgr = TransactionalUpdate::SnapshotFactory::get();
+        unique_ptr<TransactionalUpdate::SnapshotManager> snapshotMgr = TransactionalUpdate::SnapshotFactory::get(manager);
         if (fields.empty()) {
             fields = "number";
         }

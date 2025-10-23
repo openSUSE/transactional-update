@@ -76,9 +76,10 @@ class SnapshotFactory {
 public:
     /**
      * @brief get See example for SnapshotManager
+     * @param (optional) sets the SnapshotManager implementation
      * @return Returns a SnapshotManager instance suitable for the system
      */
-    static std::unique_ptr<SnapshotManager> get();
+    static std::unique_ptr<SnapshotManager> get(std::string sm = "auto");
 };
 
 struct SnapshotTable {

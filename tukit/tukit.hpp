@@ -25,6 +25,7 @@ private:
     bool discardSnapshot = false;
     std::string fields;
     std::optional<std::string> description = std::nullopt;
+    std::string manager;
 };
 
 #endif /* TRANSACTIONALUPDATE_H */

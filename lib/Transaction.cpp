@@ -58,12 +58,12 @@ public:
     bool discardIfNoChange = false;
 };
 
-Transaction::Transaction() : pImpl{std::make_unique<impl>()} {
+Transaction::Transaction(std::string manager) : pImpl{std::make_unique<impl>()} {
     tulog.debug("Constructor Transaction");
     if (getenv("TRANSACTIONAL_UPDATE") != NULL) {
         throw std::runtime_error{"Cannot open a new transaction from within a running transaction."};
     }
-    pImpl->snapshotMgr = SnapshotFactory::get();
+    pImpl->snapshotMgr = SnapshotFactory::get(manager);
 }
 
 Transaction::~Transaction() {

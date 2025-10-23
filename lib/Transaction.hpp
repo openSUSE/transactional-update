@@ -24,8 +24,9 @@ public:
      *
      * The Transaction constructor will determine which snapshotting mechanism to use, but will
      * not change the system itself. It is required to either init() or resume() a session.
+     * @param manager (optional) explicitly selects one of the implementations
      */
-    Transaction();
+    Transaction(std::string manager = "auto");
 
     /**
      * @brief Destructor
