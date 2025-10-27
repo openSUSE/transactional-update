@@ -5,9 +5,9 @@
   <method name="Execute">
    <doc:doc><doc:description>
     <doc:para>
-    Creates a new snapshot and execute the given command. If execution was successful
-    the snapshot will be set as the new snapshot, if the command returned with an error
-    code the snapshot will be discarded.
+    Creates a new snapshot using the default snapshot mechanism and executes the given
+    command. If execution was successful the snapshot will be set as the new snapshot,
+    if the command returned with an error code the snapshot will be discarded.
     </doc:para>
     <doc:para>
     This command combines the "Open", "Call" and "Close" / "Abort" calls in one method.
@@ -107,8 +107,9 @@
   </method>
   <method name="Open">
    <doc:doc><doc:description><doc:para>
-    Creates a new snapshot. The new snapshot id is returned both as a return value and
-    announced via the "TransactionOpened" signal.
+    Creates a new snapshot using the default snapshot manager. The new snapshot id
+    is returned both as a return value and announced via the "TransactionOpened"
+    signal.
    </doc:para></doc:description></doc:doc>
    <doc:errors>
     <doc:error name="org.opensuse.tukit.Error">if an error occured.</doc:error>
@@ -180,7 +181,7 @@
   <method name="CallExt">
    <doc:doc><doc:description>
     <doc:para>
-    Replace any standalone occurrence of '{}' in in command parameter with the
+    Replace any standalone occurrence of '{}' in command parameter with the
     snapshot's mount directory and execute the given command *outside* of the snapshot
     in the running system, but while the update environment is mounted. This may
     be useful if the command needs access to the current environment, e.g. to copy a file
