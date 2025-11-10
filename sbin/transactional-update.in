@@ -60,6 +60,7 @@ OCI_RSYNC_EXCLUDES="/etc /var /usr/local /tmp /root /home /srv /opt /sys /dev /p
 OCI_TARGET=""
 DRACUT_OPTS=""
 TUKIT_OPTS="--log=console"
+FORCE_REFRESH=0
 IS_BLS=""
 
 TMPDIR=${TMPDIR:-/tmp}
@@ -95,7 +96,18 @@ self_update() {
     fi
 
     log_info "Checking for newer version."
-    if zypper --non-interactive info transactional-update | grep -q '^Status *: out-of-date'; then
+    # Tell zypper that we are in a read-only system, do not import keys using rpm
+    export ZYPP_READONLY_HACK=1
+    local zypper_log_tmpfile
+    zypper_log_tmpfile=$(mktemp "${TMPDIR}/transactional-update.XXXXXXXXXX")
+    zypper --xmlout --non-interactive info transactional-update > "$zypper_log_tmpfile"
+    if grep -q "can not be imported. (READONLY MODE)" "$zypper_log_tmpfile"; then
+        export ZYPP_FORCE_REFRESH=1
+    fi
+    grep -q '^Status *: out-of-date' "$zypper_log_tmpfile"
+    out_of_date="$?"
+    rm "$zypper_log_tmpfile"
+    if [ $out_of_date -eq 0 ]; then
         log_info "New version found - updating..."
         if ! TA_UPDATE_TMPFILE="$(mktemp -d "${TMPDIR}"/transactional-update.XXXXXXXXXX)"; then
             log_error "ERROR: Couldn't create temporary directory for self-update."
@@ -107,6 +119,7 @@ self_update() {
             log_error "ERROR: Couldn't extract the update."
             quit 1
         fi
+        unset ZYPP_READONLY_HACK
         # Reset CWD before restart
         if ! popd >/dev/null; then
             log_error "popd failed during self-update"
@@ -121,6 +134,7 @@ self_update() {
         export TA_UPDATE_TMPFILE
         exec "${TA_UPDATE_TMPFILE}/usr/sbin/transactional-update" "$@" 1>&${origstdout} 2>&${origstderr}
     fi
+    unset ZYPP_READONLY_HACK
 }
 
 usage() {
@@ -262,6 +276,8 @@ save_state_file() {
     for key in "${!REBOOT_ASSOCS[@]}"; do
         echo "REBOOT_ASSOCS[${key}]=${REBOOT_ASSOCS[${key}]}" >> ${STATE_FILE}
     done
+
+    echo "FORCE_REFRESH=\"${FORCE_REFRESH}\"" >> ${STATE_FILE}
 
     if [ "$1" -ne 0 ] && [ ${HAS_SEPARATE_VAR} -eq 0 ]; then
         # If /var/lib/misc is not a seperate partition / subvolume, copy the
@@ -910,6 +926,14 @@ fi
 if [ -f ${STATE_FILE} ]; then
     . ${STATE_FILE}
 fi
+# If we need to refresh the repositories, save this var into the state
+# as t-u might not create/save a snapshot in this call
+# Save it only if not already present
+if [ "$ZYPPER_FORCE_REFRESH" -gt "$FORCE_REFRESH" ]; then
+    FORCE_REFRESH=1
+    save_state_file 0
+fi
+unset ZYPP_FORCE_REFRESH
 
 log_info "transactional-update ${VERSION} started"
 log_info "Options: ${ORIG_ARGS[*]}"
@@ -1160,6 +1184,18 @@ if [ -n "${ZYPPER_ARG}" ] || [ ${REWRITE_GRUB_CFG} -eq 1 ] \
         touch "${SNAPSHOT_DIR}/.autorelabel"
         # Ensure RPM database is using the desired system backend
         tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" rpm --rebuilddb | log_info -o
+    fi
+
+    # A new key was being imported while t-u was looking for a self-update, but the system was read-only
+    # Force refresh of the repositories to import it
+    if [ "$FORCE_REFRESH" -eq 1 ]; then
+        if tukit ${TUKIT_OPTS} call ${SNAPSHOT_ID} zypper refresh -f; then
+
+            # The refresh succeeded. It's okay to disable it here, because
+            # this is included in t-u state, and it is only saved when
+            # the transaction is saved
+            FORCE_REFRESH=0
+        fi
     fi
 
     if [ -n "${ZYPPER_ARG}" ]; then
