@@ -1,7 +1,9 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 # SPDX-FileCopyrightText: Copyright SUSE LLC
 
-TESTS = etc_changes.sh
-check_SCRIPTS = etc_changes.sh
+LOG_DRIVER = env AM_TAP_AWK='$(AWK)' $(SHELL) $(top_srcdir)/tap-driver.sh
+LOG_DRIVER_FLAGS = -- bats --tap --output
 
-EXTRA_DIST = $(SCRIPTS)
+TESTS = etc_changes.bats
+
+EXTRA_DIST = $(TESTS)

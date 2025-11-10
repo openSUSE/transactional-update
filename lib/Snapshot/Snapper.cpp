@@ -92,7 +92,7 @@ std::deque<std::map<std::string, std::string>> Snapper::getList(std::string colu
 /* Snapshot methods */
 
 void Snapper::close() {
-    callSnapper("modify -u 'transactional-update-in-progress=' " + snapshotId);
+    callSnapper("modify --userdata 'transactional-update-in-progress=' " + snapshotId);
 }
 
 void Snapper::abort() {
@@ -107,10 +107,14 @@ std::string Snapper::getCurrent() {
     std::smatch match;
 
     // snapper doesn't support the `apply` command for now, so use findmnt directly.
-    std::string id = Util::exec("findmnt --target /usr --raw --noheadings --output FSROOT --first-only --direction backward");
+    std::string id = Util::exec("findmnt --target /usr --raw --noheadings --output FSROOT --first-only --direction backward --types btrfs");
     bool found = std::regex_search(id, match, std::regex(".*.snapshots/(.*)/snapshot.*"));
-    if (!found)
-        throw std::runtime_error{"Couldn't determine current snapshot number"};
+    if (!found) {
+        id = Util::exec("findmnt --target / --raw --noheadings --output FSROOT --first-only --direction backward --types btrfs");
+        found = std::regex_search(id, match, std::regex(".*.snapshots/(.*)/snapshot.*"));
+        if (!found)
+            throw std::runtime_error{"Couldn't determine current snapshot number"};
+    }
     return match[1].str();
 }
 

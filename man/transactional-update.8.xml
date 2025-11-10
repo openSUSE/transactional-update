@@ -244,10 +244,22 @@ for more information.
     <term><option>run</option> <replaceable>cmd</replaceable></term>
     <listitem>
       <para>
-	Execute the the command <replaceable>cmd</replaceable> inside
-	a new snapshot. By default this snaphot will remain, but if
-	<option>--drop-if-no-change</option> is set, the new snapshot
-	will be dropped if there is no change in the file system.
+	Execute the command <replaceable>cmd</replaceable> inside
+	a new snapshot and return the command's exit code. If the command
+	returns with a non-zero exit status, the snapshot will be discarded
+	again.
+      </para>
+      <para>
+	If a non-zero exit status is expected, then the command may either be
+	wrapped inside a Bash script (see the program listing below) or it can
+	be combinded with the <option>--keep</option> option and checking the
+	exit code of <command>transactional-update</command> itself.
+      </para>
+      <para>
+	Note that a snapshot will be created for each call, so if the command
+	only performs read-only operations it may be worth to combine it with
+	<option>--drop-if-no-change</option> to discard the snapshot again when
+	there are not changes in the snapshot.
       </para>
       <para>
 	This command consumes all the remaining parameters, so should
@@ -567,6 +579,17 @@ for more information.
     <listitem>
       <para>If the action does not produce a change in the underlying
       file system, the snapshot will be dropped.</para>
+    </listitem>
+  </varlistentry>
+  <varlistentry>
+    <term><option>--keep</option></term>
+    <term><option>-k</option></term>
+    <listitem>
+      <para>Do not delete the snapshot in case of errors. This option is mainly
+      meant for debugging or recovery if a tukit plugin failed, the resulting
+      snapshot should be used only after verifying the contents are as
+      expected.</para>
+      <para>The default snapshot will not be changed.</para>
     </listitem>
   </varlistentry>
   <varlistentry>

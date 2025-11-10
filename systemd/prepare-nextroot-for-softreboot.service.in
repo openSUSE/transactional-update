@@ -2,6 +2,7 @@
 Description=Mount next snapshot for soft-reboot
 DefaultDependencies=no
 Before=systemd-soft-reboot.service
+Before=basic.target
 
 [Service]
 ExecStart=@libexecdir@/prepare-nextroot-for-softreboot

@@ -1,14 +1,15 @@
 dnl Process this file with autoconf to produce a configure script.
-AC_INIT([transactional-update],[5.0.3])
+AC_INIT([transactional-update],[5.5.0])
 # Increase on any interface change and reset revision
-LIBTOOL_CURRENT=6
+LIBTOOL_CURRENT=8
 # On interface change increase if backwards compatible, reset otherwise
-LIBTOOL_AGE=2
+LIBTOOL_AGE=0
 # Increase on *any* C/C++ library code change, reset at interface change
-LIBTOOL_REVISION=6
+LIBTOOL_REVISION=0
 AC_CANONICAL_TARGET
 AM_INIT_AUTOMAKE([foreign])
 AC_CONFIG_FILES([tukit.pc])
+AC_REQUIRE_AUX_FILE([tap-driver.sh])
 AC_PREFIX_DEFAULT(/usr)
 
 AC_SUBST(PACKAGE)
@@ -47,6 +48,7 @@ AC_SUBST(DBUSINTERFACESDIR)
 AC_SUBST(DBUSSYSTEMBUSSERVICEDIR)
 
 AC_PROG_CXX
+AC_PROG_AWK
 AX_CXX_COMPILE_STDCXX_17(, mandatory)
 AC_PROG_CC
 AC_PROG_INSTALL
@@ -110,6 +112,11 @@ AS_IF([test "x$enable_man" = "xno" -a "x$with_doc" != "xno"],
 
 AM_CONDITIONAL(ENABLE_REGENERATE_MAN,
 	test "x$enable_man" != "xno" -a "x$with_doc" != "xno")
+
+AC_PATH_PROG([BATS], [bats])
+AC_PATH_PROG([ROOTLESSKIT], [rootlesskit])
+AS_IF([test -z "$BATS" -o -z "$ROOTLESSKIT"], [AC_MSG_WARN([To run tests please install
+       bats and rootlesskit.])])
 
 AC_CONFIG_FILES([Makefile lib/Makefile tukit/Makefile sbin/Makefile man/Makefile \
 	systemd/Makefile logrotate/Makefile dracut/Makefile doc/Makefile \

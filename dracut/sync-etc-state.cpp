@@ -129,7 +129,7 @@ bool diff_xattrs(filesystem::path ref, filesystem::path cmp) {
                 perror("lgetxattr cmp get");
                 return false;
             }
-            if (string{val_ref.get()} != string{val_cmp.get()}) {
+            if (memcmp(val_ref.get(), val_cmp.get(), vallen_ref) != 0) {
                 cout << "Extended attribute value changed: " << cmp << endl;
                 return true;
             }

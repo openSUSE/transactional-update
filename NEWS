@@ -2,6 +2,76 @@ transactional-update NEWS -- history of user-visible changes.
 
 Copyright (C) 2016-2025 Thorsten Kukuk, Ignaz Forster et al.
 
+Version 5.5.0 (2025-09-29)
+This release contains changes incompatible with previous versions.
+* t-u: The "run" command will return the exit status of the command now and if
+  it is non-zero, the snapshot will be discarded. The --keep option or
+  wrapping the command into a bash script can be used if the command is
+  expected to return with a specific non-zero return code.
+* t-u / tukit: The --keep option will close the snapshot now also in error
+  case, but not set it as default or remove the in-progress attribute; with
+  this change the snapshot can be used as a base for another snapshot when
+  the changes are verified as good.
+* C API: rename loglevel to tukit_loglevel (API change)
+* C API: removed the experimental status
+* Rework logging:
+  * Also log to journald when calling t-u manually
+  * Introduce logging for libtukit: By default it will log syslog / journald.
+    This will finally make it possible to see what happened during manual
+    tukit calls or via the API
+  * Add option to specify desired logging mechanisms ("console", "syslog") via
+    tukit and API
+* Fixed --discard option on rw systems
+* Support SELinux outside /var/lib/selinux [jsc#PED-12492]
+* sync-etc-state: Detect changes in xattrs with null bytes
+* tukit: Added forgotten short option -k for tukit --keep
+* t-u: Fix shellcheck hints
+* README.md: Updated link to Salt executor
+
+Version 5.1.0 (2025-08-18)
+* tukit: signalize errors from plugins; transactions will be aborted by
+  default now
+* t-u: Added `--keep` option; please only use this for debugging or recovery
+  when a tukit plugin is failing
+* setup-fips: could be called multiple times now
+* setup-fips: call update-crypto-policies in the correct context
+  [boo#1246013]
+* reboot: Print both requested and actual reboot method for [poo#163352]
+* snapper plugin: Don't touch fstab's timestamp on every run
+* t-u: Chaining commands will also work on BLS systems now; this is also
+  necessary for some regular commands (such as setup-fips or setup-selinux)
+* tukit: Only mount journal dir if available
+* tukit: Return full, non-truncated error number when calling external
+  applications
+* tests: Adopt tests to obs environment to avoid root perms
+* t-u: Simplified various calls when changing files in /etc (made possible by
+  the new btrfs subvolume based layout), tukit is called less often now
+* t-u: optimized check for BLS systems
+
+Version 5.0.7 (2025-07-21)
+* Add sysext compatibility [bsc#1246140]
+* Fix soft-reboot with btrfs subvolume based /etc
+* Sync /etc layers also on soft-reboot
+* Bind mount /run/systemd/journal to allow log calls
+  [gh#openSUSE/transactional-update#149]
+* Use rootlesskit instead of fakeroot for tests
+* Small coding style fixes
+
+Version 5.0.6 (2025-07-09)
+* Fix missing x-initrd.mount in fstab on migration [boo#1246139]
+  When migrating overlayfs based /etc to btrfs subvolumes, then the
+  attribute was not set - this may result in failures from services
+  operating on /etc during initrd phase such as SELinux relabelling
+* Optimize execution time of tests
+
+Version 5.0.5 (2025-07-04)
+* Add support for kdump 2.1.0 [bsc#1243758]
+* Integrate test to support `make check`
+
+Version 5.0.4 (2025-06-12)
+* Don't override soft-reboot with hard reboot
+* Fix stdio when returning from selfupdate
+
 Version 5.0.3 (2025-04-24)
 * When continuing a transaction that was based on the running
   system, sync new changes from /etc into the new snapshot.

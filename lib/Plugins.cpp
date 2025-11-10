@@ -15,7 +15,8 @@ namespace TransactionalUpdate {
 
 using namespace std;
 
-Plugins::Plugins(TransactionalUpdate::Transaction* transaction): transaction(transaction) {
+Plugins::Plugins(TransactionalUpdate::Transaction* transaction, bool ignore_error)
+    : transaction{transaction}, ignore_error{ignore_error} {
     set<string> plugins_set{};
 
     const filesystem::path plugins_dir{filesystem::path(CONFDIR)/"tukit"/"plugins"};
@@ -65,11 +66,17 @@ void Plugins::run(string stage, string args) {
 
         try {
             output = Util::exec(cmd);
-	    if (!output.empty())
-                tulog.info("Output of plugin ", p, ": ", output);
+            if (!output.empty())
+                tulog.info("Output of plugin ", p, ":\n", output, "---");
         } catch (const ExecutionException &e) {
-            // An error in the plugin should not discard the transaction
-            tulog.error("ERROR: Plugin ", p, " failed with ", e.what());
+            tulog.error("ERROR: ", e.what());
+            if (!e.output.empty())
+                tulog.error("Output of plugin ", p, ":\n", e.output, "---");
+            if (!ignore_error)
+                if (WIFEXITED(e.returncode))
+                    throw(WEXITSTATUS(e.returncode));
+                else
+                    throw(-1);
         }
     }
 }

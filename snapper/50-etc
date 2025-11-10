@@ -75,10 +75,15 @@ create_snapshot_post() {
 
     # Add entry for /etc
     sed -i '/^overlay[[:space:]]\+\/etc[[:space:]]/d' "/.snapshots/${snapshot}/snapshot/etc/fstab"
-    echo "/etc /etc none bind 0 0" >> "/.snapshots/${snapshot}/snapshot/etc/fstab"
+    echo "/etc /etc none bind,x-initrd.mount 0 0" >> "/.snapshots/${snapshot}/snapshot/etc/fstab"
 
     # Clean up potential conflicting overlay cruft
     rm -rf "/var/lib/overlay/${snapshot}"
+  fi
+
+  # Bugfix: Older versions didn't include the x-initrd.mount flag
+  if ! awk '$2 == "/etc" && $4 !~ /x-initrd.mount/ { exit 1 }' "/.snapshots/${snapshot}/snapshot/etc/fstab"; then
+    awk -i inplace '$2 == "/etc" && $4 !~ /x-initrd.mount/ { $4 = $4 ",x-initrd.mount" } { print }' "/.snapshots/${snapshot}/snapshot/etc/fstab"
   fi
 
   reset_snapshot_writability
@@ -100,7 +105,7 @@ delete_snapshot_pre() {
 if [ "$2" != "/" ]; then
   exit 0
 fi
-if [ -e "/.snapshots/${4}/snapshot/etc/fstab" ] && ! findmnt --mountpoint /etc --noheadings --output TARGET --tab-file "/.snapshots/${4}/snapshot/etc/fstab"; then
+if [ -e "/.snapshots/${4}/snapshot/etc/fstab" ] && ! findmnt --mountpoint /etc --noheadings --output TARGET --tab-file "/.snapshots/${4}/snapshot/etc/fstab" >/dev/null; then
   echo "/etc is not a mount point - skipping..."
   exit 0
 fi

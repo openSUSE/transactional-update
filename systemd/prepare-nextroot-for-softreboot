@@ -20,7 +20,13 @@ mkdir -p /run/nextroot
 findmnt --noheadings / | awk '{ sub("subvol=/@/[^,]*", "", $4); sub("subvolid=[^,]*", "", $4); sub("\\[.*\\]", "", $2); system("mount -o \x27" $4 "\x27 " $2 " /run/nextroot") }'
 
 # Perform all mounts marked with x-initrd.mount inside /run/nextroot
-awk '$1 !~ /^#/ && $4 ~ /(\<|,)x-initrd\.mount(\>|,)/ {
+awk '$1 !~ /^#/ && $4 !~ /(\<|,)bind(\>|,)/ && $4 ~ /(\<|,)x-initrd\.mount(\>|,)/ {
 	gsub(/sysroot\//,"run/nextroot/", $4); # The /etc overlay mount hardcodes /sysroot paths in options
 	if(system("findmnt /run/nextroot" $2 " >/dev/null || mount --target-prefix /run/nextroot --fstab /run/nextroot/etc/fstab --options-mode ignore -o \x27" $4 "\x27 " $2) != 0) exit 1;
 	}' /run/nextroot/etc/fstab
+
+if [ -d /run/nextroot/etc/etc.syncpoint ]; then
+  mount --bind /run/nextroot/etc /run/nextroot/etc
+  mount -o remount,rw /run/nextroot/etc
+  /usr/libexec/transactional-update-sync-etc-state /etc /run/nextroot/etc /run/nextroot/etc/etc.syncpoint
+fi
