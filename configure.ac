@@ -1,5 +1,5 @@
 dnl Process this file with autoconf to produce a configure script.
-AC_INIT([transactional-update],[5.5.0])
+AC_INIT([transactional-update],[5.5.1])
 # Increase on any interface change and reset revision
 LIBTOOL_CURRENT=8
 # On interface change increase if backwards compatible, reset otherwise
