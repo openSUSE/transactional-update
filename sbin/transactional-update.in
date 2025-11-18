@@ -61,6 +61,7 @@ OCI_TARGET=""
 DRACUT_OPTS=""
 TUKIT_OPTS="--log=console"
 FORCE_REFRESH=0
+ZYPPER_FORCE_REFRESH=0
 IS_BLS=""
 
 TMPDIR=${TMPDIR:-/tmp}
@@ -102,7 +103,7 @@ self_update() {
     zypper_log_tmpfile=$(mktemp "${TMPDIR}/transactional-update.XXXXXXXXXX")
     zypper --xmlout --non-interactive info transactional-update > "$zypper_log_tmpfile"
     if grep -q "can not be imported. (READONLY MODE)" "$zypper_log_tmpfile"; then
-        export ZYPP_FORCE_REFRESH=1
+        export ZYPPER_FORCE_REFRESH=1
     fi
     grep -q '^Status *: out-of-date' "$zypper_log_tmpfile"
     out_of_date="$?"
@@ -933,7 +934,7 @@ if [ "$ZYPPER_FORCE_REFRESH" -gt "$FORCE_REFRESH" ]; then
     FORCE_REFRESH=1
     save_state_file 0
 fi
-unset ZYPP_FORCE_REFRESH
+unset ZYPPER_FORCE_REFRESH
 
 log_info "transactional-update ${VERSION} started"
 log_info "Options: ${ORIG_ARGS[*]}"
