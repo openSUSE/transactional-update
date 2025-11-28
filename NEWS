@@ -2,6 +2,11 @@ transactional-update NEWS -- history of user-visible changes.
 
 Copyright (C) 2016-2025 Thorsten Kukuk, Ignaz Forster et al.
 
+Version 6.0.0 (2025-11-19)
+* Increase major version number to not break self-updates due to increased
+  library version introduced in 5.5.0
+* t-u: Fix syntax error introduced in 5.5.1 [boo#1254253]
+
 Version 5.5.1 (2025-11-12)
 * t-u: Fix hanging t-u process when files were changed in /var
 * t-u: Don't ask for key import during self-update [bsc#1239721]
