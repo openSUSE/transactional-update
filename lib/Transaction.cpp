@@ -223,7 +223,9 @@ void Transaction::impl::snapMount() {
             tulog.info("Not bind mounting directory '" + *it + "' as it doesn't exist.");
     }
 
-    dirsToMount.push_back(std::make_unique<BindMount>("/.snapshots"));
+    if (fs::is_directory("/.snapshots")) {
+      dirsToMount.push_back(std::make_unique<BindMount>("/.snapshots"));
+    }
 
     for (auto it = dirsToMount.begin(); it != dirsToMount.end(); ++it) {
         it->get()->mount(bindDir);
