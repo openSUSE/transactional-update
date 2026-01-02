@@ -45,6 +45,7 @@ public:
     void closeSnapshot(bool aborted=false);
     int runCommand(char* argv[], bool inChroot, std::string* buffer);
     static int inotifyAdd(const char *pathname, const struct stat *sbuf, int type, struct FTW *ftwb);
+    static int selinux_logging_callback(int type, const char *fmt, ...);
     int inotifyRead();
     std::unique_ptr<SnapshotManager> snapshotMgr;
     std::unique_ptr<Snapshot> snapshot;
@@ -110,6 +111,28 @@ fs::path Transaction::getBindDir() {
     return pImpl->bindDir;
 }
 
+int Transaction::impl::selinux_logging_callback(int type, const char *fmt, ...) {
+    va_list ap, ap_copy;
+    va_start(ap, fmt);
+    va_copy(ap_copy, ap);
+    size_t size = vsnprintf(nullptr, 0, fmt, ap);
+    va_end(ap);
+    std::vector<char> se_buffer(size + 1);
+    vsnprintf(se_buffer.data(), size, fmt, ap_copy);
+
+    switch (type) {
+        case SELINUX_ERROR:
+            tulog.error("SELinux: ", se_buffer.data());
+            break;
+        default:
+            tulog.info("SELinux: ", se_buffer.data());
+            break;
+    }
+    va_end(ap_copy);
+
+    return 0;
+}
+
 void Transaction::impl::snapMount() {
     if (unshare(CLONE_NEWNS) < 0) {
         throw std::runtime_error{"Creating new mount namespace failed: " + std::string(strerror(errno))};
@@ -156,6 +179,10 @@ void Transaction::impl::snapMount() {
                     tulog.error("Chrooting to " + bindDir.native() + " for SELinux relabelling failed: " + std::string(strerror(errno)));
                     _exit(errno);
                 }
+
+                union selinux_callback se_callback;
+                se_callback.func_log = selinux_logging_callback;
+                selinux_set_callback(SELINUX_CB_LOG, se_callback);
                 unsigned int restoreconOptions = SELINUX_RESTORECON_RECURSE | SELINUX_RESTORECON_IGNORE_DIGEST;
                 if (tulog.level >= TULogLevel::Info)
                     restoreconOptions |= SELINUX_RESTORECON_VERBOSE;
