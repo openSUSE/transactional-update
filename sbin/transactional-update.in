@@ -1382,7 +1382,7 @@ if [ -n "${ZYPPER_ARG}" ] || [ ${REWRITE_GRUB_CFG} -eq 1 ] \
     fi
     if [ ${REWRITE_GRUB_CFG} -eq 1 ] || [ ${REWRITE_GRUB_CFG_NO_REBOOT} -eq 1 ]; then
         log_info "Creating a new grub2 config"
-        if ! tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" bash -c "/usr/sbin/grub2-mkconfig > /boot/grub2/grub.cfg" | log_info -o; then
+        if ! tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" bash -c "/usr/sbin/grub2-mkconfig --output=/boot/grub2/grub.cfg" 2>&1 | log_info -o; then
             log_error "ERROR: grub2-mkconfig failed!"
             EXITCODE=1;
         else
