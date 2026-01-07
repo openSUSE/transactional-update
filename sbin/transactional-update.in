@@ -195,9 +195,7 @@ print_version() {
 }
 
 log_to_journal() {
-    if [ -z "${SYSTEMD_EXEC_PID}" ]; then
-        systemd-cat -t transactional-update "$@"
-    fi
+    systemd-cat -t transactional-update "$@"
 }
 
 log_to_file() {
@@ -211,13 +209,20 @@ log_to_file() {
 }
 
 log_to_stdout() {
-    if [ ${VERBOSITY} -ge 2 ]; then
+    if [ ${VERBOSITY} -ge 2 ] && [ -z "${SYSTEMD_EXEC_PID}" ]; then
         echo -e "$@"
     fi
 }
 
-log_info() {
+log_to_stderr() {
+    echo -e "$@" 1>&${origstderr}
+}
+
+log_common() {
     local log_to_orig=0
+    local loglevel=$1
+    shift
+
     if [ "$1" == "-o" ]; then
         log_to_orig=1
         shift
@@ -226,14 +231,22 @@ log_info() {
     if [ $# -gt 0 ]; then
         log_to_stdout "$@"
         log_to_file "$@"
-        log_to_journal -p info echo "$@"
+        log_to_journal -p "$loglevel" echo "$@"
     else # input via pipe
         if [ "$log_to_orig" == 1 ]; then
-            cat | tee -a >(log_to_journal -p info) >(log_to_file) 1>&${origstdout}
+            cat | tee -a >(log_to_journal -p "$loglevel") >(log_to_file) 1>&${origstdout}
         else
-            cat | tee -a >(log_to_journal -p info) >(log_to_file)
+            cat | tee -a >(log_to_journal -p "$loglevel") >(log_to_file)
         fi
     fi
+}
+
+log_info() {
+    log_common info "$@"
+}
+
+log_warn() {
+    log_common warning "$@"
 }
 
 log_error() {
