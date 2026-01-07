@@ -1039,7 +1039,7 @@ if [ ${DO_ROLLBACK} -eq 1 ]; then
         if [ ${DO_APPLY} -eq 1 ]; then
             do_apply
         else
-            log_error "Please reboot to finish rollback!"
+            log_warn "Please reboot to finish rollback!"
         fi
     fi
     log_info "transactional-update finished"
@@ -1486,7 +1486,7 @@ if [ -n "${ZYPPER_ARG}" ] || [ ${REWRITE_GRUB_CFG} -eq 1 ] \
     write_needs_restarting
     if [ "${REBOOT_AFTERWARDS}" -eq 0 ] && [ "${DO_APPLY}" -eq 0 ]; then
         log_info ""
-        log_info "Please reboot your machine to activate the changes and avoid data loss."
+        log_warn "Please reboot your machine to activate the changes and avoid data loss."
     fi
 
     if [ "${DEFAULT_SNAPSHOT_ID}" -ne "${BASE_SNAPSHOT_ID}" ]; then
