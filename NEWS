@@ -2,6 +2,10 @@ transactional-update NEWS -- history of user-visible changes.
 
 Copyright (C) 2016-2025 Thorsten Kukuk, Ignaz Forster et al.
 
+Version 6.0.2 (2026-01-07)
+* t-u: Add new "warning" log level
+* t-u: Adjust log level of reboot hints
+
 Version 6.0.1 (2026-01-02)
 Adjustments to avoid logging with error log level to the journal when
 there is no actual error
