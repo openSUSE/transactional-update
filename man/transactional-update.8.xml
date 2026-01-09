@@ -215,14 +215,6 @@ for more information.
     </listitem>
   </varlistentry>
   <varlistentry>
-    <term><option>kdump</option></term>
-    <listitem>
-      <para>
-	A new initrd for kdump is created in a snapshot.
-      </para>
-    </listitem>
-  </varlistentry>
-  <varlistentry>
     <term><option>reboot</option></term>
     <listitem>
       <para>
@@ -539,6 +531,14 @@ for more information.
 	to make the snapshot effective immediately.
       </para>
     </listitem>
+  </varlistentry>
+</variablelist>
+</refsect2>
+<refsect2 id='deprecated_commands'><title>Deprecated Commands</title>
+<para>The following commands are deprecated and will be ignored.</para>
+<variablelist>
+  <varlistentry>
+    <term><option>kdump</option></term>
   </varlistentry>
 </variablelist>
 </refsect2>
