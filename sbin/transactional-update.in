@@ -195,7 +195,9 @@ print_version() {
 }
 
 log_to_journal() {
-    systemd-cat -t transactional-update "$@"
+    if [ -S /run/systemd/journal/stdout ]; then
+        systemd-cat -t transactional-update "$@"
+    fi
 }
 
 log_to_file() {
