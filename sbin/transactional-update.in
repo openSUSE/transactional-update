@@ -821,7 +821,6 @@ if [ "${SETUP_FIPS}" -eq 1 ]; then
     if [ ${#ZYPPER_ARG_EXTRA[@]} -ne 0 ]; then
         ZYPPER_ARG="install"
     fi
-    REWRITE_INITRD=1
 fi
 
 # Setup SELinux
@@ -1283,19 +1282,11 @@ if [ -n "${ZYPPER_ARG}" ] || [ ${REWRITE_GRUB_CFG} -eq 1 ] \
     fi
 
     if [ ${SETUP_FIPS} -eq 1 ]; then
-        if is_bls; then
-            grep -q -w fips "${SNAPSHOT_DIR}/etc/kernel/cmdline" || \
-                sed -i -e 's|$| fips=1|' "${SNAPSHOT_DIR}/etc/kernel/cmdline"
-        else
-            # Adjust grub configuration
-
-            # Check if we don't have fips already enabled.
-            grep ^GRUB_CMDLINE_LINUX_DEFAULT "${SNAPSHOT_DIR}/etc/default/grub" | grep -q -w fips || \
-                sed -i -e 's|\(^GRUB_CMDLINE_LINUX_DEFAULT=.*\)"|\1 fips=1"|g' "${SNAPSHOT_DIR}/etc/default/grub"
-            REWRITE_GRUB_CFG=1
-        fi
-        if [ -x "${SNAPSHOT_DIR}/usr/bin/update-crypto-policies" ]; then
-            tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" update-crypto-policies --set FIPS | log_info -o
+        export FIPS_MODE_SETUP_SKIP_WARNING=1
+        tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" fips-mode-setup --enable | log_info -o
+        if [ "${PIPESTATUS[0]}" -ne 0 ]; then
+            log_error "ERROR: Setting up FIPS failed."
+            EXITCODE=1
         fi
     fi
     if [ ${SETUP_SELINUX} -eq 1 ]; then
