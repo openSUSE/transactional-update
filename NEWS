@@ -2,6 +2,10 @@ transactional-update NEWS -- history of user-visible changes.
 
 Copyright (C) 2016-2025 Thorsten Kukuk, Ignaz Forster et al.
 
+Version 6.0.4 (2026-01-12)
+* t-u: Remove "kdump" command [gh#openSUSE/transactional-update#119]
+* Select output channel of snapshot deletion message [bsc#1256446]
+
 Version 6.0.3 (2026-01-09)
 * t-u: Only try logging to journald when the socket exists
 
