@@ -6,6 +6,7 @@
   implementations can be found in the "Snapshot" directory
  */
 
+#include "Snapshot/ContainerSnap.hpp"
 #include "Snapshot/Snapper.hpp"
 using namespace std;
 
@@ -15,6 +16,8 @@ namespace TransactionalUpdate {
 unique_ptr<SnapshotManager> SnapshotFactory::get() {
     if (filesystem::exists("/usr/bin/snapper")) {
         return make_unique<Snapper>();
+    } else if (filesystem::exists("/usr/bin/container-snap")) {
+      return make_unique<ContainerSnap>();
     } else {
         throw runtime_error{"No supported environment found."};
     }
