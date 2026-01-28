@@ -23,6 +23,7 @@ public:
     Configuration(const Configuration&) = delete;
     void operator=(const Configuration&) = delete;
     std::string get(const std::string &key);
+    void set(const std::string &key, const std::string &value);
     std::vector<std::string> getArray(const std::string &key);
 private:
     econf_file *key_file;
