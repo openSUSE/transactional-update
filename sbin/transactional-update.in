@@ -46,12 +46,6 @@ SETUP_FIPS=0
 SETUP_KDUMP=0
 SETUP_SELINUX=0
 UPDATE_METHOD="up"
-CONFFILE="@sysconfdir@/transactional-update.conf"
-SYSTEMCONFFILE="@prefix@@sysconfdir@/transactional-update.conf"
-LOGFILE="/var/log/transactional-update.log"
-STATE_FILE="/var/lib/misc/transactional-update.state"
-NEEDS_RESTARTING_FILE="/run/reboot-needed"
-LOCKFILE="/var/run/transactional-update.pid"
 ZYPPER_AUTO_IMPORT_KEYS=0
 NON_ROOTFS_WHITELIST=("/var/lib/YaST2/cookies" "/var/lib/rpm" "/var/lib/systemd/migrated" "/var/run/zypp.pid")
 OCI_RSYNC_ARGS="-a --hard-links --xattrs --acls --inplace"
@@ -63,19 +57,25 @@ FORCE_REFRESH=0
 ZYPPER_FORCE_REFRESH=0
 IS_BLS=""
 
-TMPDIR=${TMPDIR:-/tmp}
+CONFFILE="${TU_CONFFILE:-@sysconfdir@/transactional-update.conf}"
+CONFFILESYSTEM="${TU_CONFFILESYSTEM:-@prefix@@sysconfdir@/transactional-update.conf}"
+LOCKFILE="${TU_LOCKFILE:-/var/run/transactional-update.pid}"
+LOGFILE="${TU_LOGFILE:-/var/log/transactional-update.log}"
+NEEDS_RESTARTING_FILE="${TU_NEEDS_RESTARTING_FILE:-/run/reboot-needed}"
+STATE_FILE="${TU_STATE_FILE:-/var/lib/misc/transactional-update.state}"
+TMPDIR="${TMPDIR:-/tmp}"
 
 # Load config
-if [ -r ${SYSTEMCONFFILE} ]; then
-    . ${SYSTEMCONFFILE}
+if [ -r "${CONFFILESYSTEM}" ]; then
+    . "${CONFFILESYSTEM}"
 fi
-for snippet in "${SYSTEMCONFFILE}.d"/*; do
+for snippet in "${CONFFILESYSTEM}.d"/*; do
     if [ -f "${snippet}" ]; then
         . "${snippet}"
     fi
 done
-if [ -r ${CONFFILE} ]; then
-    . ${CONFFILE}
+if [ -r "${CONFFILE}" ]; then
+    . "${CONFFILE}"
 fi
 
 # Initialize internal variables
@@ -203,10 +203,10 @@ log_to_journal() {
 
 log_to_file() {
     if [ $# -gt 0 ]; then
-        echo -e "$(date "+%Y-%m-%d %T")" "$@" >> ${LOGFILE}
+        echo -e "$(date "+%Y-%m-%d %T")" "$@" >> "${LOGFILE}"
     else # input via pipe
         while read -r line; do
-            echo -e "$(date "+%Y-%m-%d %T")" "${line}" >> ${LOGFILE}
+            echo -e "$(date "+%Y-%m-%d %T")" "${line}" >> "${LOGFILE}"
         done
     fi
 }
@@ -279,29 +279,29 @@ bashlock() {
 }
 
 save_state_file() {
-    echo "LAST_WORKING_SNAPSHOTS=\"${LAST_WORKING_SNAPSHOTS}\"" > ${STATE_FILE}
-    echo "UNUSED_SNAPSHOTS=\"${UNUSED_SNAPSHOTS}\"" >>  ${STATE_FILE}
+    echo "LAST_WORKING_SNAPSHOTS=\"${LAST_WORKING_SNAPSHOTS}\"" > "${STATE_FILE}"
+    echo "UNUSED_SNAPSHOTS=\"${UNUSED_SNAPSHOTS}\"" >>  "${STATE_FILE}"
 
     if [ "${LAST_BOOTED}" != "${BOOTED_SNAPSHOT_ID}" ]; then
         declare -A REBOOT_ASSOCS
     fi
-    echo "LAST_BOOTED=\"${BOOTED_SNAPSHOT_ID}\"" >> ${STATE_FILE}
+    echo "LAST_BOOTED=\"${BOOTED_SNAPSHOT_ID}\"" >> "${STATE_FILE}"
 
     if [ -n "${SNAPSHOT_ID}" ]; then
         REBOOT_ASSOCS[${SNAPSHOT_ID}]=${REBOOT_LEVEL}
     fi
     for key in "${!REBOOT_ASSOCS[@]}"; do
-        echo "REBOOT_ASSOCS[${key}]=${REBOOT_ASSOCS[${key}]}" >> ${STATE_FILE}
+        echo "REBOOT_ASSOCS[${key}]=${REBOOT_ASSOCS[${key}]}" >> "${STATE_FILE}"
     done
 
-    echo "FORCE_REFRESH=\"${FORCE_REFRESH}\"" >> ${STATE_FILE}
+    echo "FORCE_REFRESH=\"${FORCE_REFRESH}\"" >> "${STATE_FILE}"
 
     if [ "$1" -ne 0 ] && [ ${HAS_SEPARATE_VAR} -eq 0 ]; then
         # If /var/lib/misc is not a seperate partition / subvolume, copy the
         # state file into the new snapshot as it will contain an outdated
         # version from before taking the snapshot otherwise.
         if ! grep -q var.lib.misc /proc/mounts; then
-            cp -a ${STATE_FILE} "/.snapshots/$1/snapshot${STATE_FILE}"
+            cp -a "${STATE_FILE}" "/.snapshots/$1/snapshot${STATE_FILE}"
         fi
     fi
 }
@@ -924,8 +924,8 @@ else
 fi
 
 # Load old state file
-if [ -f ${STATE_FILE} ]; then
-    . ${STATE_FILE}
+if [ -f "${STATE_FILE}" ]; then
+    . "${STATE_FILE}"
 fi
 # If we need to refresh the repositories, save this var into the state
 # as t-u might not create/save a snapshot in this call
@@ -1425,7 +1425,7 @@ if [ -n "${ZYPPER_ARG}" ] || [ ${REWRITE_GRUB_CFG} -eq 1 ] \
         searchdirs+="${SNAPSHOT_DIR}${mountdir} "
     done
     if [ -n "${searchdirs}" ]; then
-        filelist="$(find ${searchdirs} -cnewer ${LOCKFILE} -not -type d 2>/dev/null | grep -v "${SNAPSHOT_DIR}/etc")"
+        filelist="$(find ${searchdirs} -cnewer "${LOCKFILE}" -not -type d 2>/dev/null | grep -v "${SNAPSHOT_DIR}/etc")"
         # Filter acceptable hits
         whitelist=""
         for wlentry in "${NON_ROOTFS_WHITELIST[@]}"; do
