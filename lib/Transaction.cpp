@@ -567,6 +567,7 @@ void Transaction::impl::closeSnapshot(bool aborted) {
 
         TransactionalUpdate::Plugins plugins_without_transaction{nullptr, keepIfError};
         plugins_without_transaction.run("finalize-post", snapshot->getUid() + " " + "discarded");
+        snapshot->abort();
         return;
     }
     if (fs::exists(snapshot->getRoot() / "discardIfNoChange")) {
