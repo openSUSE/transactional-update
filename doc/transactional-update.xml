@@ -205,7 +205,7 @@
 	Applications such as package managers are expected to use this library
 	for easily supporting transactional systems. DNF for example is
 	supporting transactional systems via the
-	<ulink url="https://code.opensuse.org/microos/libdnf-plugin-txnupd">libdnf-plugin-txnupd</ulink>
+	<ulink url="https://gitlab.com/VelocityLimitless/Projects/libdnf-plugin-txnupd">libdnf-plugin-txnupd</ulink>
 	plugin.
       </para>
       <para>
