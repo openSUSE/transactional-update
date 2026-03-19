@@ -9,6 +9,7 @@ After=network.target
 Type=oneshot
 Environment=UPDATE_METHOD=dup
 EnvironmentFile=-@prefix@@sysconfdir@/transactional-update.conf
+EnvironmentFile=-@prefix@@sysconfdir@/transactional-update.conf.d/*
 EnvironmentFile=-@sysconfdir@/transactional-update.conf
 ExecStart=@sbindir@/transactional-update cleanup ${UPDATE_METHOD} reboot
 IOSchedulingClass=best-effort
