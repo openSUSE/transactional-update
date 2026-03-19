@@ -16,6 +16,7 @@
 #include "Snapshot.hpp"
 #include "Supplement.hpp"
 #include "Util.hpp"
+#include <algorithm>
 #include <cerrno>
 #include <cstdlib>
 #include <cstring>
@@ -381,10 +382,19 @@ int Transaction::impl::runCommand(char* argv[], bool inChroot, std::string* outp
 
         // Recursively register all directories of the root file system
         inotifyExcludes = MountList::getList(snapshot->getRoot());
+
+        // /usr is always part of the root fs, so never exclude it (e.g. on apply)
+        auto itr = std::find(inotifyExcludes.begin(), inotifyExcludes.end(), (snapshot->getRoot() / "usr"));
+        if (itr != inotifyExcludes.end()) inotifyExcludes.erase(itr);
+
+        // On rw systems, /etc may be a separate mount after 'apply', though it's
+        // also part of the root file system
         std::unique_ptr<Mount> mntEtc{new Mount{"/etc"}};
-        if (mntEtc->isMount()) {
-            inotifyExcludes.push_back(snapshot->getRoot() / "etc");
+        if (! mntEtc->isMount()) {
+            auto itr = std::find(inotifyExcludes.begin(), inotifyExcludes.end(), (snapshot->getRoot() / "etc"));
+            if (itr != inotifyExcludes.end()) inotifyExcludes.erase(itr);
         }
+
         nftw(snapshot->getRoot().c_str(), inotifyAdd, 20, FTW_MOUNT | FTW_PHYS);
     }
 
