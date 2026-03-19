@@ -1,12 +1,12 @@
 dnl Process this file with autoconf to produce a configure script.
 # Semantic versioning, increase major version on incompatible interface change
-AC_INIT([transactional-update],[6.0.6])
+AC_INIT([transactional-update],[6.0.7])
 # Increase on any interface change and reset revision
 LIBTOOL_CURRENT=8
 # On interface change increase if backwards compatible, reset otherwise
 LIBTOOL_AGE=0
 # Increase on *any* C/C++ library code change, reset at interface change
-LIBTOOL_REVISION=1
+LIBTOOL_REVISION=2
 AC_CANONICAL_TARGET
 AM_INIT_AUTOMAKE([foreign])
 AC_CONFIG_FILES([tukit.pc])

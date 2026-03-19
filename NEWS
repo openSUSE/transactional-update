@@ -2,6 +2,13 @@ transactional-update NEWS -- history of user-visible changes.
 
 Copyright (C) 2016-2025 Thorsten Kukuk, Ignaz Forster et al.
 
+Version 6.0.7 (2026-03-19)
+* libtukit: Fix --drop-if-no-change after `apply`
+* libtukit: Remove stale snapshot after --discard
+* systemd: Read from snippet directory in service file [jsc#PED-15786]
+* t-u: Allow overwriting the location of some files
+* README: Update link to libdnf-plugin-txnupd
+
 Version 6.0.6 (2026-01-19)
 * t-u: Use pattern to download correct libtukit[0-9]+ for selfupdate
 
