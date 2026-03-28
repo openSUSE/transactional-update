@@ -138,8 +138,6 @@ debug() {
 	[ "$(stat -c %x "${mockdir_new_etc}/${FILES[2]}")" = "$(stat -c %x "${mockdir_syncpoint}/${FILES[2]}")" ]
 	echo "# Verify atime + mtime changes are detected and applied properly"
 	stat "${mockdir_new_etc}/${FILES[3]}" "${mockdir_old_etc}/${FILES[3]}" "${mockdir_syncpoint}/${FILES[3]}"
-	# Bug: The sync process changes atime in the source directory (https://github.com/openSUSE/transactional-update/issues/147)
-	# [ "$(stat -c %x "${mockdir_new_etc}/${FILES[3]}")" = "$(stat -c %x "${mockdir_old_etc}/${FILES[3]}")" ]
 	[ "$(stat -c %x "${mockdir_new_etc}/${FILES[3]}")" != "$(stat -c %x "${mockdir_syncpoint}/${FILES[3]}")" ]
 	[ "$(stat -c %y "${mockdir_new_etc}/${FILES[3]}")" = "$(stat -c %y "${mockdir_old_etc}/${FILES[3]}")" ]
 	[ "$(stat -c %y "${mockdir_new_etc}/${FILES[3]}")" != "$(stat -c %y "${mockdir_syncpoint}/${FILES[3]}")" ]
@@ -152,7 +150,7 @@ debug() {
 # bats test_tags=needroot
 @test "File contents and properties (needs root)" {
 	shopt -s globstar dotglob
-	FILES=(File0.txt)
+	FILES=(File0.txt File1.txt)
 	createFilesIn "${mockdir_old_etc}" "${FILES[@]}"
 	createFilesIn "${mockdir_new_etc}" "${FILES[@]}"
 	createFilesIn "${mockdir_syncpoint}" "${FILES[@]}"
@@ -162,10 +160,17 @@ debug() {
 	chown :trusted "${mockdir_old_etc}/${FILES[0]}"
 	touch --reference="${mockdir_syncpoint}/${FILES[0]}" "${mockdir_new_etc}/${FILES[0]}"
 
+	touch -m "${mockdir_old_etc}/${FILES[1]}"
+	touch -a "${mockdir_old_etc}/${FILES[1]}"
+
 	run $totest --keep-syncpoint "${mockdir_old_etc}" "${mockdir_new_etc}" "${mockdir_syncpoint}"
 
 	echo "# Verify that owner changes are detected and applied properly"
 	[ "$(stat -c %G "${mockdir_new_etc}/${FILES[0]}")" = "trusted" ]
+
+	stat "${mockdir_new_etc}/${FILES[1]}" "${mockdir_old_etc}/${FILES[1]}" "${mockdir_syncpoint}/${FILES[1]}"
+	# Bug: The sync process changes atime in the source directory when without CAP_SYS_ADMIN
+	#[ "$(stat -c %x "${mockdir_new_etc}/${FILES[1]}")" = "$(stat -c %x "${mockdir_old_etc}/${FILES[1]}")" ]
 
 	rm -r "${mockdir_syncpoint}"
 }
