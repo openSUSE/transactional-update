@@ -218,7 +218,9 @@ for more information.
     <term><option>kdump</option></term>
     <listitem>
       <para>
-	A new initrd for kdump is created in a snapshot.
+        A new initrd for kdump is created in a snapshot. This only has an effect when
+        using fadump, on regular kdump system the initrd will be created during boot
+        automatically.
       </para>
     </listitem>
   </varlistentry>

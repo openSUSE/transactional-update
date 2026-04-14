@@ -151,7 +151,7 @@ usage() {
     echo "grub.cfg                   Regenerate grub.cfg"
     echo "bootloader                 Reinstall the bootloader"
     echo "initrd                     Regenerate initrd"
-    echo "kdump                      Regenerate kdump initrd"
+    echo "kdump                      Regenerate kdump initrd (fadump only)"
     echo "shell                      Open rw shell in new snapshot before exiting"
     echo "reboot                     Reboot after update"
     echo "run <cmd>                  Run a command in a new snapshot"
@@ -312,17 +312,6 @@ is_bls() {
         IS_BLS=$?
     fi
     return ${IS_BLS}
-}
-
-rebuild_kdump_initrd() {
-    if tukit ${TUKIT_OPTS} --quiet call "$1" systemctl is-enabled --quiet kdump.service; then
-        tukit ${TUKIT_OPTS} call "$1" /sbin/mkdumprd | log_info -o
-        return "${PIPESTATUS[0]}"
-    elif [ ${SETUP_KDUMP} -ge 1 ]; then
-        log_info "INFO: Requested rebuild of kdump initrd, but kdump is not enabled."
-        log_info "      Did you mean 'setup-kdump'?"
-    fi
-    return 0;
 }
 
 # Only called in error case; reverts everything to previous state.
@@ -1366,18 +1355,19 @@ if [ -n "${ZYPPER_ARG}" ] || [ ${REWRITE_GRUB_CFG} -eq 1 ] \
         set_reboot_level "kexec"
     fi
 
-    # mkinitrd depends on pbl, so it will fail (bsc#1226676)
-    if is_bls && [ ${REBUILD_KDUMP_INITRD} -eq 1 ]; then
-        log_info "WARNING: mkdumprd fails for this bootloader"
-        REBUILD_KDUMP_INITRD=0
-    fi
     if [ ${REBUILD_KDUMP_INITRD} -eq 1 ]; then
-        log_info "Trying to rebuild kdump initrd"
-        if ! rebuild_kdump_initrd "${SNAPSHOT_ID}"; then
-            log_error "ERROR: kdump initrd creation failed!"
-            EXITCODE=1
+        if tukit ${TUKIT_OPTS} --quiet call "${SNAPSHOT_ID}" systemctl is-enabled --quiet kdump.service; then
+            . /usr/lib/kdump/kdump-read-config.sh
+            if [ "${KDUMP_FADUMP}" == "true" ]; then
+                log_info "Trying to rebuild kdump initrd for fadump"
+                if ! tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" /sbin/mkdumprd | log_info -o; then
+                    log_error "ERROR: kdump initrd creation failed!"
+                    EXITCODE=1
+                else
+                    set_reboot_level "kexec"
+                fi
+            fi
         fi
-        set_reboot_level "soft-reboot"
     fi
 
     if is_bls && { [ ${REWRITE_GRUB_CFG} = 1 ] || [ ${REWRITE_GRUB_CFG_NO_REBOOT} = 1 ]; }; then
