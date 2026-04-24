@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook XML V4.3//EN"
+               "http://www.oasis-open.org/docbook/xml/4.3/docbookx.dtd">
+
+<book id="index" xmlns:xi="http://www.w3.org/2001/XInclude">
+  <title>transactional-update Documentation</title>
+
+  <part id="guide">
+    <partinfo>
+      <xi:include href="transactional-update.xml" xpointer="xpointer(book/bookinfo/*)" />
+    </partinfo>
+    <xi:include href="transactional-update.xml" xpointer="xpointer(book/chapter)" />
+  </part>
+
+  <part id="manpages">
+    <title>man Pages</title>
+    <xi:include href="../man/transactional-update.8.xml" />
+    <xi:include href="../man/transactional-update.conf.5.xml" />
+    <xi:include href="../man/tukit.conf.5.xml" />
+  </part>
+
+  <part id="dbus">
+    <title>D-Bus API</title>
+    <xi:include href="tukit-org.opensuse.tukit.Transaction.xml" />
+    <xi:include href="tukit-org.opensuse.tukit.Snapshot.xml" />
+  </part>
+
+</book>
