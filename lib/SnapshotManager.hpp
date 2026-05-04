@@ -79,7 +79,7 @@ public:
      * @param (optional) sets the SnapshotManager implementation
      * @return Returns a SnapshotManager instance suitable for the system
      */
-    static std::unique_ptr<SnapshotManager> get(std::string sm = "auto");
+    static std::unique_ptr<SnapshotManager> get();
 };
 
 struct SnapshotTable {

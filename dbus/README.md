@@ -42,6 +42,30 @@ Signal:
 
 > busctl call org.opensuse.tukit /org/opensuse/tukit/Transaction org.opensuse.tukit.Transaction Open "s" "default"
 
+#### Open, forcing Podman as snapshot manager
+Creates a new transaction and returns its unique ID.
+
+Parameter:
+* base - Snapshot ID (string), "active" or "default". Base can be "active" to base the
+  snapshot on the currently running system, "default" to the current default snapshot as a base
+  (which may or may not be identical to "active") or any specific existing snapshot id.
+  If base is not set (emtpy string) "active" will be used as the default.
+* options (array) - Array of options, either specific ones for this command, or global options defined
+  in tukit.conf. In this case it requires two of them
+  * SNAPSHOT\_MANAGER (string) - forces the snapshot manager implementation to use
+  * OCI\_TARGET (string) - in the case of Podman the source has to be specified if not already defined
+    in tukit.conf
+
+Return value:
+* unique ID (string)
+
+Signal:
+* TransactionOpened
+
+`busctl` example:
+
+> busctl call org.opensuse.tukit /org/opensuse/tukit/Transaction org.opensuse.tukit.Transaction Open "s" "default" 2 SNAPSHOT\_MANAGER s podman OCI\_TARGET s "registry.opensuse.org/home/roxenham/kiwi/containers-micro-6.2/kiwi/builder:latest"
+
 ### Call
 Executes the given command from within the transaction's **chroot environment**, resuming the
 transaction with the given ID; returns the exit status and the result of the given command.

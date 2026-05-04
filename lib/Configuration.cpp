@@ -26,7 +26,7 @@ Configuration::Configuration() {
         {"REBOOT_ALLOW_SOFT_REBOOT", "true"},
         {"REBOOT_ALLOW_KEXEC", "false"},
         {"OCI_TARGET", ""},
-        {"SNAPSHOT_MANAGER", "snapper"}
+        {"SNAPSHOT_MANAGER", "auto"}
     };
     for(auto &[key, value] : defaults) {
         error = econf_setStringValue(kf_defaults, "", key, value);

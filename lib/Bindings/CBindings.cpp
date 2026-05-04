@@ -2,6 +2,7 @@
 /* SPDX-FileCopyrightText: Copyright SUSE LLC */
 
 #include "libtukit.h"
+#include "Configuration.hpp"
 #include "Log.hpp"
 #include "Reboot.hpp"
 #include "Transaction.hpp"
@@ -31,20 +32,13 @@ int tukit_set_logoutput(char* fields) {
     }
     return 0;
 }
+void tukit_set_config(char* key, char* value) {
+    config.set(key, value);
+}
 tukit_tx tukit_new_tx() {
     Transaction* transaction = nullptr;
     try {
-        transaction = new Transaction;
-    } catch (const std::exception &e) {
-        fprintf(stderr, "ERROR: %s\n", e.what());
-        errmsg = e.what();
-    }
-    return reinterpret_cast<tukit_tx>(transaction);
-}
-tukit_tx tukit_new_tx_set_manager(char* manager) {
-    Transaction* transaction = nullptr;
-    try {
-        transaction = new Transaction(manager);
+        transaction = new Transaction();
     } catch (const std::exception &e) {
         fprintf(stderr, "ERROR: %s\n", e.what());
         errmsg = e.what();
