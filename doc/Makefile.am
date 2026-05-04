@@ -20,11 +20,8 @@ transactional-update.txt: $(XMLS) $(DEP_XMLS)
 	  --stringparam toc.max.depth 3 --xinclude --nonet \
 	  http://docbook.sourceforge.net/release/xsl/current/html/docbook.xsl $< | $(BROWSER) > $@
 
-tukit-org.opensuse.tukit.Snapshot.xml: ../dbus/org.opensuse.tukit.Snapshot.xml
-	gdbus-codegen --generate-docbook tukit ../dbus/org.opensuse.tukit.Snapshot.xml
-
-tukit-org.opensuse.tukit.Transaction.xml: ../dbus/org.opensuse.tukit.Transaction.xml
-	gdbus-codegen --generate-docbook tukit ../dbus/org.opensuse.tukit.Transaction.xml
+tukit-org.opensuse.tukit.%.xml: ../dbus/org.opensuse.tukit.%.xml
+	xsltproc spec-to-docbook.xsl $< > $@
 
 html/index.html: $(XMLS) $(API_XMLS) $(MAN_XMLS) transactional-update-docs.xml
 	cd html && gtkdoc-mkhtml tukit ../transactional-update-docs.xml
