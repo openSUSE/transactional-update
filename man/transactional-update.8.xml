@@ -495,21 +495,17 @@ for more information.
     </listitem>
   </varlistentry>
   <varlistentry>
-    <term><option>apply-oci --image</option> <replaceable>image source</replaceable></term>
+    <term><option>apply-oci --image</option> <replaceable>image_source</replaceable></term>
     <listitem>
-      <warning>
-	<para>
-	  This command is under development and will change in the
-	  future. There are no checks whether the image will boot so far,
-	  and the functionality is not available via API / D-Bus yet.
-	</para>
-      </warning>
       <para>
-	Instead of updating the existing system the given image will be written
-	into the snapshot. Only the root file system will be replaced, the
-	contents of directories such as
-	<filename class='directory'>/etc</filename> and
-	<filename class='directory'>/var</filename> will be preserved.
+        Instead of updating the existing system the whole system will be
+        replaced with the given image, which will be written into the next
+        snapshot. Exceptions are <filename class='directory'>/etc</filename>
+        and <filename class='directory'>/var</filename> which will be kept as
+        they are to preserve existing data and configuration, i.e. changes from
+        the image (with the exception of new files in
+        <filename class='directory'>/etc</filename>) in these directories will
+        not end up in the installed system.
       </para>
     </listitem>
   </varlistentry>

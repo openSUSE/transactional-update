@@ -20,7 +20,6 @@ REWRITE_GRUB_CFG_NO_REBOOT=0
 REWRITE_INITRD=0
 REBUILD_KDUMP_INITRD=0
 DO_APPLY=0
-DO_APPLY_OCI=0
 DO_CLEANUP_OVERLAYS=0
 DO_CLEANUP_SNAPSHOTS=0
 DO_MIGRATION=0
@@ -169,8 +168,7 @@ usage() {
     echo "pkg remove|rm ...          Remove individual packages (i)"
     echo "pkg update|up ...          Updates individual packages (i)"
     echo "register ...               Register system via SUSEConnect (implies -d)"
-    echo "EXPERIMENTAL:"
-    echo "apply-oci ...              Applies system layout based on OCI container (i)"
+    echo "apply-oci                  Applies system layout based on OCI container (i)"
     echo ""
     echo "Standalone Commands:"
     echo "rollback [<number>]        Set the current or given snapshot as default snapshot"
@@ -180,6 +178,7 @@ usage() {
     echo "--interactive, -i          Use interactive mode for package command"
     echo "--non-interactive, -n      Use non-interactive mode for package command"
     echo "--continue [<number>], -c  Use latest or given snapshot as base"
+    echo "--image <image_source>     Specify an image source for apply-oci command"
     echo "--no-selfupdate            Skip checking for newer version"
     echo "--drop-if-no-change, -d    Drop the snapshot if there is no change"
     echo "--keep, -k                 Keep the snapshot even if there is an error"
@@ -749,34 +748,21 @@ parse_args() {
                 TUKIT_OPTS="${TUKIT_OPTS} --discard"
                 ;;
             apply-oci)
-                DO_APPLY_OCI=1
+                TUKIT_OPTS="${TUKIT_OPTS} --option SNAPSHOT_MANAGER=podman"
                 REWRITE_GRUB_CFG=1
                 REWRITE_INITRD=1
                 REBUILD_KDUMP_INITRD=1
                 shift
+                ;;
 
-                if [ $# -eq 0 ]; then
-                    usage 1
+            --image)
+                if [ -n "$2" ]; then
+                    TUKIT_OPTS="${TUKIT_OPTS} --option OCI_TARGET='"$2"'"
+                else
+                    log_error "ERROR: Please specify an OCI image to use as an upgrade target."
+                    quit 1
                 fi
-
-                while true; do
-                    if [ $# -eq 0 ]; then
-                        break;
-                    else
-                        if [ "$1" == "--image" ]; then
-                            if [ -n "$2" ]; then
-                                OCI_TARGET=$2
-                            else
-                                log_error "ERROR: Please specify an OCI image to use as an upgrade target."
-                                quit 1
-                            fi
-                        fi
-                        if [ "$1" == "--help" ]; then
-                            usage 1
-                        fi
-                        shift
-                    fi
-                done
+                shift
                 shift
                 ;;
             -h|--help)
@@ -1129,8 +1115,7 @@ fi
 if [ -n "${ZYPPER_ARG}" ] || [ ${REWRITE_GRUB_CFG} -eq 1 ] \
     || [ ${REWRITE_INITRD} -eq 1 ] || [ ${REBUILD_KDUMP_INITRD} -eq 1 ] \
     || [ ${RUN_SHELL} -eq 1 ] || [ ${DO_RUN} -eq 1 ] \
-    || [ ${REWRITE_BOOTLOADER} -eq 1 ] || [ ${DO_REGISTRATION} -eq 1 ] \
-    || [ ${DO_APPLY_OCI} -eq 1 ]; then
+    || [ ${REWRITE_BOOTLOADER} -eq 1 ] || [ ${DO_REGISTRATION} -eq 1 ]; then
 
     if [ -z "${ZYPPER_NONINTERACTIVE}" ] && [ "${DEFAULT_SNAPSHOT_ID}" -ne "${BASE_SNAPSHOT_ID}" ]; then
         log_info "WARNING: You are creating a snapshot from a different base (${BASE_SNAPSHOT_ID}) than the"
@@ -1161,36 +1146,6 @@ if [ -n "${ZYPPER_ARG}" ] || [ ${REWRITE_GRUB_CFG} -eq 1 ] \
             EXITCODE=1
         fi
         set_reboot_level "soft-reboot"
-    fi
-
-    if [ ${DO_APPLY_OCI} -eq 1 ]; then
-        # Pull desired container image and mount it ready for copy
-        log_info "INFO: Pulling image from: $OCI_TARGET"
-        podman image pull "$OCI_TARGET" || {
-            log_error "ERROR: Couldn't pull image from $OCI_TARGET"
-            quit 1
-        }
-        OCI_MOUNT=$(podman image mount "$OCI_TARGET")
-
-        # Copy over core parts of the operating system into the new snapshot, deleting files that don't exist, and ignoring partitions that aren't captured in the snapshot
-        log_info "INFO: Writing contents of ${OCI_TARGET} to snapshot directory ${SNAPSHOT_DIR}..."
-        OCI_RSYNC_EXCLUDES_LIST=()
-        for i in ${OCI_RSYNC_EXCLUDES}; do
-            OCI_RSYNC_EXCLUDES_LIST+=("--exclude $i ")
-        done
-        rsync --delete ${OCI_RSYNC_ARGS} ${OCI_RSYNC_EXCLUDES_LIST[@]} ${OCI_MOUNT}/ ${SNAPSHOT_DIR}/ | log_info -o
-
-        # Merge contents of /etc from container image but preserve existing configuration
-        log_info "INFO: Merging /etc from container image into existing snapshot, preserving existing configuration..."
-        tukit ${TUKIT_OPTS} callext "${SNAPSHOT_ID}" rsync --ignore-existing ${OCI_RSYNC_ARGS} "${OCI_MOUNT}/etc/" "${SNAPSHOT_DIR}/etc/" | log_info -o
-
-        # Unmount the container image
-        podman image unmount "${OCI_TARGET}"
-        # Ensure that the filesystem is labelled correctly for SELinux.
-        log_info "Forcing SELinux relabel at next reboot."
-        touch "${SNAPSHOT_DIR}/.autorelabel"
-        # Ensure RPM database is using the desired system backend
-        tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" rpm --rebuilddb | log_info -o
     fi
 
     # A new key was being imported while t-u was looking for a self-update, but the system was read-only
