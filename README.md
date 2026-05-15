@@ -23,6 +23,7 @@ Or in a more formal way: A transactional update is an update that
 
 ## Supported Systems
 * **Snapper**: Uses snapper to create new snapshots (with support for BTRFS and bcachefs). In contrast to classical A/B partitioning mechanisms snapper can handle a large number of snapshots, and snapshot handling of BTRFS is very fast and space efficient.
+* **OCI images**: Based on zypper, but the snapshot will be based on a fresh OCI image instead of a previous snapshot. Configuration in /etc will partially be merged.
 * The API is intentionally generic and able to support a wider range of backends for atomic / transactional systems.
 
 ## How does this work?

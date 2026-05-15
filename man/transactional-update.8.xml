@@ -215,6 +215,16 @@ for more information.
     </listitem>
   </varlistentry>
   <varlistentry>
+    <term><option>kdump</option></term>
+    <listitem>
+      <para>
+        A new initrd for kdump is created in a snapshot. This only has an effect when
+        using fadump, on regular kdump system the initrd will be created during boot
+        automatically.
+      </para>
+    </listitem>
+  </varlistentry>
+  <varlistentry>
     <term><option>reboot</option></term>
     <listitem>
       <para>
@@ -485,21 +495,17 @@ for more information.
     </listitem>
   </varlistentry>
   <varlistentry>
-    <term><option>apply-oci --image</option> <replaceable>image source</replaceable></term>
+    <term><option>apply-oci --image</option> <replaceable>image_source</replaceable></term>
     <listitem>
-      <warning>
-	<para>
-	  This command is under development and will change in the
-	  future. There are no checks whether the image will boot so far,
-	  and the functionality is not available via API / D-Bus yet.
-	</para>
-      </warning>
       <para>
-	Instead of updating the existing system the given image will be written
-	into the snapshot. Only the root file system will be replaced, the
-	contents of directories such as
-	<filename class='directory'>/etc</filename> and
-	<filename class='directory'>/var</filename> will be preserved.
+        Instead of updating the existing system the whole system will be
+        replaced with the given image, which will be written into the next
+        snapshot. Exceptions are <filename class='directory'>/etc</filename>
+        and <filename class='directory'>/var</filename> which will be kept as
+        they are to preserve existing data and configuration, i.e. changes from
+        the image (with the exception of new files in
+        <filename class='directory'>/etc</filename>) in these directories will
+        not end up in the installed system.
       </para>
     </listitem>
   </varlistentry>
@@ -531,14 +537,6 @@ for more information.
 	to make the snapshot effective immediately.
       </para>
     </listitem>
-  </varlistentry>
-</variablelist>
-</refsect2>
-<refsect2 id='deprecated_commands'><title>Deprecated Commands</title>
-<para>The following commands are deprecated and will be ignored.</para>
-<variablelist>
-  <varlistentry>
-    <term><option>kdump</option></term>
   </varlistentry>
 </variablelist>
 </refsect2>

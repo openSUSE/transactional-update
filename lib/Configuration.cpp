@@ -25,7 +25,8 @@ Configuration::Configuration() {
         {"LOCKFILE", "/var/run/tukit.lock"},
         {"REBOOT_ALLOW_SOFT_REBOOT", "true"},
         {"REBOOT_ALLOW_KEXEC", "false"},
-        {"REBOOT_NEEDED_FILE", "/run/reboot-needed"}
+        {"OCI_TARGET", ""},
+        {"SNAPSHOT_MANAGER", "auto"}
     };
     for(auto &[key, value] : defaults) {
         error = econf_setStringValue(kf_defaults, "", key, value);
@@ -66,6 +67,10 @@ std::string Configuration::get(const std::string &key) {
     if (error)
         throw std::runtime_error{"Could not read configuration setting '" + key + "'."};
     return std::string(val);
+}
+
+void Configuration::set(const std::string &key, const std::string &value) {
+    econf_setStringValue(key_file, "", key.c_str(), value.c_str());
 }
 
 std::vector<std::string> Configuration::getArray(const std::string &key) {

@@ -22,6 +22,7 @@ typedef enum {
 const char* tukit_get_errmsg();
 void tukit_set_loglevel(tukit_loglevel lv);
 int tukit_set_logoutput(char *fields);
+void tukit_set_config(char* key, char* value);
 typedef void* tukit_tx;
 tukit_tx tukit_new_tx();
 void tukit_free_tx(tukit_tx tx);

@@ -7,8 +7,8 @@
     <doc:description>
      <doc:para>
       Retrieve a list of snapshots present on the system, including their properties. For
-      performance reasons only the properties explicity requested via the "columns" arg
-      are queried.
+      performance reasons only the properties explicity requested via the
+      <doc:tt>columns</doc:tt> arg are queried.
      </doc:para>
      <doc:example language="shell" title="Query some fields">
       <doc:para>Request several common fields:</doc:para>
@@ -195,10 +195,10 @@
       </doc:code>
      </doc:example>
     </doc:description>
-   </doc:doc>
-   <doc:errors>
+    <doc:errors>
      <doc:error name="org.opensuse.tukit.Error">if an error occured.</doc:error>
-   </doc:errors>
+    </doc:errors>
+   </doc:doc>
    <arg type="s" name="columns" direction="in">
     <doc:doc><doc:summary>A comma separated list of fields to query, such as the snapshot
      id, the description or whether it is the default snapshot. The accepted field names
