@@ -1298,14 +1298,22 @@ if [ -n "${ZYPPER_ARG}" ] || [ ${REWRITE_GRUB_CFG} -eq 1 ] \
 
     if [ ${REWRITE_INITRD} -eq 1 ]; then
         log_info "Creating new initrd"
-        if is_bls && ! sdbootutil mkinitrd "${SNAPSHOT_ID}" | log_info -o; then
-            log_error "ERROR: sdbootutil mkinitrd failed!"
-            EXITCODE=1;
-        elif ! is_bls && ! tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" dracut ${DRACUT_OPTS} --force --regenerate-all | log_info -o; then
-            log_error "ERROR: initrd creation failed!"
-            EXITCODE=1
+        if is_bls; then
+            sdbootutil mkinitrd "${SNAPSHOT_ID}" | log_info -o
+            if [ "${PIPESTATUS[0]}" -ne 0 ]; then
+                log_error "ERROR: sdbootutil mkinitrd failed!"
+                EXITCODE=1
+            else
+                REBUILD_KDUMP_INITRD=1
+            fi
         else
-            REBUILD_KDUMP_INITRD=1
+            tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" dracut ${DRACUT_OPTS} --force --regenerate-all | log_info -o
+            if [ "${PIPESTATUS[0]}" -ne 0 ]; then
+                log_error "ERROR: initrd creation failed!"
+                EXITCODE=1
+            else
+                REBUILD_KDUMP_INITRD=1
+            fi
         fi
         set_reboot_level "kexec"
     fi
@@ -1315,7 +1323,8 @@ if [ -n "${ZYPPER_ARG}" ] || [ ${REWRITE_GRUB_CFG} -eq 1 ] \
             . /usr/lib/kdump/kdump-read-config.sh
             if [ "${KDUMP_FADUMP}" == "true" ]; then
                 log_info "Trying to rebuild kdump initrd for fadump"
-                if ! tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" /sbin/mkdumprd | log_info -o; then
+                tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" /sbin/mkdumprd | log_info -o
+                if [ "${PIPESTATUS[0]}" -ne 0 ]; then
                     log_error "ERROR: kdump initrd creation failed!"
                     EXITCODE=1
                 else
@@ -1336,7 +1345,8 @@ if [ -n "${ZYPPER_ARG}" ] || [ ${REWRITE_GRUB_CFG} -eq 1 ] \
     fi
     if [ ${REWRITE_GRUB_CFG} -eq 1 ] || [ ${REWRITE_GRUB_CFG_NO_REBOOT} -eq 1 ]; then
         log_info "Creating a new grub2 config"
-        if ! tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" bash -c "/usr/sbin/grub2-mkconfig --output=/boot/grub2/grub.cfg" 2>&1 | log_info -o; then
+        tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" bash -c "/usr/sbin/grub2-mkconfig --output=/boot/grub2/grub.cfg" 2>&1 | log_info -o
+        if [ "${PIPESTATUS[0]}" -ne 0 ]; then
             log_error "ERROR: grub2-mkconfig failed!"
             EXITCODE=1;
         else
@@ -1354,12 +1364,18 @@ if [ -n "${ZYPPER_ARG}" ] || [ ${REWRITE_GRUB_CFG} -eq 1 ] \
         # NOTE: pbl has partial support of BLS. It will replace the
         # shim bootloader, so for now we make a call of sdbootutil
         # directly (bsc#1228864)
-        if is_bls && ! sdbootutil update "${SNAPSHOT_ID}" | log_info -o; then
-            log_error "ERROR: sdbootutil update failed!"
-            EXITCODE=1;
-        elif ! is_bls && ! tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" /sbin/pbl --install | log_info -o; then
-            log_error "ERROR: /sbin/pbl --install failed!"
-            EXITCODE=1;
+        if is_bls; then
+            sdbootutil update "${SNAPSHOT_ID}" | log_info -o
+            if [ "${PIPESTATUS[0]}" -ne 0 ]; then
+                log_error "ERROR: sdbootutil update failed!"
+                EXITCODE=1
+            fi
+        else
+            tukit ${TUKIT_OPTS} call "${SNAPSHOT_ID}" /sbin/pbl --install | log_info -o
+            if [ "${PIPESTATUS[0]}" -ne 0 ]; then
+                log_error "ERROR: /sbin/pbl --install failed!"
+                EXITCODE=1
+            fi
         fi
         set_reboot_level "reboot"
     fi
