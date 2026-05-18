@@ -1,6 +1,10 @@
 transactional-update NEWS -- history of user-visible changes.
 
 Copyright (C) 2016-2025 Thorsten Kukuk, Ignaz Forster et al.
+
+Version 6.1.1 (2026-05-18)
+* apply-oci: fix broken rsync command for /etc sync
+
 Version 6.1.0 (2026-05-15)
 * t-u: Reintroduce kdump command for fadump functionality
 * t-u: Fix skipped error paths due to querying wrong return code
