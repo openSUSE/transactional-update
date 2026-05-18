@@ -33,8 +33,8 @@ std::unique_ptr<Snapshot> Podman::create(std::string base, std::string descripti
             excludes += " --exclude ";
             excludes += path.string();
         }
-        Util::exec("rsync --delete --archive --hard-links --xattrs --acls --inplace --one-file-system " + excludes + ocimount + "/ " + getRoot().string() + "/");
-        Util::exec("rsync --delete --archive --hard-links --xattrs --acls --inplace --one-file-system --ignore-existing " + ocimount + "/etc/ " + getRoot().string() + "/etc/");
+        Util::exec("rsync --delete --archive --hard-links --xattrs --acls --inplace --one-file-system " + excludes + " " + ocimount + "/ " + getRoot().string() + "/");
+        Util::exec("rsync --archive --hard-links --xattrs --acls --inplace --one-file-system --ignore-existing " + ocimount + "/etc/ " + getRoot().string() + "/etc/");
         tulog.info("Merging /etc from container image into existing snapshot, preserving existing configuration...");
         Util::exec("podman image unmount " + oci_target);
         Util::exec("touch " + getRoot().string() + "/.autorelabel");
