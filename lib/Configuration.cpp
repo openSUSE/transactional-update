@@ -37,7 +37,7 @@ Configuration::Configuration() {
     }
 
     econf_file *kf_conffiles;
-    error = econf_readDirs(&kf_conffiles, (std::string(PREFIX) + CONFDIR).c_str(), CONFDIR, "tukit", ".conf", "=", "#");
+    error = econf_readConfig(&kf_conffiles, NULL, (std::string(PREFIX) + CONFDIR).c_str(), "tukit", ".conf", "=", "#");
     if (error && error != ECONF_NOFILE) {
         econf_freeFile(kf_defaults);
         econf_freeFile(kf_conffiles);
