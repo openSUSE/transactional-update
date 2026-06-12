@@ -32,7 +32,7 @@ Configuration::Configuration() {
         error = econf_setStringValue(kf_defaults, "", key, value);
         if (error) {
             econf_freeFile(kf_defaults);
-            throw std::runtime_error{"Could not set default value for '" + std::string(key) + "'."};
+            throw std::runtime_error{"Could not set default value for '" + std::string(key) + "': " + std::string(econf_errString(error))};
         }
     }
 
@@ -65,7 +65,7 @@ std::string Configuration::get(const std::string &key) {
     CString val;
     econf_err error = econf_getStringValue(key_file, "", key.c_str(), &val.ptr);
     if (error)
-        throw std::runtime_error{"Could not read configuration setting '" + key + "'."};
+        throw std::runtime_error{"Could not read configuration setting '" + key + "': " + std::string(econf_errString(error))};
     return std::string(val);
 }
 
@@ -81,7 +81,7 @@ std::vector<std::string> Configuration::getArray(const std::string &key) {
     char** confkeys;
     error = econf_getKeys(key_file, "", &len, &confkeys);
     if (error)
-        throw std::runtime_error{"Could not read keys."};
+        throw std::runtime_error{"Could not read keys: " + std::string(econf_errString(error))};
 
     std::regex exp(key + "\\[.*\\]");
     for (size_t i = 0; i < len; i++) {
@@ -90,7 +90,7 @@ std::vector<std::string> Configuration::getArray(const std::string &key) {
             error = econf_getStringValue(key_file, "", confkeys[i], &val.ptr);
             if (error) {
                 econf_freeArray(confkeys);
-                throw std::runtime_error{"Could not read key '" + std::string(confkeys[i]) + "'."};
+                throw std::runtime_error{"Could not read key '" + std::string(confkeys[i]) + "': " + std::string(econf_errString(error))};
             }
             if (val != nullptr)
                 ret.push_back(std::string(val));
