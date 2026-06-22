@@ -988,6 +988,7 @@ if [ ${DO_ROLLBACK} -eq 1 ]; then
         ROLLBACK_SNAPSHOT=${CURRENT_SNAPSHOT_ID}
         NEED_REBOOT=0
     fi
+    set_reboot_level "${REBOOT_ASSOCS[${ROLLBACK_SNAPSHOT}]:-reboot}"
 
     log_info "Rollback to snapshot ${ROLLBACK_SNAPSHOT}..."
 
@@ -1133,6 +1134,7 @@ if [ -n "${ZYPPER_ARG}" ] || [ ${REWRITE_GRUB_CFG} -eq 1 ] \
         quit 1
     fi
     SNAPSHOT_DIR="/.snapshots/${SNAPSHOT_ID}/snapshot"
+    set_reboot_level "${REBOOT_ASSOCS[${BASE_SNAPSHOT_ID}]:-none}"
 
     # Remember all snapshots we create for update. If transactional-update is
     # run several times before a reboot, we need to clean up the unused
