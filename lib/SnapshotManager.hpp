@@ -68,8 +68,13 @@ public:
     /**
      * @brief Set the given snapshot ID as the default snapshot ID
      * @param id ID of the snapshot to be rolled back to.
+     * @return The ID of the new default snapshot. This is not necessarily the same as the id - on
+     * snapper r/w systems for example a copy of the original snapshot is created.
      */
-    virtual void rollbackTo(std::string id) = 0;
+    std::string rollbackTo(std::string id);
+
+protected:
+    virtual std::string rollback(std::string id) = 0;
 };
 
 class SnapshotFactory {

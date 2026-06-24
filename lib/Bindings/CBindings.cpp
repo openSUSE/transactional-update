@@ -262,15 +262,14 @@ int tukit_sm_deletesnap(const char* id) {
     }
 }
 
-int tukit_sm_rollbackto(const char* id) {
+const char* tukit_sm_rollbackto(const char* id) {
     try {
         std::unique_ptr<TransactionalUpdate::SnapshotManager> snapshotMgr = TransactionalUpdate::SnapshotFactory::get();
-        snapshotMgr->rollbackTo(id);
-        return 0;
+        return strdup(snapshotMgr->rollbackTo(id).c_str());
     } catch (const std::exception &e) {
         fprintf(stderr, "ERROR: %s\n", e.what());
         errmsg = e.what();
-        return -1;
+        return nullptr;
     }
 }
 

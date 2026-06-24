@@ -35,4 +35,9 @@ unique_ptr<SnapshotManager> SnapshotFactory::get() {
     }
 }
 
+std::string SnapshotManager::rollbackTo(std::string id) {
+    std::string newDefaultId = rollback(id);
+    return newDefaultId;
+}
+
 } // namespace TransactionalUpdate

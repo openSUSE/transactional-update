@@ -992,7 +992,10 @@ if [ ${DO_ROLLBACK} -eq 1 ]; then
 
     log_info "Rollback to snapshot ${ROLLBACK_SNAPSHOT}..."
 
-    if ! tukit ${TUKIT_OPTS} rollback "${ROLLBACK_SNAPSHOT}"; then
+    output="$(tukit ${TUKIT_OPTS} rollback "${ROLLBACK_SNAPSHOT}")"
+    echo "${output}" | log_info
+    NEW_SNAPSHOT_ID=$(echo "${output}" | grep -e "^ID:" | cut -d " " -f 2-)
+    if [ -z "${NEW_SNAPSHOT_ID}" ]; then
         log_error "ERROR: Rollback to snapshot $ROLLBACK_SNAPSHOT failed!"
         quit 1
     fi

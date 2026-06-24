@@ -250,7 +250,8 @@ int TUKit::processCommand(char *argv[]) {
             throw invalid_argument{"Missing argument for 'rollback'"};
         }
         unique_ptr<TransactionalUpdate::SnapshotManager> snapshotMgr = TransactionalUpdate::SnapshotFactory::get();
-        snapshotMgr->rollbackTo(argv[1]);
+        std::string id = snapshotMgr->rollbackTo(argv[1]);
+        cout << "ID: " << id << endl;
         return 0;
     }
     else if (arg == "snapshots") {
