@@ -101,7 +101,7 @@ self_update() {
     local zypper_log_tmpfile
     zypper_log_tmpfile=$(mktemp "${TMPDIR}/transactional-update.XXXXXXXXXX")
     zypper --xmlout --non-interactive info transactional-update > "$zypper_log_tmpfile"
-    if grep -q "can not be imported. (READONLY MODE)" "$zypper_log_tmpfile"; then
+    if grep -q "<gpgkey-info>" "$zypper_log_tmpfile"; then
         export ZYPPER_FORCE_REFRESH=1
     fi
     grep -q '^Status *: out-of-date' "$zypper_log_tmpfile"
