@@ -88,8 +88,11 @@ Transaction::~Transaction() {
             } else {
                 pImpl->snapshot->abort();
             }
-            TransactionalUpdate::Plugins plugins{nullptr, pImpl->keepIfError};
-            plugins.run("abort-post", pImpl->snapshot->getUid());
+            try {
+                TransactionalUpdate::Plugins plugins{nullptr, pImpl->keepIfError};
+                plugins.run("abort-post", pImpl->snapshot->getUid());
+            } catch (int) {
+            }
         }
     }  catch (const std::exception &e) {
         tulog.error("ERROR: ", e.what());
