@@ -48,9 +48,6 @@ SETUP_SELINUX=0
 UPDATE_METHOD="up"
 ZYPPER_AUTO_IMPORT_KEYS=0
 NON_ROOTFS_WHITELIST=("/var/lib/YaST2/cookies" "/var/lib/rpm" "/var/lib/systemd/migrated" "/var/run/zypp.pid")
-OCI_RSYNC_ARGS="-a --hard-links --xattrs --acls --inplace"
-OCI_RSYNC_EXCLUDES="/etc /var /usr/local /tmp /root /home /srv /opt /sys /dev /proc /run"
-OCI_TARGET=""
 DRACUT_OPTS=""
 TUKIT_OPTS="--log=console"
 FORCE_REFRESH=0
