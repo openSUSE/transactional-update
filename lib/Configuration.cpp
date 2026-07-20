@@ -16,7 +16,7 @@
 namespace TransactionalUpdate {
 
 Configuration::Configuration() {
-    econf_file *kf_defaults;
+    econf_file *kf_defaults = NULL;
     econf_err error = econf_newIniFile(&kf_defaults);
     if (error)
         throw std::runtime_error{"Could not create default configuration."};
@@ -36,7 +36,7 @@ Configuration::Configuration() {
         }
     }
 
-    econf_file *kf_conffiles;
+    econf_file *kf_conffiles = NULL;
     error = econf_readConfig(&kf_conffiles, NULL, (std::string(PREFIX) + CONFDIR).c_str(), "tukit", ".conf", "=", "#");
     if (error && error != ECONF_NOFILE) {
         econf_freeFile(kf_defaults);
