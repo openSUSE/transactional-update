@@ -23,6 +23,7 @@ Configuration::Configuration() {
     std::map<const char*, const char*> defaults = {
         {"DRACUT_SYSROOT", "/sysroot"},
         {"LOCKFILE", "/var/run/tukit.lock"},
+        {"STATE_FILE", "/var/lib/misc/transactional-update.state"},
         {"REBOOT_ALLOW_SOFT_REBOOT", "true"},
         {"REBOOT_ALLOW_KEXEC", "false"},
         {"OCI_TARGET", ""},

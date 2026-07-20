@@ -14,6 +14,7 @@
 #include "Plugins.hpp"
 #include "SnapshotManager.hpp"
 #include "Snapshot.hpp"
+#include "StateStore.hpp"
 #include "Supplement.hpp"
 #include "Util.hpp"
 #include <algorithm>
@@ -610,9 +611,14 @@ void Transaction::finalize() {
     TransactionalUpdate::Plugins plugins{this, pImpl->keepIfError};
     plugins.run("finalize-pre", nullptr);
 
+    std::string id = pImpl->snapshot->getUid();
+    state.remove("UNUSED_SNAPSHOTS", pImpl->snapshotMgr->getCurrent());
+    state.add("UNUSED_SNAPSHOTS", id);
+    state.add("LAST_WORKING_SNAPSHOTS", pImpl->snapshotMgr->getCurrent());
+    state.persist(pImpl->snapshot->getRoot());
+
     this->pImpl->closeSnapshot();
 
-    std::string id = pImpl->snapshot->getUid();
     pImpl->snapshot.reset();
 
     TransactionalUpdate::Plugins plugins_without_transaction{nullptr, pImpl->keepIfError};

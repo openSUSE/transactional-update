@@ -10,6 +10,8 @@
 #include "Log.hpp"
 #include "Snapshot/Snapper.hpp"
 #include "Snapshot/Podman.hpp"
+#include "StateStore.hpp"
+
 using namespace std;
 
 namespace TransactionalUpdate {
@@ -35,8 +37,13 @@ unique_ptr<SnapshotManager> SnapshotFactory::get() {
     }
 }
 
-std::string SnapshotManager::rollbackTo(std::string id) {
+string SnapshotManager::rollbackTo(std::string id) {
     std::string newDefaultId = rollback(id);
+    if (! state.contains("LAST_WORKING_SNAPSHOTS", newDefaultId)) {
+        auto snapshot = open(id);
+        state.add("UNUSED_SNAPSHOTS", newDefaultId);
+        state.persist(snapshot->getRoot());
+    }
     return newDefaultId;
 }
 
