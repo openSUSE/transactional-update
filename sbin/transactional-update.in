@@ -1134,6 +1134,7 @@ if [ -n "${ZYPPER_ARG}" ] || [ ${REWRITE_GRUB_CFG} -eq 1 ] \
     echo "${output}" | log_info
     SNAPSHOT_ID=$(echo "${output}" | grep -e "^ID:" | cut -d " " -f 2-)
     if [ -z "${SNAPSHOT_ID}" ]; then
+        log_error "ERROR: Error creating a new snapshot!"
         quit 1
     fi
     SNAPSHOT_DIR="/.snapshots/${SNAPSHOT_ID}/snapshot"
