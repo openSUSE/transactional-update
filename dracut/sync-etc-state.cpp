@@ -2,13 +2,16 @@
 /* SPDX-FileCopyrightText: Copyright SUSE LLC */
 
 #include <cstring>
+#include <cstdio>
 #include <fcntl.h>
 #include <filesystem>
-#include <fstream>
 #include <iostream>
 #include <map>
+#include <sched.h>
 #include <string>
+#include <sys/mount.h>
 #include <sys/time.h>
+#include <system_error>
 #include <unistd.h>
 #include <sys/stat.h>
 #include <sys/xattr.h>
@@ -195,10 +198,77 @@ bool copy_xattrs(filesystem::path ref, filesystem::path target) {
     return true;
 }
 
+std::string rtrim(std::string s)
+{
+    std::string copy;
+    auto i = s.rbegin();
+    while (*i == '\n' || *i == ' ') i++;
+
+    std::copy(s.begin(), s.end() - (i - s.rbegin()), std::back_inserter(copy));
+    return copy;
+}
+
+std::string exec(const char* cmd) {
+    char buffer[128];
+    std::string result;
+    std::unique_ptr<FILE, int (*)(FILE*)> pipe(popen(cmd, "r"), pclose);
+    if (!pipe) {
+        throw std::runtime_error("popen() failed!");
+    }
+    while (fgets(buffer, 128, pipe.get()) != nullptr) {
+        result += buffer;
+    }
+    return result;
+}
+
+bool bind_mount(filesystem::path& dir) {
+    std::error_code err;
+    filesystem::path bind_dir;
+    bool mounted = false;
+
+    cout << "Creating bind mount for " << dir << endl;
+    bind_dir = rtrim(exec("mktemp --directory /tmp/transactional-update.XXXX"));
+    if (mount(dir.c_str(), bind_dir.c_str(), "none", MS_BIND, "none") != 0) {
+        cerr << "Error while bind mounting " << dir << " in " << bind_dir << ": ";
+        perror("mount");
+        goto fail;
+    }
+    mounted = true;
+    if (mount(bind_dir.c_str(), bind_dir.c_str(), "none", MS_BIND | MS_RDONLY | MS_REMOUNT, "none") != 0) {
+        cerr << "Error while remounting " << bind_dir << ": ";
+        perror("mount");
+        goto fail;
+    }
+
+    dir = bind_dir;
+
+    return true;
+fail:
+    if (mounted && umount(bind_dir.c_str()) == 0) {
+        cerr << "Error while unmounting " << dir << " in " << bind_dir << ": ";
+        perror("umount");
+    }
+    filesystem::remove(bind_dir, err);
+    return false;
+}
+
+void unmount(filesystem::path& dir) {
+    std::error_code err;
+    if (umount2(dir.c_str(), MNT_DETACH) != 0) {
+        cerr << "Error while unmounting " << dir << ": ";
+        perror("umount");
+    } else {
+        if (filesystem::remove(dir, err)) {
+            cerr << "Error while removing directory " << dir << ": " << err.message() << endl;
+        }
+    }
+}
+
 int main(int argc, const char* argv[])
 {
     bool dry_run = false;
     bool keep_syncpoint = false;
+    bool bind_mounted = false;
     int argpos = 1;
     filesystem::path syncpoint = "/etc/etc.syncpoint";
     filesystem::path currentdir = "/etc";
@@ -225,6 +295,16 @@ int main(int argc, const char* argv[])
     currentdir = argv[argpos + 1];
     syncpoint = argv[argpos + 2];
 
+    filesystem::path bind_parentdir = parentdir;
+    filesystem::path bind_currentdir = currentdir;
+
+    if (bind_mount(bind_parentdir)) {
+        if (bind_mount(bind_currentdir)) {
+            bind_mounted = true;
+        } else {
+            unmount(bind_parentdir);
+        }
+    }
     cout << "Using new snapshot - syncing from old parent " << parentdir << "..." << endl;
 
     map<filesystem::path, SYNC_ACTIONS> DIFFTOCURRENT;
@@ -238,7 +318,7 @@ int main(int argc, const char* argv[])
             continue;
         }
 
-        if (! filesystem::exists(filesystem::symlink_status(currentdir / dir_entry))) {
+        if (! filesystem::exists(filesystem::symlink_status(bind_currentdir / dir_entry))) {
             cout << "Deleted in new snapshot: " << currentdir / dir_entry << endl;
             DIFFTOCURRENT.emplace(dir_entry, SYNC_ACTIONS::RECURSIVE_SKIP);
             continue;
@@ -254,7 +334,7 @@ int main(int argc, const char* argv[])
             continue;
         }
     }
-    filesystem::current_path(currentdir);
+    filesystem::current_path(bind_currentdir);
     it = filesystem::recursive_directory_iterator(".");
     for (const filesystem::directory_entry& dir_entry : it) {
         if (dir_entry.path().native() == "./etc.syncpoint") {
@@ -278,7 +358,7 @@ int main(int argc, const char* argv[])
             continue;
         }
 
-        if (! filesystem::exists(filesystem::symlink_status(parentdir / dir_entry))) {
+        if (! filesystem::exists(filesystem::symlink_status(bind_parentdir / dir_entry))) {
             cout << "Deleted in old snapshot: " << parentdir / dir_entry << endl;
             if (DIFFTOCURRENT.count(dir_entry) == 0) {
                 DIFFTOCURRENT.emplace(dir_entry, SYNC_ACTIONS::DELETE);
@@ -306,7 +386,7 @@ int main(int argc, const char* argv[])
             continue;
         }
     }
-    filesystem::current_path(parentdir);
+    filesystem::current_path(bind_parentdir);
     it = filesystem::recursive_directory_iterator(".");
     for (const filesystem::directory_entry& dir_entry : it) {
         if (dir_entry.path().native() == "./etc.syncpoint") {
@@ -346,13 +426,13 @@ int main(int argc, const char* argv[])
                 cout << "Copying " << it->first << endl;
                 struct statx sourcestat;
                 struct statx targetstat = {};
-                if (statx(AT_FDCWD, (parentdir / it->first).c_str(), AT_SYMLINK_NOFOLLOW, STATX_ATIME | STATX_MTIME | STATX_MODE | STATX_UID | STATX_GID, &sourcestat) == -1) {
+                if (statx(AT_FDCWD, (bind_parentdir / it->first).c_str(), AT_SYMLINK_NOFOLLOW, STATX_ATIME | STATX_MTIME | STATX_MODE | STATX_UID | STATX_GID, &sourcestat) == -1) {
                     cerr << "Error while processing " << it->first << ": ";
                     perror("statx source");
                     continue;
                 }
                 if (filesystem::exists(filesystem::symlink_status(currentdir / it->first))) {
-                    if (statx(AT_FDCWD, (currentdir / it->first).c_str(), AT_SYMLINK_NOFOLLOW, STATX_MODE, &targetstat) == -1) {
+                    if (statx(AT_FDCWD, (bind_currentdir / it->first).c_str(), AT_SYMLINK_NOFOLLOW, STATX_MODE, &targetstat) == -1) {
                         cerr << "Error while processing " << it->first << ": ";
                         perror("statx target");
                         continue;
@@ -368,10 +448,10 @@ int main(int argc, const char* argv[])
                     if (filesystem::exists(filesystem::symlink_status(currentdir / it->first))) {
                         filesystem::remove(currentdir / it->first);
                     }
-                    filesystem::copy(parentdir / it->first, currentdir / it->first, filesystem::copy_options::copy_symlinks);
+                    filesystem::copy(bind_parentdir / it->first, currentdir / it->first, filesystem::copy_options::copy_symlinks);
                 } else if ((sourcestat.stx_mode & S_IFMT) == S_IFREG) {
                     if (filesystem::exists((filesystem::symlink_status((currentdir / it->first).parent_path())))) {
-                        filesystem::copy_file(parentdir / it->first, currentdir / it->first, filesystem::copy_options::overwrite_existing);
+                        filesystem::copy_file(bind_parentdir / it->first, currentdir / it->first, filesystem::copy_options::overwrite_existing);
                         if (lchmod((currentdir / it->first).c_str(), sourcestat.stx_mode) == -1) {
                             cerr << "Error while processing " << it->first << ": ";
                             perror("lchmod");
@@ -387,19 +467,26 @@ int main(int argc, const char* argv[])
                     cerr << "Error while processing " << it->first << ": ";
                     perror("lchown");
                 }
+                copy_xattrs(bind_parentdir / it->first, currentdir / it->first);
+
                 const struct timespec newtimes[2] = {{.tv_sec = sourcestat.stx_atime.tv_sec, .tv_nsec = sourcestat.stx_atime.tv_nsec},{.tv_sec = sourcestat.stx_mtime.tv_sec, .tv_nsec = sourcestat.stx_mtime.tv_nsec}};
                 if (utimensat(AT_FDCWD, (currentdir / it->first).c_str(), newtimes, AT_SYMLINK_NOFOLLOW) == -1) {
                     cerr << "Error while processing " << it->first << ": ";
                     perror("utimensat");
                 }
-
-                copy_xattrs(parentdir / it->first, currentdir / it->first);
             }
         }
 
         if (!keep_syncpoint) {
             filesystem::remove_all(syncpoint);
         }
+    }
+
+    if (bind_mounted) {
+        // Sync to avoid pending operations
+        sync();
+        unmount(bind_parentdir);
+        unmount(bind_currentdir);
     }
 
     return 0;
