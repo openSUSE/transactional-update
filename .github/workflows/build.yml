@@ -1,0 +1,104 @@
+---
+name: Build & Test
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - container: registry.opensuse.org/opensuse/tumbleweed:latest
+            use_default_gcc: true
+          - container: registry.opensuse.org/opensuse/leap:15.6
+            use_default_gcc: false
+
+    container:
+      image: ${{ matrix.container }}
+
+    steps:
+      - name: Install git
+        run: zypper --non-interactive install git-core
+
+      - name: Install gcc10 (Leap only)
+        if: ${{ !matrix.use_default_gcc }}
+        run: |
+          zypper --non-interactive install gcc10 gcc10-c++
+          echo "CC=gcc-10" >> $GITHUB_ENV
+          echo "CXX=g++-10" >> $GITHUB_ENV
+
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Install build dependencies
+        run: |
+          zypper modifyrepo --enable repo-source
+          zypper --non-interactive refresh
+          zypper --non-interactive source-install transactional-update
+          zypper --non-interactive install gcc-c++
+
+      - name: Create build descriptions
+        run: |
+          ./autogen.sh
+          ./configure --prefix=/usr
+
+      - name: Build
+        run: make -j$(nproc)
+
+  bats-tests:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Install test dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            bats \
+            attr \
+            acl
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get install -y \
+            gcc \
+            g++ \
+            make \
+            automake \
+            autoconf \
+            libtool \
+            pkg-config \
+            libeconf-dev \
+            libselinux-dev \
+            libmount-dev \
+            librpm-dev \
+            libsystemd-dev \
+            systemd \
+            dracut \
+            dbus \
+            libdbus-1-dev \
+            libudev-dev \
+            autoconf-archive \
+            docbook-xsl \
+            xsltproc \
+            libxml2-utils
+
+      - name: Create build descriptions
+        run: |
+          ./autogen.sh
+          ./configure --prefix=/usr
+
+      - name: Build
+        run: make -j$(nproc)
+
+      - name: Create trusted group for tests
+        run: sudo groupadd -f trusted
+
+      - name: Run BATS tests
+        run: sudo make check || (cat tests/test-suite.log; exit 1)
