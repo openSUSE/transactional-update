@@ -598,9 +598,13 @@ void Transaction::impl::closeSnapshot(bool aborted) {
     supplements.cleanup();
     dirsToMount.clear();
 
-    std::unique_ptr<Snapshot> defaultSnap = snapshotMgr->open(snapshotMgr->getDefault());
-    if (defaultSnap->isReadOnly())
-        snapshot->setReadOnly(true);
+    Mount rootfs{"/"};
+    rootfs.setTabSource(snapshot->getRoot() / "etc" / "fstab");
+    try {
+        if (! rootfs.getOption("ro").empty()) {
+            snapshot->setReadOnly(true);
+        }
+    } catch (std::range_error) {}
     if (! aborted) {
         snapshot->setDefault();
         tulog.info("New default snapshot is #" + snapshot->getUid() + " (" + std::string(snapshot->getRoot()) + ").");
