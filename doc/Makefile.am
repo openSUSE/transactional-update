@@ -3,9 +3,9 @@
 
 CLEANFILES = transactional-update.txt html/*.html html/*.png html/*.css html/tukit.devhelp2 html.stamp tukit-*.xml *~
 
-EXTRA_DIST = $(XMLS) transactional-update.txt
+EXTRA_DIST = $(XMLS) transactional-update.txt spec-to-docbook.xsl html
 
-XMLS = transactional-update.xml
+XMLS = transactional-update.xml transactional-update-docs.xml
 API_XMLS = tukit-org.opensuse.tukit.Snapshot.xml tukit-org.opensuse.tukit.Transaction.xml
 MAN_XMLS = ../man/transactional-update.8.xml ../man/transactional-update.conf.5.xml ../man/tukit.conf.5.xml
 
@@ -23,7 +23,7 @@ transactional-update.txt: $(XMLS) $(DEP_XMLS)
 tukit-org.opensuse.tukit.%.xml: ../dbus/org.opensuse.tukit.%.xml
 	xsltproc spec-to-docbook.xsl $< > $@
 
-html/index.html: $(XMLS) $(API_XMLS) $(MAN_XMLS) transactional-update-docs.xml
+html/index.html: $(XMLS) $(API_XMLS) $(MAN_XMLS)
 	cd html && gtkdoc-mkhtml tukit ../transactional-update-docs.xml
 
 transactional-update.md: $(XMLS) $(DEP_XMLS)
