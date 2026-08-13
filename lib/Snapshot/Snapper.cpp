@@ -15,7 +15,7 @@ namespace TransactionalUpdate {
 /* SnapshotManager methods */
 
 std::unique_ptr<Snapshot> Snapper::create(std::string base, std::string description) {
-    if (! std::filesystem::exists("/.snapshots/" + base + "/snapshot"))
+    if (! std::filesystem::exists(snapshotsDir() / base / "snapshot"))
         throw std::invalid_argument{"Base snapshot '" + base + "' does not exist."};
     snapshotId = callSnapper("create --from " + base + " --read-write --print-number --description '" + description + "' --userdata 'transactional-update-in-progress=yes'");
     Util::rtrim(snapshotId);
@@ -100,7 +100,7 @@ void Snapper::abort() {
 }
 
 std::filesystem::path Snapper::getRoot() {
-    return std::filesystem::path("/.snapshots/" + snapshotId + "/snapshot");
+    return std::filesystem::path(snapshotsDir() / snapshotId / "snapshot");
 }
 
 std::string Snapper::getCurrent() {

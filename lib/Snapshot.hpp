@@ -9,6 +9,7 @@
 #ifndef T_U_SNAPSHOT_H
 #define T_U_SNAPSHOT_H
 
+#include "Configuration.hpp"
 #include <filesystem>
 #include <string>
 
@@ -29,6 +30,7 @@ public:
 protected:
     std::string snapshotId;
     std::string snapshotDate;
+    std::filesystem::path snapshotsDir() { return std::filesystem::path(config.get("SNAPSHOTS_DIR")); }
 };
 
 } // namespace TransactionalUpdate
