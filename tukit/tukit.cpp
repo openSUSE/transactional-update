@@ -74,12 +74,13 @@ void TUKit::displayHelp() {
     cout << "--help, -h                   Display this help and exit\n";
     cout << "--log=<console,syslog>[,<...>,...], -l<...>\n";
     cout << "                             Restrict output channels to the given ones\n";
-    cout << "--option=<KEY>=<VALUE>       Overwrite setting from tukit.conf\n";
+    cout << "--option=<KEY>=<VALUE>, -o <KEY>=<VALUE>";
+    cout << "                             Overwrite setting from tukit.conf\n";
     cout << "--quiet, -q                  Decrease verbosity\n";
     cout << "--verbose, -v                Increase verbosity\n";
     cout << "--version, -V                Display version and exit\n";
     cout << "\n";
-    cout << "Important options (for use with -o=):\n";
+    cout << "Important options (for use with --option):\n";
     cout << "SNAPSHOT_MANAGER=<MANAGER>   Force snapshot manager, e.g. podman or snapper\n";
     cout << "OCI_TARGET=<SOURCE>          Pull a custom image for updating with Podman\n";
     cout << endl;
