@@ -64,7 +64,7 @@ Signal:
 
 `busctl` example:
 
-> busctl call org.opensuse.tukit /org/opensuse/tukit/Transaction org.opensuse.tukit.Transaction Open "s" "default" 2 SNAPSHOT\_MANAGER s podman OCI\_TARGET s "registry.opensuse.org/home/roxenham/kiwi/containers-micro-6.2/kiwi/builder:latest"
+> busctl call org.opensuse.tukit /org/opensuse/tukit/Transaction org.opensuse.tukit.Transaction OpenWithOpts "sa{sv}" "default" 2 SNAPSHOT\_MANAGER s podman OCI\_TARGET s "registry.opensuse.org/home/roxenham/kiwi/containers-micro-6.2/kiwi/builder:latest"
 
 ### Call
 Executes the given command from within the transaction's **chroot environment**, resuming the
