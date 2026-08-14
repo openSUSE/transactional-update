@@ -7,6 +7,7 @@
 
 #include "Log.hpp"
 #include "Mount.hpp"
+#include <cerrno>
 #include <cstring>
 #include <filesystem>
 #include <stdexcept>
@@ -256,8 +257,17 @@ void Mount::umountRecursive(libmnt_table* umount_table, libmnt_fs* umount_fs) {
         int rc = mnt_context_umount(umount_cxt);
         char buf[BUFSIZ] = { 0 };
         mnt_context_get_excode(umount_cxt, rc, buf, sizeof(buf));
-        if (*buf)
-            tulog.error("Error unmounting '", mnt_fs_get_target(umount_fs), "': ", buf);
+        if (*buf) {
+            // EINVAL means the target is not a mount point (any more), so there
+            // is nothing to report: this is the case for submounts which the
+            // kernel locked to their parent mount - e.g. everything below a
+            // recursive bind mount of /sys when running in a user namespace -
+            // and which will go away together with the mount namespace.
+            if (mnt_context_get_syscall_errno(umount_cxt) == EINVAL)
+                tulog.debug("    ", buf);
+            else
+                tulog.error("Error unmounting '", mnt_fs_get_target(umount_fs), "': ", buf);
+        }
     }
     mnt_free_context(umount_cxt);
 }
