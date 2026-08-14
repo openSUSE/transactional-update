@@ -10,6 +10,7 @@
 #include "Log.hpp"
 #include "Snapshot/Snapper.hpp"
 #include "Snapshot/Podman.hpp"
+#include "Snapshot/Directory.hpp"
 #include "StateStore.hpp"
 
 using namespace std;
@@ -32,6 +33,8 @@ unique_ptr<SnapshotManager> SnapshotFactory::get() {
         return make_unique<Snapper>();
     } else if (sm == "podman") {
         return make_unique<Podman>();
+    } else if (sm == "directory") {
+        return make_unique<Directory>();
     } else {
         throw runtime_error{"Unsupported snapshot manager '" + sm + "'."};
     }
