@@ -4,6 +4,6 @@
 LOG_DRIVER = env AM_TAP_AWK='$(AWK)' $(SHELL) $(top_srcdir)/tap-driver.sh
 LOG_DRIVER_FLAGS = -- bats --tap --output
 
-TESTS = etc_changes.bats
+TESTS = etc_changes.bats tukit.bats
 
 EXTRA_DIST = $(TESTS)
