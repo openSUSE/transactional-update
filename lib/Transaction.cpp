@@ -151,7 +151,9 @@ void Transaction::impl::snapMount() {
     mntBind->setSource(snapshot->getRoot());
     mntBind->mount();
 
-    dirsToMount.push_back(std::make_unique<PropagatedBindMount>("/dev"));
+    if (config.get("MOUNT_DEV") == "true") {
+        dirsToMount.push_back(std::make_unique<PropagatedBindMount>("/dev"));
+    }
     dirsToMount.push_back(std::make_unique<BindMount>("/var/log"));
 
     Mount mntVar{"/var"};

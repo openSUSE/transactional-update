@@ -28,7 +28,8 @@ Configuration::Configuration() {
         {"REBOOT_ALLOW_KEXEC", "false"},
         {"OCI_TARGET", ""},
         {"SNAPSHOT_MANAGER", "auto"},
-        {"SNAPSHOTS_DIR", "/.snapshots"}
+        {"SNAPSHOTS_DIR", "/.snapshots"},
+        {"MOUNT_DEV", "true"}
     };
     for(auto &[key, value] : defaults) {
         error = econf_setStringValue(kf_defaults, "", key, value);
