@@ -118,9 +118,9 @@ AM_CONDITIONAL(ENABLE_REGENERATE_DOC,
 	test "x$enable_doc" != "xno" -a "x$with_doc" != "xno")
 
 AC_PATH_PROG([BATS], [bats])
-AC_PATH_PROG([ROOTLESSKIT], [rootlesskit])
-AS_IF([test -z "$BATS" -o -z "$ROOTLESSKIT"], [AC_MSG_WARN([To run tests please install
-       bats and rootlesskit.])])
+AC_PATH_PROG([UNSHARE], [unshare])
+AS_IF([test -z "$BATS" -o -z "$UNSHARE"], [AC_MSG_WARN([To run tests please install
+       bats and util-linux.])])
 
 AC_CONFIG_FILES([Makefile lib/Makefile tukit/Makefile sbin/Makefile man/Makefile \
 	systemd/Makefile logrotate/Makefile dracut/Makefile doc/Makefile \
