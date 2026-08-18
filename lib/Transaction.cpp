@@ -318,7 +318,7 @@ void Transaction::init(std::string base, std::optional<std::string> description)
         std::unique_ptr<Snapshot> prevSnap = pImpl->snapshotMgr->open(base);
         std::unique_ptr<Mount> oldEtc{new Mount{"/etc"}};
         oldEtc->setTabSource(prevSnap->getRoot() / "etc" / "fstab");
-        if (oldEtc->isMount() && oldEtc->getFilesystem() == "overlayfs") {
+        if (oldEtc->isMount() && oldEtc->getFilesystem() == "overlay") {
             tulog.info("Can not merge back changes in /etc into old overlayfs system - ignoring 'discardIfNoChange'.");
         } else {
             // Flag file to indicate this snapshot was initialized with discard flag
