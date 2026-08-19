@@ -256,7 +256,7 @@ int create_dirs(struct node *node, size_t size) {
         if (verbose_flag)
             printf("Create %s\n", node->dirname);
 
-        if (mkdir(node->dirname, node->fmode) < 0) {
+        if (mkdir(node->dirname, 0700) < 0) {
             fprintf(stderr, "Failed to create directory '%s': %m\n", node->dirname);
             rc = 1;
             continue;
@@ -269,6 +269,15 @@ int create_dirs(struct node *node, size_t size) {
             rc = 1;
             continue;
         }
+
+        if (chmod(node->dirname, node->fmode) < 0) {
+            fprintf(stderr, "Failed to set mode for '%s': %m\n", node->dirname);
+            /* wrong permissions are bad, remove dir and continue */
+            rmdir(node->dirname);
+            rc = 1;
+            continue;
+        }
+
         /* ignore errors here, time stamps are not critical */
         utimes(node->dirname, stamps);
 
