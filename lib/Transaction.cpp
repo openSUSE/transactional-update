@@ -552,6 +552,7 @@ void Transaction::sendSignal(int signal) {
 }
 
 void Transaction::impl::closeSnapshot(bool aborted) {
+    bool toDelete = false;
     sync();
     if (discardIfNoChange &&
             ((inotifyFd != 0 && inotifyRead() == 0) ||
@@ -583,8 +584,7 @@ void Transaction::impl::closeSnapshot(bool aborted) {
 
         TransactionalUpdate::Plugins plugins_without_transaction{nullptr, keepIfError};
         plugins_without_transaction.run("finalize-post", snapshot->getUid() + " " + "discarded");
-        snapshot->abort();
-        return;
+        toDelete = true;
     }
     if (fs::exists(snapshot->getRoot() / "discardIfNoChange")) {
         fs::remove(snapshot->getRoot() / "discardIfNoChange");
@@ -594,7 +594,7 @@ void Transaction::impl::closeSnapshot(bool aborted) {
     if (utime((snapshot->getRoot() / "usr").c_str(), nullptr) != 0)
         throw std::runtime_error{"Updating /usr timestamp failed: " + std::string(strerror(errno))};
 
-    if (! aborted) {
+    if (! aborted && ! toDelete) {
         snapshot->close();
     }
     supplements.cleanup();
@@ -607,9 +607,12 @@ void Transaction::impl::closeSnapshot(bool aborted) {
             snapshot->setReadOnly(true);
         }
     } catch (std::range_error) {}
-    if (! aborted) {
+    if (! aborted && ! toDelete) {
         snapshot->setDefault();
         tulog.info("New default snapshot is #" + snapshot->getUid() + " (" + std::string(snapshot->getRoot()) + ").");
+    }
+    if (toDelete) {
+        snapshot->abort();
     }
 }
 
