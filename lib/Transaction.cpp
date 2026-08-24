@@ -396,6 +396,7 @@ int Transaction::impl::runCommand(char* argv[], bool inChroot, std::string* outp
         // On rw systems, /etc may be a separate mount after 'apply', though it's
         // also part of the root file system
         std::unique_ptr<Mount> mntEtc{new Mount{"/etc"}};
+        mntEtc->setTabSource(snapshot->getRoot() / "etc" / "fstab");
         if (! mntEtc->isMount()) {
             auto itr = std::find(inotifyExcludes.begin(), inotifyExcludes.end(), (snapshot->getRoot() / "etc"));
             if (itr != inotifyExcludes.end()) inotifyExcludes.erase(itr);
@@ -564,6 +565,8 @@ void Transaction::impl::closeSnapshot(bool aborted) {
         // running system directly and delete the snapshot. Otherwise merge it back into the previous overlay
         // (using rsync instead of a plain copy to preserve xattrs).
         std::unique_ptr<Mount> mntEtc{new Mount{"/etc"}};
+        std::string current = snapshotMgr->getCurrent();
+        mntEtc->setTabSource(snapshotMgr->open(current)->getRoot() / "etc" / "fstab");
         if (mntEtc->isMount()) {
             std::filesystem::path targetRoot = "/";
             std::string base;
@@ -572,8 +575,7 @@ void Transaction::impl::closeSnapshot(bool aborted) {
             input >> base;
             input.close();
 
-            std::unique_ptr<Mount> previousEtc{new Mount("/etc", 0, true)};
-            if (snapshotMgr->getCurrent() == base) {
+            if (current == base) {
                 tulog.info("Merging changes in /etc into the running system.");
             } else {
                 tulog.info("Merging changes in /etc into the previous snapshot.");
