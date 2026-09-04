@@ -2,6 +2,9 @@ transactional-update NEWS -- history of user-visible changes.
 
 Copyright (C) 2016-2025 Thorsten Kukuk, Ignaz Forster et al.
 
+Version 5.8.9 (2026-09-04)
+* libtukit: Fix --drop-if-no-change after `apply` [bsc#1276847]
+
 Version 5.0.8 (2026-08-10)
 * Fix duplicate overlay mount during migration - this could cause
   problems in the running system in the first snapshot after
