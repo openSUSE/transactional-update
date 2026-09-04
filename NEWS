@@ -2,6 +2,9 @@ transactional-update NEWS -- history of user-visible changes.
 
 Copyright (C) 2016-2024 Thorsten Kukuk, Ignaz Forster et al.
 
+Version 4.8.4 (2026-09-04)
+* libtukit: Fix --drop-if-no-change after `apply` [bsc#1276847]
+
 Version 4.8.3 (2024-09-24)
 * Check return value of `register` command [bsc#1230901]
 
