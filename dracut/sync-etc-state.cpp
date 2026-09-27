@@ -364,6 +364,12 @@ int main(int argc, const char* argv[])
                 }
                 if ((sourcestat.stx_mode & S_IFMT) == S_IFDIR) {
                     filesystem::create_directory(currentdir / it->first, parentdir / it->first);
+                    // mkdir applies the umask to the copied mode, and an existing directory keeps its own mode:
+                    // set it explicitly.
+                    if (lchmod((currentdir / it->first).c_str(), sourcestat.stx_mode) == -1) {
+                        cerr << "Error while processing " << it->first << ": ";
+                        perror("lchmod");
+                    }
                 } else if ((sourcestat.stx_mode & S_IFMT) == S_IFLNK) {
                     if (filesystem::exists(filesystem::symlink_status(currentdir / it->first))) {
                         filesystem::remove(currentdir / it->first);
