@@ -24,6 +24,7 @@ Configuration::Configuration() {
         {"DRACUT_SYSROOT", "/sysroot"},
         {"LOCKFILE", "/var/run/tukit.lock"},
         {"STATE_FILE", "/var/lib/misc/transactional-update.state"},
+        {"TMP_STATE_FILE", "/run/transactional-update.state"},
         {"REBOOT_ALLOW_SOFT_REBOOT", "true"},
         {"REBOOT_ALLOW_KEXEC", "false"},
         {"OCI_TARGET", ""},

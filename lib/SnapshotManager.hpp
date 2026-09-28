@@ -66,6 +66,11 @@ public:
     virtual void deleteSnap(std::string id) = 0;
 
     /**
+     * @brief cleanup checks for currently unused snapshots and marks them for deletion.
+     */
+    void cleanup();
+
+    /**
      * @brief Set the given snapshot ID as the default snapshot ID
      * @param id ID of the snapshot to be rolled back to.
      * @return The ID of the new default snapshot. This is not necessarily the same as the id - on
@@ -75,6 +80,8 @@ public:
 
 protected:
     virtual std::string rollback(std::string id) = 0;
+private:
+    void cleanupSnap(std::string snapid, bool important, std::string statevar);
 };
 
 class SnapshotFactory {

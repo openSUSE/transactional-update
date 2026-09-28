@@ -40,6 +40,7 @@ public:
     bool isReadOnly() override;
     void setDefault() override;
     void setReadOnly(bool readonly) override;
+    void cleanup(bool important) override;
 
     // SnapshotManager
     Directory(): Snapshot("") {};

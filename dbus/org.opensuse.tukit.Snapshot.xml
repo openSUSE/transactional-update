@@ -213,5 +213,29 @@
    </doc:summary></doc:doc>
    </arg>
   </method>
+  <method name="Cleanup">
+   <doc:doc>
+    <doc:description>
+     <doc:para>
+      Marks unused snapshots created by tukit for deletion, i.e. all snapshots except
+      for the currently used snapshot and the default snapshot.
+     </doc:para>
+     <doc:para>
+      Note that some snapshot implementations such as the snapper backend will not delete
+      the snapshots immediately, but will delete the snapshots at a later time according
+      to their own ruleset. Snapshots not created by tukit will not be touched.
+     </doc:para>
+     <doc:para>
+      Example:
+     </doc:para>
+     <doc:example language="shell" title="Clean up unused snapshots">
+      <doc:code>busctl call org.opensuse.tukit /org/opensuse/tukit/Snapshot org.opensuse.tukit.Snapshot Cleanup</doc:code>
+     </doc:example>
+    </doc:description>
+    <doc:errors>
+     <doc:error name="org.opensuse.tukit.Error">if an error occured.</doc:error>
+    </doc:errors>
+   </doc:doc>
+  </method>
  </interface>
 </node>

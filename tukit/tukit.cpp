@@ -51,6 +51,8 @@ void TUKit::displayHelp() {
     cout << "\tDeletes the given snapshot again\n";
     cout << "rollback <ID>\n";
     cout << "\tRoll back to given snapshot\n";
+    cout << "cleanup\n";
+    cout << "\t Clean up unused snapshots\n";
     cout << "\n";
     cout << "Transaction Options:\n";
     cout << "--continue[=<ID>], -c[<ID>]  Use latest or given snapshot as base\n";
@@ -253,6 +255,11 @@ int TUKit::processCommand(char *argv[]) {
         unique_ptr<TransactionalUpdate::SnapshotManager> snapshotMgr = TransactionalUpdate::SnapshotFactory::get();
         std::string id = snapshotMgr->rollbackTo(argv[1]);
         cout << "ID: " << id << endl;
+        return 0;
+    }
+    else if (arg == "cleanup") {
+        unique_ptr<TransactionalUpdate::SnapshotManager> snapshotMgr = TransactionalUpdate::SnapshotFactory::get();
+        snapshotMgr->cleanup();
         return 0;
     }
     else if (arg == "snapshots") {

@@ -235,4 +235,8 @@ void Directory::setReadOnly(bool readonly) {
     writeMeta(snapshotId, "read-only", readonly ? "yes" : "no");
 }
 
+void Directory::cleanup(bool important) {
+    deleteSnap(snapshotId);
+}
+
 } // namespace TransactionalUpdate

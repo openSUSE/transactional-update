@@ -7,11 +7,13 @@
  */
 
 #include "Configuration.hpp"
+#include "Exceptions.hpp"
 #include "Log.hpp"
 #include "Snapshot/Snapper.hpp"
 #include "Snapshot/Podman.hpp"
 #include "Snapshot/Directory.hpp"
 #include "StateStore.hpp"
+#include "Util.hpp"
 
 using namespace std;
 
@@ -38,6 +40,52 @@ unique_ptr<SnapshotManager> SnapshotFactory::get() {
     } else {
         throw runtime_error{"Unsupported snapshot manager '" + sm + "'."};
     }
+}
+
+void SnapshotManager::cleanupSnap(std::string snapid, bool important, std::string statevar) {
+    StateStore tmpState = StateStore(config.get("TMP_STATE_FILE"));
+    if (snapid != getCurrent() && snapid != tmpState.get("LAST_BOOTED") && snapid != getDefault()) {
+        try {
+            tulog.info("Cleaning up snapshot " + snapid + "...");
+            auto snap = open(snapid);
+            snap->cleanup(important);
+        } catch (const invalid_argument) {
+            // Ignore - it's deleted already
+        } catch (const ExecutionException &e) {
+            tulog.error("ERROR: Cleaning up snapshot " + snapid + " failed: " + e.what());
+            if (! statevar.empty()) {
+                // Keep snapshot in the list so that the admin has a chance to see the error
+                state.add(statevar, snapid);
+            }
+        }
+    } else if (! statevar.empty()) {
+        state.add(statevar, snapid);
+    }
+}
+
+void SnapshotManager::cleanup() {
+    string snapshot;
+
+    stringstream wsnapshots(state.get("LAST_WORKING_SNAPSHOTS"));
+    state.set("LAST_WORKING_SNAPSHOTS", "");
+    while (wsnapshots >> snapshot) {
+        cleanupSnap(snapshot, true, "LAST_WORKING_SNAPSHOTS");
+    }
+
+    stringstream usnapshots(state.get("UNUSED_SNAPSHOTS"));
+    state.set("UNUSED_SNAPSHOTS", "");
+    while (usnapshots >> snapshot) {
+        cleanupSnap(snapshot, false, "UNUSED_SNAPSHOTS");
+    }
+
+    if ((typeid(*this) == typeid(Snapper)) || (typeid(*this) == typeid(Podman))) {
+        stringstream psnapshots(Util::exec("snapper --csvout list --columns number,userdata | grep 'transactional-update-in-progress=yes' | cut -d , -f 1"));
+        while (psnapshots >> snapshot) {
+            cleanupSnap(snapshot, false, "");
+        }
+    }
+
+    state.persist();
 }
 
 string SnapshotManager::rollbackTo(std::string id) {

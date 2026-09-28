@@ -262,6 +262,18 @@ int tukit_sm_deletesnap(const char* id) {
     }
 }
 
+int tukit_sm_cleanup() {
+    try {
+        std::unique_ptr<TransactionalUpdate::SnapshotManager> snapshotMgr = TransactionalUpdate::SnapshotFactory::get();
+        snapshotMgr->cleanup();
+        return 0;
+    } catch (const std::exception &e) {
+        fprintf(stderr, "ERROR: %s\n", e.what());
+        errmsg = e.what();
+        return -1;
+    }
+}
+
 const char* tukit_sm_rollbackto(const char* id) {
     try {
         std::unique_ptr<TransactionalUpdate::SnapshotManager> snapshotMgr = TransactionalUpdate::SnapshotFactory::get();

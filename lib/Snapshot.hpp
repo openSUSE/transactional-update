@@ -26,6 +26,7 @@ public:
     virtual bool isReadOnly() = 0;
     virtual void setDefault() = 0;
     virtual void setReadOnly(bool readonly) = 0;
+    virtual void cleanup(bool important = false) = 0;
     std::string getUid() { return snapshotId; }
 protected:
     std::string snapshotId;

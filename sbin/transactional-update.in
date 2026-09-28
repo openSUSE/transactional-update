@@ -1009,75 +1009,8 @@ if [ ${DO_ROLLBACK} -eq 1 ]; then
     exit 0
 fi
 
-#
-# Cleanup part: make sure old root file systems will be removed after they are no longer active.
-#
 if [ ${DO_CLEANUP_SNAPSHOTS} -eq 1 ]; then
-    # If there is a list of working snapshots, go through it and mark any snapshot for deletion, if it is
-    # not the currently used one, the booted one (still required for health-checker rollbacks) or the
-    # active one.
-    if [ -n "${LAST_WORKING_SNAPSHOTS}" ]; then
-        for snap in ${LAST_WORKING_SNAPSHOTS}; do
-            if [ "${CURRENT_SNAPSHOT_ID}" -ne "${snap}" ] && [ "${BOOTED_SNAPSHOT_ID}" -ne "${snap}" ]; then
-                log_info "Adding cleanup algorithm to snapshot #${snap}"
-                snapper modify -c number "${snap}" | log_info
-                if [ "${PIPESTATUS[0]}" -ne 0 ]; then
-                    log_error "ERROR: cannot set cleanup algorithm for snapshot #${snap}"
-                fi
-                # If the old snapshot is read-write, we have already a mandatory snapshot and this one can deleted
-                # earlier. If not, mark is as important, so that it will not get deleted too fast.
-                if [ "${RO_ROOT}" == "true" ]; then
-                    log_info "Adding \"important=yes\" to snapshot #${snap}"
-                    snapper modify -u "important=yes" "${snap}" | log_info
-                    if [ "${PIPESTATUS[0]}" -ne 0 ]; then
-                        log_error "ERROR: cannot set \"important=yes for snapshot\" #${snap}"
-                    fi
-                fi
-            else
-                NEW_LIST="${snap} ${NEW_LIST}"
-            fi
-        done
-        LAST_WORKING_SNAPSHOTS="${NEW_LIST}"
-        save_state_file 0
-    fi
-
-    # Check for aborted transactional-updates (due to power outtage, killed
-    # process, forced shutdown or similar uncommon conditions).
-    # As snapper list output differs between versions search for the correct
-    # rows first
-    for snap in $(snapper --csvout list --columns number,userdata | grep 'transactional-update-in-progress=yes' | cut -d , -f 1); do
-        UNUSED_SNAPSHOTS="${UNUSED_SNAPSHOTS} ${snap}"
-    done
-
-    # Always try to cleanup all snapshots; only the current snapshot, the
-    # one which the system was booted from and some parts of the system
-    # may still use, and an eventual new default one needs to be kept.
-    if [ -n "${UNUSED_SNAPSHOTS}" ]; then
-        _new_unused=""
-        for snap in ${UNUSED_SNAPSHOTS}; do
-            # Don't mark our current in use snapshot for deletion
-            if [ "${snap}" -ne "${CURRENT_SNAPSHOT_ID}" ] && \
-                [ "${snap}" -ne "${BOOTED_SNAPSHOT_ID}" ] && \
-                [ "${snap}" -ne "${DEFAULT_SNAPSHOT_ID}" ]; then
-                log_info "Mark unused snapshot #${snap} for deletion"
-                snapper modify -c number "${snap}" | log_info
-                if [ "${PIPESTATUS[0]}" -ne 0 ]; then
-                    log_error "ERROR: cannot set cleanup algorithm for snapshot #${snap}"
-                    # Is the snapshot still available at all?
-                    if [ -e "/.snapshots/${snap}" ]; then
-                        # Keep the snapshot in the list
-                        _new_unused="${snap} ${_new_unused}"
-                    fi
-                fi
-            elif [ "${snap}" -ne "${CURRENT_SNAPSHOT_ID}" ] && [ "${snap}" -ne "${BOOTED_SNAPSHOT_ID}" ]; then
-                # This is the snapshot which is currently in use, so keep it in
-                # the list. We would probably never clean it up later otherwise.
-                _new_unused="${snap} ${_new_unused}"
-            fi
-        done
-        UNUSED_SNAPSHOTS="${_new_unused}"
-        save_state_file 0
-    fi
+    tukit cleanup | log_info
 fi
 
 if [ ${DO_CLEANUP_OVERLAYS} -eq 1 ]; then

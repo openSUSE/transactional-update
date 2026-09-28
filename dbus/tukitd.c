@@ -904,6 +904,18 @@ static int snapshot_delete(sd_bus_message *m, void *userdata, sd_bus_error *ret_
     return sd_bus_reply_method_return(m, "");
 }
 
+static int snapshot_cleanup(sd_bus_message *m, void *userdata, sd_bus_error *ret_error) {
+    int ret = 0;
+
+    fprintf(stdout, "Cleaning up unused snapshots...\n");
+    if ((ret = tukit_sm_cleanup()) < 0) {
+        sd_bus_error_set_const(ret_error, "org.opensuse.tukit.Error", tukit_get_errmsg());
+        return ret;
+    }
+
+    return sd_bus_reply_method_return(m, "");
+}
+
 static int snapshot_rollback(sd_bus_message *m, void *userdata, sd_bus_error *ret_error) {
     char *snapshot;
     const char* rollback_id;
@@ -972,6 +984,7 @@ static const sd_bus_vtable tukit_snapshot_vtable[] = {
     SD_BUS_VTABLE_START(0),
     SD_BUS_METHOD_WITH_ARGS("List", SD_BUS_ARGS("s", columns), SD_BUS_RESULT("aa{ss}", list), snapshot_list, 0),
     SD_BUS_METHOD_WITH_ARGS("Delete", SD_BUS_ARGS("s", snapshot), SD_BUS_NO_RESULT, snapshot_delete, 0),
+    SD_BUS_METHOD_WITH_ARGS("Cleanup", SD_BUS_NO_ARGS, SD_BUS_NO_RESULT, snapshot_cleanup, 0),
     SD_BUS_METHOD_WITH_ARGS("RollbackTo", SD_BUS_ARGS("s", snapshot), SD_BUS_RESULT("s", snapshot), snapshot_rollback, 0),
     SD_BUS_VTABLE_END
 };

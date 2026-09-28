@@ -180,6 +180,15 @@ void Snapper::setReadOnly(bool readonly) {
     }
 }
 
+void Snapper::cleanup(bool important) {
+    callSnapper("modify -c number " + snapshotId);
+    // If the old snapshot is read-write, we have already a mandatory snapshot and this one can deleted
+    // earlier. If not, mark is as important, so that it will not get deleted too fast.
+    if (isReadOnly() && important) {
+        callSnapper("modify -u 'important=yes' " + snapshotId);
+    }
+}
+
 /* Helper methods */
 
 std::string Snapper::callSnapper(std::string opts) {
