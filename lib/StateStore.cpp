@@ -12,8 +12,8 @@
 
 namespace TransactionalUpdate {
 
-StateStore::StateStore() {
-    econf_err error = econf_readFile(&key_file, config.get("STATE_FILE").c_str(), "=", "#");
+StateStore::StateStore(std::filesystem::path statefile) {
+    econf_err error = econf_readFile(&key_file, statefile.c_str(), "=", "#");
     if (error != ECONF_SUCCESS && error != ECONF_NOFILE) {
         throw std::runtime_error{"Couldn't read configuration file: " + std::string(econf_errString(error))};
     }
@@ -56,8 +56,7 @@ void StateStore::remove(const std::string &key, const std::string &pattern) {
     set(key, std::regex_replace(value, word_regex, ""));
 }
 
-void StateStore::persist(std::filesystem::path snapPath) {
-    std::filesystem::path statefile = config.get("STATE_FILE");
+void StateStore::persist(std::filesystem::path snapPath, std::filesystem::path statefile) {
     econf_err error = econf_writeFile(key_file, statefile.parent_path().c_str(), statefile.filename().c_str());
     if (error != ECONF_SUCCESS)
         throw std::runtime_error{"Could not write state file: " + std::string(econf_errString(error))};
@@ -65,10 +64,12 @@ void StateStore::persist(std::filesystem::path snapPath) {
     // Backwards compatibility for really old pre-2018 rw filesystem layouts where /var
     // was not a general subvolume yet; it seems read-write distributions didn't have
     // /var/lib/misc as a dedicated subvolume there.
-    Mount mntVar{"/var"};
-    Mount mntVarLibMisc{"/var/lib/misc"};
-    if (! mntVar.isMount() && ! mntVarLibMisc.isMount()) {
-        std::filesystem::copy(statefile, snapPath / statefile.relative_path());
+    if (! snapPath.empty()) {
+        Mount mntVar{"/var"};
+        Mount mntVarLibMisc{"/var/lib/misc"};
+        if (! mntVar.isMount() && ! mntVarLibMisc.isMount()) {
+            std::filesystem::copy(statefile, snapPath / statefile.relative_path());
+        }
     }
 }
 

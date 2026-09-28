@@ -18,7 +18,7 @@ namespace TransactionalUpdate {
 
 class StateStore {
 public:
-    StateStore();
+    StateStore(std::filesystem::path statefile = config.get("STATE_FILE"));
     virtual ~StateStore();
     StateStore(const StateStore&) = delete;
     void operator=(const StateStore&) = delete;
@@ -27,7 +27,7 @@ public:
     void set(const std::string &key, const std::string &value);
     void add(const std::string &key, std::string addition);
     void remove(const std::string &key, const std::string &pattern);
-    void persist(std::filesystem::path snapshot);
+    void persist(std::filesystem::path snapshot="", std::filesystem::path statefile = config.get("STATE_FILE"));
 private:
     void store();
     econf_file *key_file;
