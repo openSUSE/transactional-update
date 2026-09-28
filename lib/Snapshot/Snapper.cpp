@@ -89,20 +89,6 @@ std::deque<std::map<std::string, std::string>> Snapper::getList(std::string colu
     return snapshotList;
 }
 
-/* Snapshot methods */
-
-void Snapper::close() {
-    callSnapper("modify --userdata 'transactional-update-in-progress=' " + snapshotId);
-}
-
-void Snapper::abort() {
-    callSnapper("delete " + snapshotId);
-}
-
-std::filesystem::path Snapper::getRoot() {
-    return std::filesystem::path(snapshotsDir() / snapshotId / "snapshot");
-}
-
 std::string Snapper::getCurrent() {
     std::smatch match;
 
@@ -141,6 +127,20 @@ std::string Snapper::rollback(std::string id) {
     snapshotId = snapshotId.substr(0, snapshotId.rfind('.'));
     Util::rtrim(snapshotId);
     return snapshotId;
+}
+
+/* Snapshot methods */
+
+void Snapper::close() {
+    callSnapper("modify --userdata 'transactional-update-in-progress=' " + snapshotId);
+}
+
+void Snapper::abort() {
+    callSnapper("delete " + snapshotId);
+}
+
+std::filesystem::path Snapper::getRoot() {
+    return std::filesystem::path(snapshotsDir() / snapshotId / "snapshot");
 }
 
 bool Snapper::isInProgress() {
