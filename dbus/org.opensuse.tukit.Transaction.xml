@@ -459,7 +459,7 @@
     <doc:description>
      <doc:para>
       Identical to
-      <doc:ref type="method" to="Transaction.OpenWithOpts">OpenWithOpts</doc:ref>,
+      <doc:ref type="method" to="Transaction.CloseWithOpts">CloseWithOpts</doc:ref>,
       but doesn't allow setting any options.
      </doc:para>
     </doc:description>
