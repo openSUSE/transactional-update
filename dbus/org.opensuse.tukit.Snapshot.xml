@@ -213,6 +213,33 @@
    </doc:summary></doc:doc>
    </arg>
   </method>
+  <method name="Delete">
+   <doc:doc>
+    <doc:description>
+     <doc:para>
+      Deletes the given snapshot.
+     </doc:para>
+     <doc:para>
+      Deletion may fail if the snapshot is still in use, e.g. if it is the currently
+      running or the default snapshot; use
+      <doc:ref type="method" to="Snapshot.List">List</doc:ref> with the
+      <doc:tt>active</doc:tt> and <doc:tt>default</doc:tt> columns to check beforehand.
+     </doc:para>
+     <doc:para>
+      Example:
+     </doc:para>
+     <doc:example language="shell" title="Delete a snapshot">
+      <doc:code>busctl call org.opensuse.tukit /org/opensuse/tukit/Snapshot org.opensuse.tukit.Snapshot Delete "s" "420"</doc:code>
+     </doc:example>
+    </doc:description>
+    <doc:errors>
+     <doc:error name="org.opensuse.tukit.Error">if an error occured.</doc:error>
+    </doc:errors>
+   </doc:doc>
+   <arg type="s" name="snapshot" direction="in">
+    <doc:doc><doc:summary>The id of the snapshot to delete.</doc:summary></doc:doc>
+   </arg>
+  </method>
   <method name="Cleanup">
    <doc:doc>
     <doc:description>
