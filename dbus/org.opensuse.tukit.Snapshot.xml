@@ -264,5 +264,36 @@
     </doc:errors>
    </doc:doc>
   </method>
+  <method name="RollbackTo">
+   <doc:doc>
+    <doc:description>
+     <doc:para>
+      Sets the given snapshot as the new default snapshot, i.e. the system will boot
+      into that snapshot on next reboot.
+     </doc:para>
+     <doc:para>
+      On some systems (e.g. snapper with a read-write root file system) the snapshot
+      may be a new copy of the snapshot to be rolled back to, so the new default
+      snapshot number may differ from the given one.
+     </doc:para>
+     <doc:para>
+      Example:
+     </doc:para>
+     <doc:example language="shell" title="Roll back to a snapshot">
+      <doc:code>busctl call org.opensuse.tukit /org/opensuse/tukit/Snapshot org.opensuse.tukit.Snapshot RollbackTo "s" "420"</doc:code>
+     </doc:example>
+    </doc:description>
+    <doc:errors>
+     <doc:error name="org.opensuse.tukit.Error">if an error occured.</doc:error>
+    </doc:errors>
+   </doc:doc>
+   <arg type="s" name="snapshot" direction="in">
+    <doc:doc><doc:summary>Requires the id of the snapshot to roll back to.</doc:summary></doc:doc>
+   </arg>
+   <arg type="s" name="snapshot" direction="out">
+    <doc:doc><doc:summary>Returns the id of the new default snapshot; this may differ from
+     the given snapshot id, see the description above.</doc:summary></doc:doc>
+   </arg>
+  </method>
  </interface>
 </node>
