@@ -80,7 +80,7 @@
         <listitem>
           <para>
             Lock file path for tukit. By default it is
-            <literal>/var/run/tukit.lock</literal>.
+            <literal>/run/tukit.lock</literal>.
           </para>
         </listitem>
       </varlistentry>

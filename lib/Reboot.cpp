@@ -94,7 +94,7 @@ Reboot::Reboot(std::string method) {
         }
     } else if (method == "kured") {
         tulog.info("Triggering reboot using kured.");
-        command  = "touch /var/run/reboot-required";
+        command  = "touch /run/reboot-required";
     } else if (method == "none") {
         tulog.info("Reboots are disabled.");
         command  = "true;";

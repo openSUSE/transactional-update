@@ -56,7 +56,7 @@ IS_BLS=""
 
 CONFFILE="${TU_CONFFILE:-@sysconfdir@/transactional-update.conf}"
 CONFFILESYSTEM="${TU_CONFFILESYSTEM:-@prefix@@sysconfdir@/transactional-update.conf}"
-LOCKFILE="${TU_LOCKFILE:-/var/run/transactional-update.pid}"
+LOCKFILE="${TU_LOCKFILE:-/run/transactional-update.pid}"
 LOGFILE="${TU_LOGFILE:-/var/log/transactional-update.log}"
 NEEDS_RESTARTING_FILE="${TU_NEEDS_RESTARTING_FILE:-/run/reboot-needed}"
 STATE_FILE="${TU_STATE_FILE:-/var/lib/misc/transactional-update.state}"

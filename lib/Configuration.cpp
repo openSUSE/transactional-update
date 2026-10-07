@@ -22,7 +22,7 @@ Configuration::Configuration() {
         throw std::runtime_error{"Could not create default configuration."};
     std::map<const char*, const char*> defaults = {
         {"DRACUT_SYSROOT", "/sysroot"},
-        {"LOCKFILE", "/var/run/tukit.lock"},
+        {"LOCKFILE", "/run/tukit.lock"},
         {"STATE_FILE", "/var/lib/misc/transactional-update.state"},
         {"TMP_STATE_FILE", "/run/transactional-update.state"},
         {"REBOOT_ALLOW_SOFT_REBOOT", "true"},
