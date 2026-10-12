@@ -12,11 +12,13 @@ setup() {
 	snapdir="${TESTDIR}/snapshots"
 	lockfile="${TESTDIR}/tukit.lock"
 	statefile="${TESTDIR}/transactional-update.state"
+	tmpstatefile="${TESTDIR}/run-transactional-update.state"
 	extraunsharemounts=""
 
 	# Options redirecting all system-wide paths into the test's temp directory
 	tuopts=(-o SNAPSHOT_MANAGER=directory -o SNAPSHOTS_DIR="${snapdir}"
-		-o LOCKFILE="${lockfile}" -o STATE_FILE="${statefile}" -o MOUNT_DEV=false)
+		-o LOCKFILE="${lockfile}" -o STATE_FILE="${statefile}"
+		-o TMP_STATE_FILE="${tmpstatefile}" -o MOUNT_DEV=false)
 }
 
 setup_file() {
