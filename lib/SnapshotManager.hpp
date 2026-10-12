@@ -20,6 +20,7 @@
 namespace TransactionalUpdate {
 
 class Snapshot;
+class StateStore;
 
 /**
  * @brief The SnapshotManager class is an abstract class and may return different implementations, though
@@ -81,7 +82,7 @@ public:
 protected:
     virtual std::string rollback(std::string id) = 0;
 private:
-    void cleanupSnap(std::string snapid, bool important, std::string statevar);
+    void cleanupSnap(StateStore &state, std::string snapid, bool important, std::string statevar);
 };
 
 class SnapshotFactory {

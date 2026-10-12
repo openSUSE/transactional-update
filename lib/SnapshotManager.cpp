@@ -42,7 +42,7 @@ unique_ptr<SnapshotManager> SnapshotFactory::get() {
     }
 }
 
-void SnapshotManager::cleanupSnap(std::string snapid, bool important, std::string statevar) {
+void SnapshotManager::cleanupSnap(StateStore &state, std::string snapid, bool important, std::string statevar) {
     StateStore tmpState = StateStore(config.get("TMP_STATE_FILE"));
     if (snapid != getCurrent() && snapid != tmpState.get("LAST_BOOTED") && snapid != getDefault()) {
         try {
@@ -65,23 +65,24 @@ void SnapshotManager::cleanupSnap(std::string snapid, bool important, std::strin
 
 void SnapshotManager::cleanup() {
     string snapshot;
+    StateStore state{};
 
     stringstream wsnapshots(state.get("LAST_WORKING_SNAPSHOTS"));
     state.set("LAST_WORKING_SNAPSHOTS", "");
     while (wsnapshots >> snapshot) {
-        cleanupSnap(snapshot, true, "LAST_WORKING_SNAPSHOTS");
+        cleanupSnap(state, snapshot, true, "LAST_WORKING_SNAPSHOTS");
     }
 
     stringstream usnapshots(state.get("UNUSED_SNAPSHOTS"));
     state.set("UNUSED_SNAPSHOTS", "");
     while (usnapshots >> snapshot) {
-        cleanupSnap(snapshot, false, "UNUSED_SNAPSHOTS");
+        cleanupSnap(state, snapshot, false, "UNUSED_SNAPSHOTS");
     }
 
     if ((typeid(*this) == typeid(Snapper)) || (typeid(*this) == typeid(Podman))) {
         stringstream psnapshots(Util::exec("snapper --csvout list --columns number,userdata | grep 'transactional-update-in-progress=yes' | cut -d , -f 1"));
         while (psnapshots >> snapshot) {
-            cleanupSnap(snapshot, false, "");
+            cleanupSnap(state, snapshot, false, "");
         }
     }
 
@@ -90,6 +91,7 @@ void SnapshotManager::cleanup() {
 
 string SnapshotManager::rollbackTo(std::string id) {
     std::string newDefaultId = rollback(id);
+    StateStore state{};
     if (! state.contains("LAST_WORKING_SNAPSHOTS", newDefaultId)) {
         auto snapshot = open(id);
         state.add("UNUSED_SNAPSHOTS", newDefaultId);

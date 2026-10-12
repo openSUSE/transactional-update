@@ -14,7 +14,9 @@ namespace TransactionalUpdate {
 
 StateStore::StateStore(std::filesystem::path statefile) {
     econf_err error = econf_readFile(&key_file, statefile.c_str(), "=", "#");
-    if (error != ECONF_SUCCESS && error != ECONF_NOFILE) {
+    if (error == ECONF_NOFILE) {
+        econf_newKeyFile(&key_file, '=', '#');
+    } else if (error != ECONF_SUCCESS) {
         throw std::runtime_error{"Couldn't read configuration file: " + std::string(econf_errString(error))};
     }
 }

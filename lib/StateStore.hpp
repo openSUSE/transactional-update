@@ -33,8 +33,6 @@ private:
     econf_file *key_file;
 };
 
-inline StateStore state{};
-
 } // namespace TransactionalUpdate
 
 #endif // T_U_STATESTORE_H
