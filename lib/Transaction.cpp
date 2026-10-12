@@ -157,7 +157,8 @@ void Transaction::impl::snapMount() {
     if (mntVar.isMount()) {
         if (fs::is_directory("/var/lib/zypp"))
             dirsToMount.push_back(std::make_unique<BindMount>("/var/lib/zypp"));
-        dirsToMount.push_back(std::make_unique<BindMount>("/var/lib/ca-certificates"));
+        if (fs::is_directory("/var/lib/ca-certificates"))
+            dirsToMount.push_back(std::make_unique<BindMount>("/var/lib/ca-certificates"));
         if (fs::is_directory("/var/lib/alternatives"))
             dirsToMount.push_back(std::make_unique<BindMount>("/var/lib/alternatives"));
         if (fs::is_directory("/var/lib/selinux"))
