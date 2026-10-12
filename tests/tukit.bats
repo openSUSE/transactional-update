@@ -150,7 +150,7 @@ getid() {
 	[[ -z "${lines[2]}" ]]
 }
 
-@test "Open with --discard and close without any changes" {
+@test "tukit --discard open (without changes)" {
 	tukit --discard open && getid
 	tukit close "${NEWID}"
 
@@ -158,7 +158,7 @@ getid() {
 	[ ! -e "${snapdir}/${NEWID}" ]
 }
 
-@test "Create file in rootfs with --discard (rw)" {
+@test "tukit --discard open (with changes) (rw)" {
 	tukit -c1 --discard open && getid
 	tukit callext "${NEWID}" touch "{}/usr/file1.txt"
 	tukit close "${NEWID}"
@@ -167,7 +167,7 @@ getid() {
 	[ -e "${snapdir}/${NEWID}/snapshot/usr/file1.txt" ]
 }
 
-@test "Delete file in /etc with --discard (rw)" {
+@test "tukit --discard open (delete file in /etc) (rw)" {
 	tukit --discard open && getid
 	tukit callext "${NEWID}" rm "{}/etc/file1.txt"
 	tukit close "${NEWID}"
@@ -180,7 +180,7 @@ getid() {
 	[ -e "${snapdir}/${NEWID}/snapshot" ]
 }
 
-@test "Create file in /etc after apply with --discard" {
+@test "tukit --discard open (with changes, after apply) (rw)" {
 	extraunsharemounts="mount --bind /etc /etc;"
 	tukit -c1 --discard open && getid
 	tukit callext "${NEWID}" touch "{}/etc/file1.txt"
@@ -204,7 +204,7 @@ getid() {
 	echo -n "${NEWID}" > "${snapdir}/current"
 }
 
-@test "Delete file in /etc with --discard (ro)" {
+@test "tukit --discard open (delete file in /etc) (ro)" {
 	extraunsharemounts="mount --bind /etc /etc;"
 	tukit --discard open && getid
 	tukit callext "${NEWID}" rm "{}/etc/file1.txt"
@@ -226,7 +226,7 @@ getid() {
 	[[ "${output}" == *" delete_file: "*" failed: Permission denied"* ]]
 }
 
-@test "Create file in /etc after apply with --discard (ro)" {
+@test "tukit --discard open (with changes, after apply) (ro)" {
 	extraunsharemounts="mount --bind /etc /etc;"
 	tukit open && getid
 	BASEID="${NEWID}"
