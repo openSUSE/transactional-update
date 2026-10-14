@@ -90,8 +90,15 @@ void SnapshotManager::cleanup() {
 }
 
 string SnapshotManager::rollbackTo(std::string id) {
-    std::string newDefaultId = rollback(id);
     StateStore state{};
+    if (id == "last") {
+        std::string lwsnapshots = state.get("LAST_WORKING_SNAPSHOTS");
+        id = lwsnapshots.substr(lwsnapshots.find_last_of(" ") + 1);
+        if (id.empty()) {
+            throw std::runtime_error{"No last working snapshot saved; please select a snapshot manually."};
+        }
+    }
+    std::string newDefaultId = rollback(id);
     if (! state.contains("LAST_WORKING_SNAPSHOTS", newDefaultId)) {
         auto snapshot = open(id);
         state.add("UNUSED_SNAPSHOTS", newDefaultId);

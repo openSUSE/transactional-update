@@ -59,7 +59,6 @@ CONFFILESYSTEM="${TU_CONFFILESYSTEM:-@prefix@@sysconfdir@/transactional-update.c
 LOCKFILE="${TU_LOCKFILE:-/run/transactional-update.pid}"
 LOGFILE="${TU_LOGFILE:-/var/log/transactional-update.log}"
 NEEDS_RESTARTING_FILE="${TU_NEEDS_RESTARTING_FILE:-/run/reboot-needed}"
-STATE_FILE="${TU_STATE_FILE:-/var/lib/misc/transactional-update.state}"
 TMP_STATE_FILE="${TU_TMP_STATE_FILE:-/run/transactional-update.state}"
 TMPDIR="${TMPDIR:-/tmp}"
 
@@ -271,13 +270,6 @@ bashlock() {
     trap 'rm -f "$LOCKFILE"' EXIT
 
     return 0
-}
-
-# These two variables are maintaned by libtukit. The only exception is the
-# cleanup part where tukit is not called.
-save_state_file() {
-    echo "LAST_WORKING_SNAPSHOTS=\"${LAST_WORKING_SNAPSHOTS}\"" > "${STATE_FILE}"
-    echo "UNUSED_SNAPSHOTS=\"${UNUSED_SNAPSHOTS}\"" >>  "${STATE_FILE}"
 }
 
 save_tmp_state() {
@@ -898,10 +890,7 @@ else
     REBOOT_LEVEL_PREV=none
 fi
 
-# Load old state file
-if [ -f "${STATE_FILE}" ]; then
-    . "${STATE_FILE}"
-fi
+# Load runtime state file
 if [ -f "${TMP_STATE_FILE}" ]; then
     . "${TMP_STATE_FILE}"
 fi
@@ -963,13 +952,7 @@ fi
 if [ ${DO_ROLLBACK} -eq 1 ]; then
     NEED_REBOOT=1
 
-    if [ "${ROLLBACK_SNAPSHOT}" = "last" ]; then
-        if [ -n "${LAST_WORKING_SNAPSHOTS}" ]; then
-            ROLLBACK_SNAPSHOT=${LAST_WORKING_SNAPSHOTS%% *}
-        else
-            log_error "No last working snapshot saved; please use 'snapper list' for manual selection"
-        fi
-    elif [ "${ROLLBACK_SNAPSHOT}" -eq 0 ] || [ "${ROLLBACK_SNAPSHOT}" -eq "${CURRENT_SNAPSHOT_ID}" ]; then
+    if [ "${ROLLBACK_SNAPSHOT}" -eq 0 ] || [ "${ROLLBACK_SNAPSHOT}" -eq "${CURRENT_SNAPSHOT_ID}" ]; then
         ROLLBACK_SNAPSHOT=${CURRENT_SNAPSHOT_ID}
         NEED_REBOOT=0
     fi
@@ -1052,12 +1035,6 @@ if [ -n "${ZYPPER_ARG}" ] || [ ${REWRITE_GRUB_CFG} -eq 1 ] \
     fi
     SNAPSHOT_DIR="/.snapshots/${SNAPSHOT_ID}/snapshot"
     set_reboot_level "${REBOOT_ASSOCS[${BASE_SNAPSHOT_ID}]:-none}"
-
-    # Remember all snapshots we create for update. If transactional-update is
-    # run several times before a reboot, we need to clean up the unused
-    # snapshots, otherwise we would have a big disk space leak. But don't store
-    # it on disk yet, in error case we would delete the snapshot again.
-    UNUSED_SNAPSHOTS="${SNAPSHOT_ID} ${UNUSED_SNAPSHOTS}"
 
     if [ ${DO_REGISTRATION} -eq 1 ]; then
         tukit ${TUKIT_OPTS} callext "${SNAPSHOT_ID}" SUSEConnect --root {} ${REGISTRATION_ARGS} | log_info -o
