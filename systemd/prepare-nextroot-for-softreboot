@@ -17,7 +17,7 @@ snapper --no-dbus --csvout list --columns default,active | grep -q 'yes,yes' && 
 
 # Mount default subvolume into /run/nextroot
 mkdir -p /run/nextroot
-findmnt --noheadings / | awk '{ sub("subvol=/@/[^,]*", "", $4); sub("subvolid=[^,]*", "", $4); sub("\\[.*\\]", "", $2); system("mount -o \x27" $4 "\x27 " $2 " /run/nextroot") }'
+findmnt --noheadings / | awk '{ sub("subvol=/[^,]*", "", $4); sub("subvolid=[^,]*", "", $4); sub("\\[.*\\]", "", $2); system("mount -o \x27" $4 "\x27 " $2 " /run/nextroot") }'
 
 # Perform all mounts marked with x-initrd.mount inside /run/nextroot
 awk '$1 !~ /^#/ && $4 !~ /(\<|,)bind(\>|,)/ && $4 ~ /(\<|,)x-initrd\.mount(\>|,)/ {

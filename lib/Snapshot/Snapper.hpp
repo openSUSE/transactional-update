@@ -11,6 +11,7 @@
 #include "SnapshotManager.hpp"
 #include "Snapshot.hpp"
 #include <filesystem>
+#include <set>
 #include <string>
 
 namespace TransactionalUpdate {
@@ -40,6 +41,8 @@ public:
     void rollbackTo(std::string id) override;
 private:
     std::string callSnapper(std::string);
+    std::set<std::string> openTransactions(const std::string &description);
+    void removeLeftovers(const std::string &description, const std::set<std::string> &before);
 };
 
 } // namespace TransactionalUpdate

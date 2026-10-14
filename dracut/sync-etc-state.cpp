@@ -195,10 +195,11 @@ bool copy_xattrs(filesystem::path ref, filesystem::path target) {
     return true;
 }
 
-int main(int argc, const char* argv[])
+static int run(int argc, const char* argv[])
 {
     bool dry_run = false;
     bool keep_syncpoint = false;
+    int errors = 0;
     int argpos = 1;
     filesystem::path syncpoint = "/etc/etc.syncpoint";
     filesystem::path currentdir = "/etc";
@@ -284,11 +285,16 @@ int main(int argc, const char* argv[])
                 DIFFTOCURRENT.emplace(dir_entry, SYNC_ACTIONS::DELETE);
                 if (filesystem::is_directory(currentdir / dir_entry)) {
                     // If some file was changed or added within that directory in the new snapshot, then don't delete dir.
-                    // First retrieve the lexicographically closest entry, then delete anything starting with that name.
-                    auto potentialContains = DIFFTOCURRENT.lower_bound(dir_entry);
-                    while (potentialContains->first.native().rfind(dir_entry.path().native(), 0) == 0) {
-                        DIFFTOCURRENT[dir_entry] = SYNC_ACTIONS::SKIP;
-                        potentialContains++;
+                    // The entries below a directory directly follow it in the map, so start behind the directory
+                    // itself and look at everything starting with "<dir>/" (and not at "<dir>2", for example).
+                    const std::string prefix = dir_entry.path().native() + "/";
+                    for (auto contained = DIFFTOCURRENT.upper_bound(dir_entry);
+                            contained != DIFFTOCURRENT.end() && contained->first.native().compare(0, prefix.size(), prefix) == 0;
+                            ++contained) {
+                        if (contained->second != SYNC_ACTIONS::DELETE) {
+                            DIFFTOCURRENT[dir_entry] = SYNC_ACTIONS::SKIP;
+                            break;
+                        }
                     }
                 }
             }
@@ -325,6 +331,10 @@ int main(int argc, const char* argv[])
     // Process generated list
     if (!dry_run) {
         for(auto it = DIFFTOCURRENT.begin(); it != DIFFTOCURRENT.end(); ++it) {
+            // A file that can not be copied or deleted (e.g. denied by the
+            // SELinux policy) must not abort the whole run with an uncaught
+            // exception: report it, carry on and fail at the end.
+            try {
             if (it->second == SYNC_ACTIONS::RECURSIVE_SKIP) {
                 auto potentialContains = DIFFTOCURRENT.lower_bound(it->first);
                 if (it->first != potentialContains->first) {
@@ -395,6 +405,17 @@ int main(int argc, const char* argv[])
 
                 copy_xattrs(parentdir / it->first, currentdir / it->first);
             }
+            } catch (const filesystem::filesystem_error &e) {
+                cerr << "Error while processing " << it->first << ": " << e.what() << endl;
+                errors++;
+            }
+        }
+
+        if (errors > 0) {
+            // Keep the syncpoint, so that it is still possible to see what
+            // has not been synced.
+            cerr << errors << " file(s) could not be synced." << endl;
+            return 1;
         }
 
         if (!keep_syncpoint) {
@@ -403,4 +424,16 @@ int main(int argc, const char* argv[])
     }
 
     return 0;
+}
+
+int main(int argc, const char* argv[])
+{
+    // Everything else (e.g. a directory that can not be read) ends up here
+    // instead of in std::terminate().
+    try {
+        return run(argc, argv);
+    } catch (const exception &e) {
+        cerr << "Error: " << e.what() << endl;
+        return 1;
+    }
 }

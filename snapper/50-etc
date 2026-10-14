@@ -2,6 +2,11 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 # SPDX-FileCopyrightText: Copyright SUSE LLC
 
+# Path of the .snapshots subvolume as listed by "btrfs subvolume list", i.e.
+# including the optional name of the parent subvolume ("@/" on openSUSE,
+# but other distributions use different names or none at all).
+SNAPSHOTS_RE='([^ ]*/)?\.snapshots'
+
 make_sure_snapshot_is_writable() {
   isRO="$(btrfs property get "/.snapshots/${snapshot}/snapshot/" ro)"
   if [ "${isRO}" = "ro=true" ]; then
@@ -21,7 +26,7 @@ create_reference_etc() {
   fi
   # Syncing is only necessary when the snapshot is based on the currently running system.
   # "Current" means the snapshot number of the currently running /usr
-  current="$(findmnt --target /usr --raw --noheadings --output FSROOT | tail -n 1 | cut -d '/' -f 4)"
+  current="$(findmnt --target /usr --raw --noheadings --output FSROOT | tail -n 1 | sed -n 's;.*/\.snapshots/\([^/]*\)/snapshot.*;\1;p')"
 
   # If the parent snapshot was created from the running system, perform a sync now and use the current running /etc as syncpoint
   if [ -e "/.snapshots/${parent}/snapshot/etc/etc.syncpoint/transactional-update.comparewith" ] \
@@ -46,16 +51,16 @@ create_snapshot_post() {
   snapshot="${1}"
 
   # "Parent UUID" means which parent this snapshot was created from
-  parentuuid="$(btrfs subvolume list -q / | grep -E " path @/.snapshots/${snapshot}/snapshot"$ | cut -f 9 -d ' ')"
+  parentuuid="$(btrfs subvolume list -q / | grep -E " path ${SNAPSHOTS_RE}/${snapshot}/snapshot"$ | cut -f 9 -d ' ')"
   # "Parent" is the number of the parent snapshot (as shown by snapper)
-  parent="$(btrfs subvolume list -u / | grep " uuid ${parentuuid} " | cut -f 9- -d ' ' | cut -f 3 -d '/')"
+  parent="$(btrfs subvolume list -u / | grep " uuid ${parentuuid} " | cut -f 9- -d ' ' | sed -n 's;.*\.snapshots/\([^/]*\)/snapshot.*;\1;p')"
   # "Parent ID" means the parent subvolume in the file system tree
-  parentid="$(btrfs subvolume list / | grep -E " path @/.snapshots/${parent}/snapshot"$ | cut -f 2 -d ' ')"
+  parentid="$(btrfs subvolume list / | grep -E " path ${SNAPSHOTS_RE}/${parent}/snapshot"$ | cut -f 2 -d ' ')"
 
   make_sure_snapshot_is_writable
 
   rm -rf "/.snapshots/${snapshot}/snapshot/etc"
-  if btrfs subvolume list / | grep -Eq " top level ${parentid} path (@/.snapshots/${parent}/snapshot/)?etc"; then
+  if btrfs subvolume list / | grep -Eq " top level ${parentid} path (${SNAPSHOTS_RE}/${parent}/snapshot/)?etc"; then
     btrfs subvolume snapshot "/.snapshots/${parent}/snapshot/etc" "/.snapshots/${snapshot}/snapshot/etc"
     create_reference_etc
   else
@@ -93,9 +98,9 @@ delete_snapshot_pre() {
   snapshot="${1}"
 
   # Only operate on snapshots with /etc as subvolume
-  if btrfs subvolume list / | grep -q " @/.snapshots/${snapshot}/snapshot/etc"; then
+  if btrfs subvolume list / | grep -Eq " path ${SNAPSHOTS_RE}/${snapshot}/snapshot/etc"; then
     make_sure_snapshot_is_writable
-    if btrfs subvolume list / | grep -q " @/.snapshots/${snapshot}/snapshot/etc/etc.syncpoint"; then
+    if btrfs subvolume list / | grep -Eq " path ${SNAPSHOTS_RE}/${snapshot}/snapshot/etc/etc.syncpoint"; then
       btrfs subvolume delete "/.snapshots/${snapshot}/snapshot/etc/etc.syncpoint"
     fi
     btrfs subvolume delete "/.snapshots/${snapshot}/snapshot/etc"

@@ -7,8 +7,10 @@
 
 #include "Snapper.hpp"
 #include "Exceptions.hpp"
+#include "Log.hpp"
 #include "Util.hpp"
 #include <regex>
+#include <set>
 
 namespace TransactionalUpdate {
 
@@ -17,7 +19,25 @@ namespace TransactionalUpdate {
 std::unique_ptr<Snapshot> Snapper::create(std::string base, std::string description) {
     if (! std::filesystem::exists("/.snapshots/" + base + "/snapshot"))
         throw std::invalid_argument{"Base snapshot '" + base + "' does not exist."};
-    snapshotId = callSnapper("create --from " + base + " --read-write --cleanup-algorithm number --print-number --description '" + description + "' --userdata 'transactional-update-in-progress=yes'");
+
+    // snapper creates the snapshot before its plugins run, so a failing plugin
+    // makes the call fail with the snapshot already in place, and nobody has
+    // its number. Remember the open transactions to find it again.
+    std::set<std::string> openBefore;
+    bool canCleanUp = true;
+    try {
+        openBefore = openTransactions(description);
+    } catch (const std::exception &) {
+        canCleanUp = false;
+    }
+
+    try {
+        snapshotId = callSnapper("create --from " + base + " --read-write --cleanup-algorithm number --print-number --description '" + description + "' --userdata 'transactional-update-in-progress=yes'");
+    } catch (const ExecutionException &e) {
+        if (canCleanUp)
+            removeLeftovers(description, openBefore);
+        throw;
+    }
     Util::rtrim(snapshotId);
     return std::make_unique<Snapper>(snapshotId);
 }
@@ -173,6 +193,35 @@ void Snapper::setReadOnly(bool readonly) {
 }
 
 /* Helper methods */
+
+// Numbers of the open transactions with this description
+std::set<std::string> Snapper::openTransactions(const std::string &description) {
+    std::set<std::string> ids;
+    for (const auto &snap : getList("number,description,userdata")) {
+        auto number = snap.find("number");
+        auto desc = snap.find("description");
+        auto userdata = snap.find("userdata");
+        if (number == snap.end() || desc == snap.end() || userdata == snap.end())
+            continue;
+        if (desc->second == description && userdata->second.find("transactional-update-in-progress=yes") != std::string::npos)
+            ids.insert(number->second);
+    }
+    return ids;
+}
+
+// Delete the snapshots that appeared since "before", after a failed creation
+void Snapper::removeLeftovers(const std::string &description, const std::set<std::string> &before) {
+    try {
+        for (const auto &id : openTransactions(description)) {
+            if (before.count(id))
+                continue;
+            tulog.info("Removing snapshot " + id + ", which was left behind by the failed snapshot creation.");
+            callSnapper("delete " + id);
+        }
+    } catch (const std::exception &e) {
+        tulog.info("WARNING: Could not remove the snapshot left behind by the failed snapshot creation: ", e.what());
+    }
+}
 
 std::string Snapper::callSnapper(std::string opts) {
     std::string output;
