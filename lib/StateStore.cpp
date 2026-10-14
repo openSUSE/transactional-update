@@ -59,6 +59,7 @@ void StateStore::remove(const std::string &key, const std::string &pattern) {
 }
 
 void StateStore::persist(std::filesystem::path snapPath, std::filesystem::path statefile) {
+    std::filesystem::create_directories(statefile.parent_path());
     econf_err error = econf_writeFile(key_file, statefile.parent_path().c_str(), statefile.filename().c_str());
     if (error != ECONF_SUCCESS)
         throw std::runtime_error{"Could not write state file: " + std::string(econf_errString(error))};
