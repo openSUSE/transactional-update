@@ -2,6 +2,46 @@ transactional-update NEWS -- history of user-visible changes.
 
 Copyright (C) 2016-2025 Thorsten Kukuk, Ignaz Forster et al.
 
+Version 6.2.0 (2026-10-15)
+* Make cleanup management meaningful again by moving it into the
+  tukit core; with snapper no cleanup algorithm will be set any
+  more when creating a new snapshot, only after explicitly
+  calling 'cleanup' (like it used to work before); this avoids
+  some border cases where snapshots may have been deleted while
+  still in use
+* State to be preserved over multiple runs stays in
+  /var/lib/misc/transactional-update.state, volatile state only
+  relevant for the current run (e.g. which reboot method would
+  be required to boot that snapshot) is now stored in
+  /run/transactional-update.state
+* API: Return snapshot number on rollback - on some systems one
+  may get a new snapshot as a copy of the rollback
+* snapper: Fix duplicate overlay mount during migration
+  [bsc#1272529]
+* tukit: Use fstab entry to determine ro/rw status to support
+  switching back and forth between them in the future
+* tukit: Add 'directory' SnapshotManager implementation: Intended
+  for testing purposes, doesn't require root permissions
+* tests: Use this 'directory' implementation to add unit tests
+  for tukit
+* t-u: Fix reboot level handling when continuing snapshots
+* tukit: Make snapshots directory configurable
+* tukit: More detailed error messages
+* tukit: Fix incomplete help for --options parameter
+* tukit: Ignore errors on unmount of different namespaces
+* tukit: Use /etc mount information of snapshot for syncing
+* tukit: Fix wrong file system type for old overlayfs check
+* tukit: Create /var/lib/misc if it doesn't exist
+* tukitd: Formally require root perms for Snapshot D-Bus calls
+* create_dirs_from_rpmdb: Explicitly chown created directories
+* all: Consistently use /run instead of /var/run
+* doc: Add missing doc files to dist package
+* doc: Fix wrong example DBus call
+* doc: Add missing 'Delete' D-Bus interface description
+* doc: Add missing 'RollbackTo' D-Bus interface description
+* doc: Fix wrong reference in 'Close' D-Bus interface
+* all: Some code cleanup
+
 Version 6.1.3 (2026-07-20)
 * libtukit: Properly initialize econf_file
 
