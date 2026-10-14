@@ -458,3 +458,34 @@ debug() {
 #	mv existing_dir_for_move aftersnap_new_existing_location
 #	mv insnap_dir_for_move aftersnap_new_insnap_location
 #fi
+
+@test "A file that can not be written must be reported, not abort the run" {
+	if [ "$(id -u)" = 0 ]; then
+		skip "root is not subject to file permissions"
+	fi
+
+	mkdir "${mockdir_old_etc}/sub" "${mockdir_new_etc}/sub" "${mockdir_syncpoint}/sub"
+	FILES=(sub/denied.txt sub/writable.txt)
+	for dir in "${mockdir_old_etc}" "${mockdir_new_etc}" "${mockdir_syncpoint}"; do
+		createFilesIn "${dir}" "${FILES[@]}"
+	done
+	syncTimestamps "${mockdir_old_etc}"/sub/* "${mockdir_new_etc}"/sub/* "${mockdir_syncpoint}"/sub/*
+
+	# Changed in the old snapshot only, so it has to be copied. The
+	# destination (and its reference) can not be overwritten.
+	chmod 444 "${mockdir_new_etc}/sub/denied.txt" "${mockdir_syncpoint}/sub/denied.txt"
+	echo "changed" > "${mockdir_old_etc}/sub/denied.txt"
+	echo "changed" > "${mockdir_old_etc}/sub/writable.txt"
+	touch -d "-5 seconds" "${mockdir_old_etc}/sub/denied.txt" "${mockdir_old_etc}/sub/writable.txt"
+
+	run $totest "${mockdir_old_etc}" "${mockdir_new_etc}" "${mockdir_syncpoint}"
+	echo "# Output: ${output}"
+
+	# No std::terminate (SIGABRT), but an error status and a message
+	[ "${status}" -eq 1 ]
+	[[ "${output}" == *"could not be synced"* ]]
+	# The files that can be written are synced nevertheless...
+	[ "$(cat "${mockdir_new_etc}/sub/writable.txt")" = "changed" ]
+	# ...and the syncpoint is kept
+	[ -e "${mockdir_syncpoint}/sub/denied.txt" ]
+}
