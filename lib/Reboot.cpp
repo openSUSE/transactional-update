@@ -72,18 +72,34 @@ Reboot::Reboot(std::string method) {
             auto initrd = std::string(defaultSnap->getRoot() / "boot" / "initrd");
             if (!std::filesystem::exists(kernel)) {
                 // If /boot/vmlinuz is not found, probably the system is using BLS entries
-                // BLS entries are outside of snapshots
-                auto efi = std::filesystem::path("/boot/efi");
-                auto bls_entry_path = Util::exec("/usr/bin/sdbootutil list-entries --only-default");
-                Util::trim(bls_entry_path);
-                std::tie(kernel, initrd) =
-                    BlsEntry::parse_bls_entry(efi / "loader" / "entries" / bls_entry_path);
-                // relative_path strips the path of the root ("/"), otherwise the operator/
-                // doesn't work and just returns the value of efi
-                kernel = efi / std::filesystem::path(kernel).relative_path();
-                Util::sanitize_quotes(kernel);
-                initrd = efi / std::filesystem::path(initrd).relative_path();
-                Util::sanitize_quotes(initrd);
+                if (std::filesystem::exists("/usr/bin/sdbootutil")) {
+                    // BLS entries are outside of snapshots
+                    auto efi = std::filesystem::path("/boot/efi");
+                    auto bls_entry_path = Util::exec("/usr/bin/sdbootutil list-entries --only-default");
+                    Util::trim(bls_entry_path);
+                    std::tie(kernel, initrd) =
+                        BlsEntry::parse_bls_entry(efi / "loader" / "entries" / bls_entry_path);
+                    // relative_path strips the path of the root ("/"), otherwise the operator/
+                    // doesn't work and just returns the value of efi
+                    kernel = efi / std::filesystem::path(kernel).relative_path();
+                    Util::sanitize_quotes(kernel);
+                    initrd = efi / std::filesystem::path(initrd).relative_path();
+                    Util::sanitize_quotes(initrd);
+                } else {
+                    // BLS entries on the root file system (e.g. grub2-bls): the
+                    // entries and the kernels are part of the snapshot
+                    auto root = defaultSnap->getRoot();
+                    auto entry = BlsEntry::find_default_entry(root / "boot" / "loader" / "entries",
+                                                              root / "boot" / "grub2" / "grubenv");
+                    tulog.debug("Using BLS entry ", entry.string());
+                    std::tie(kernel, initrd) = BlsEntry::parse_bls_entry(entry);
+                    if (kernel.empty() || initrd.empty())
+                        throw std::runtime_error{"BLS entry " + entry.string() + " has no kernel or initrd."};
+                    kernel = root / std::filesystem::path(kernel).relative_path();
+                    Util::sanitize_quotes(kernel);
+                    initrd = root / std::filesystem::path(initrd).relative_path();
+                    Util::sanitize_quotes(initrd);
+                }
             }
             tulog.info("Triggering reboot using systemctl kexec.");
             command  = "kexec --kexec-syscall-auto -l '" + kernel + "' --initrd='" + initrd + "' --reuse-cmdline;";
