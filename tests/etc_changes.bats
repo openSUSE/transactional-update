@@ -489,3 +489,36 @@ debug() {
 	# ...and the syncpoint is kept
 	[ -e "${mockdir_syncpoint}/sub/denied.txt" ]
 }
+
+@test "Directory deleted in the old snapshot is deleted in the new one" {
+	for dir in "${mockdir_new_etc}" "${mockdir_syncpoint}"; do
+		mkdir "${dir}/deleted_dir"
+		createFile "${dir}/deleted_dir/file.txt"
+	done
+	mkdir "${mockdir_old_etc}/kept_dir"
+	for dir in "${mockdir_new_etc}" "${mockdir_syncpoint}"; do
+		mkdir "${dir}/kept_dir"
+	done
+	syncTimestamps "${mockdir_new_etc}"/*/* "${mockdir_new_etc}"/* "${mockdir_syncpoint}"/*/* "${mockdir_syncpoint}"/* "${mockdir_old_etc}"/*
+
+	run $totest "${mockdir_old_etc}" "${mockdir_new_etc}" "${mockdir_syncpoint}"
+	echo "# Output: ${output}"
+
+	[ "${status}" -eq 0 ]
+	[ ! -e "${mockdir_new_etc}/deleted_dir" ]
+	[ -d "${mockdir_new_etc}/kept_dir" ]
+}
+
+@test "Directory deleted in the old snapshot is kept if it got files in the new one" {
+	for dir in "${mockdir_new_etc}" "${mockdir_syncpoint}"; do
+		mkdir "${dir}/deleted_dir"
+	done
+	syncTimestamps "${mockdir_new_etc}"/* "${mockdir_syncpoint}"/*
+	createFile "${mockdir_new_etc}/deleted_dir/added_in_new_snapshot.txt"
+
+	run $totest "${mockdir_old_etc}" "${mockdir_new_etc}" "${mockdir_syncpoint}"
+	echo "# Output: ${output}"
+
+	[ "${status}" -eq 0 ]
+	[ -e "${mockdir_new_etc}/deleted_dir/added_in_new_snapshot.txt" ]
+}
