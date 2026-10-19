@@ -40,7 +40,12 @@ bool StateStore::contains(const std::string &key, const std::string &pattern) {
 }
 
 void StateStore::set(const std::string &key, const std::string &value) {
-    econf_setStringValue(key_file, "", key.c_str(), value.c_str());
+    econf_err error = econf_setStringValue(key_file, "", key.c_str(), value.c_str());
+    if (error)
+        throw std::runtime_error{"Could not set configuration setting '" + key + "': " + std::string(econf_errString(error))};
+    error = econf_setQuotes(key_file, "", key.c_str(), true);
+    if (error)
+        throw std::runtime_error{"Could not set quotes for value '" + key + "': " + std::string(econf_errString(error))};
 }
 
 void StateStore::add(const std::string &key, std::string addition) {
@@ -49,7 +54,7 @@ void StateStore::add(const std::string &key, std::string addition) {
     std::string value = get(key);
     if (value != "")
         value += " ";
-    econf_setStringValue(key_file, "", key.c_str(), (value + addition).c_str());
+    set(key, value + addition);
 }
 
 void StateStore::remove(const std::string &key, const std::string &pattern) {
