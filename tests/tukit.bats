@@ -125,6 +125,10 @@ getid() {
 	[ "$(cat "${snapdir}/default")" = "2" ]
 	echo "# Verifying shapshot was closed"
 	grep -qx "in-progress=no" "${snapdir}/2/info"
+	echo "# Verifying snapshots are registered in state file"
+	. "${statefile}"
+	[[ "${LAST_WORKING_SNAPSHOTS}" == "1" ]]
+	[[ "${UNUSED_SNAPSHOTS}" == "2" ]]
 }
 
 @test "tukit abort" {
@@ -167,6 +171,10 @@ getid() {
 
 	echo "# Verifying the new snapshot and file still exists"
 	[ -e "${snapdir}/${NEWID}/snapshot/usr/file1.txt" ]
+	echo "# Verifying snapshots are registered in state file"
+	. "${statefile}"
+	[[ "${LAST_WORKING_SNAPSHOTS}" == "1" ]]
+	[[ "${UNUSED_SNAPSHOTS}" == "2 3" ]]
 }
 
 @test "tukit --discard open (delete file in /etc) (rw)" {
@@ -224,6 +232,17 @@ getid() {
 
 	# Set read-only snapshot as base for all following tests
 	echo -n "${NEWID}" > "${snapdir}/current"
+}
+
+# This test will have to be adopted if new tests are added above
+@test "Checking statestore" {
+	tukit open && getid
+	tukit close "${NEWID}"
+
+	echo "# Verifying state file has expected contents"
+	. "${statefile}"
+	[[ "${UNUSED_SNAPSHOTS}" == "2 3 4 5 6 7 9" ]]
+	[[ "${LAST_WORKING_SNAPSHOTS}" == "1 8" ]]
 }
 
 @test "tukit --discard open (delete file in /etc) (ro)" {
