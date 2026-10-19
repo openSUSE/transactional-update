@@ -182,6 +182,26 @@ getid() {
 	[ -e "${snapdir}/${NEWID}/snapshot" ]
 }
 
+@test "tukit rollback" {
+	PREVID="$(cat "${snapdir}/default")"
+
+	tukit rollback 3 && getid
+	echo "# Checking ID"
+	NEWID="$(cat "${snapdir}/default")"
+	# Implementation detail: On rw systems (so far) a new ID will be generated
+	[ "${PREVID}" -ne "${NEWID}" ] && [ "${NEWID}" -ne 3 ]
+	echo "# Verifying the snapshot new is in the cleanup lists"
+	. "${statefile}"
+	[[ "${UNUSED_SNAPSHOTS}" == *" ${NEWID}" ]]
+
+	tukit rollback last && getid
+	echo "# Checking ID"
+	NEWID="$(cat "${snapdir}/default")"
+	[ "${PREVID}" -ne "${NEWID}" ] && [ "${NEWID}" -ne 1 ]
+	echo "# Verifying the file from the previous snapshot is not there"
+	[ ! -e "${snapdir}/${NEWID}/snapshot/usr/file1.txt" ]
+}
+
 @test "tukit --discard open (with changes, after apply) (rw)" {
 	extraunsharemounts="mount --bind /etc /etc;"
 	tukit -c1 --discard open && getid
