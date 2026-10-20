@@ -3,7 +3,7 @@
 
 AUTOMAKE_OPTIONS = 1.6 foreign check-news dist-xz
 #
-SUBDIRS = lib tukit dbus sbin man systemd logrotate dracut snapper doc etc tests bash-completion
+SUBDIRS = lib tukit dbus sbin man systemd logrotate dracut snapper doc etc tests scripts
 
 CLEANFILES = *~ tukit.pc
 

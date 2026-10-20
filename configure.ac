@@ -126,6 +126,6 @@ AS_IF([test -z "$BATS" -o -z "$ROOTLESSKIT"], [AC_MSG_WARN([To run tests please 
 
 AC_CONFIG_FILES([Makefile lib/Makefile tukit/Makefile sbin/Makefile man/Makefile \
 	systemd/Makefile logrotate/Makefile dracut/Makefile doc/Makefile \
-	etc/Makefile bash-completion/Makefile dbus/Makefile snapper/Makefile tests/Makefile \
+	etc/Makefile scripts/Makefile scripts/completion/Makefile dbus/Makefile snapper/Makefile tests/Makefile \
 	sbin/transactional-update])
 AC_OUTPUT
