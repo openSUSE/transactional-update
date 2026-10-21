@@ -50,13 +50,17 @@ _transactional_update() {
                       --non-interactive -n 
                       --no-selfupdate
                       --drop-if-no-change -d
+                      --keep -k
                       --quiet'
         [STANDALONE_EXIT]='--help -h
                            --version'
-        [ARG]='--continue -c'
+        [ARG]='--continue -c
+               --image'
     )
     local -A COMMANDS=(
-        [STANDALONE]='cleanup
+        [STANDALONE]='apply
+                      apply-oci
+                      cleanup
                       cleanup-snapshots
                       cleanup-overlays
                       grub.cfg
@@ -65,15 +69,15 @@ _transactional_update() {
                       kdump
                       shell
                       reboot
+                      setup-fips
                       setup-selinux
-                      dup
-                      up
+                      dup dist-upgrade
+                      up update
                       patch
-                      migration
-                      status'
+                      migration'
         [ARG]='run
                setup-kdump
-               pkg
+               pkg package ptf
                register
                rollback'
     )
@@ -92,11 +96,15 @@ _transactional_update() {
             setup-kdump)
                 comps="--crashkernel="
                 ;;
-            pkg)
+            pkg|package|ptf)
                 comps="${CMD_PKG_OPTS}"
                 ;;
             rollback|--continue|-c)
                 comps="last $(__get_snapshots)"
+                ;;
+            --image)
+                comps=$(compgen -A file -- "$cur")
+                compopt -o filenames
                 ;;
         esac
         COMPREPLY=( $(compgen -W '$comps' -- "$cur") )
@@ -104,8 +112,8 @@ _transactional_update() {
     fi
 
     if __contains_word "$prev" ${OPTS[STANDALONE_EXIT]} ${COMMANDS[STANDALONE]} \
-        && [[ "$prev" != "up" ]]; then
-        # exception: 'up' is a standalone command and a pkg option
+        && [[ "$prev" != "up" && "$prev" != "update" ]]; then
+        # exception: 'up' and 'update' can be a standalone command and a pkg option
         return 0
     fi
 
@@ -125,7 +133,7 @@ _transactional_update() {
     if [[ -n ${cmd} ]]; then
         comps=""
         case $cmd in
-            pkg)
+            pkg|package|ptf)
                 if __contains_word "$prev" ${CMD_PKG_OPTS}; then
                     case $prev in
                         install|in)
