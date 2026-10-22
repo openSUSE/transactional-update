@@ -76,7 +76,9 @@ void SnapshotManager::cleanup() {
     stringstream usnapshots(state.get("UNUSED_SNAPSHOTS"));
     state.set("UNUSED_SNAPSHOTS", "");
     while (usnapshots >> snapshot) {
-        cleanupSnap(state, snapshot, false, "UNUSED_SNAPSHOTS");
+        if (! state.contains("LAST_WORKING_SNAPSHOTS", snapshot)) {
+            cleanupSnap(state, snapshot, false, "UNUSED_SNAPSHOTS");
+        }
     }
 
     if ((typeid(*this) == typeid(Snapper)) || (typeid(*this) == typeid(Podman))) {
