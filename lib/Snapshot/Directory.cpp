@@ -161,6 +161,8 @@ std::deque<std::map<std::string, std::string>> Directory::getList(std::string co
                 snapshot[col] = (id == def) ? "yes" : "no";
             else if (col == "active")
                 snapshot[col] = (id == current) ? "yes" : "no";
+            else if (col == "userdata")
+                snapshot[col] = ((readMeta(id, "in-progress") == "yes") ? "transactional-update-in-progress=yes" : "") + (info.count(col) ? info[col] : "");
             else
                 snapshot[col] = info.count(col) ? info[col] : "";
         }

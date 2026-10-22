@@ -14,6 +14,7 @@
 #include "Snapshot/Directory.hpp"
 #include "StateStore.hpp"
 #include "Util.hpp"
+#include <regex>
 
 using namespace std;
 
@@ -81,10 +82,11 @@ void SnapshotManager::cleanup() {
         }
     }
 
-    if ((typeid(*this) == typeid(Snapper)) || (typeid(*this) == typeid(Podman))) {
-        stringstream psnapshots(Util::exec("snapper --csvout list --columns number,userdata | grep 'transactional-update-in-progress=yes' | cut -d , -f 1"));
-        while (psnapshots >> snapshot) {
-            cleanupSnap(state, snapshot, false, "");
+    auto snaplist = getList("number,userdata");
+    regex pattern("(^|,)transactional-update-in-progress=yes($|,)");
+    for (auto entry : snaplist) {
+        if (std::regex_search(entry["userdata"], pattern)) {
+            cleanupSnap(state, entry["number"], false, "");
         }
     }
 
