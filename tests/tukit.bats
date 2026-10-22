@@ -281,3 +281,20 @@ getid() {
 	echo "# Verifying the new snapshot was deleted"
 	[ ! -e "${snapdir}/${NEWID}/snapshot" ]
 }
+
+@test "tukit cleanup" {
+	# Simulate an apply
+	echo "LAST_BOOTED=6" > "${tmpstatefile}"
+
+	tukit open && getid
+	tukit close "${NEWID}"
+	tukit open
+	tukit cleanup
+
+	echo "Verifying only the booted, applied and default snapshot remain"
+	[ "$(ls "${snapdir}" | wc --lines)" == 5 ]
+	echo "Verifying the state file was adjusted"
+	. "${statefile}"
+	[[ "${UNUSED_SNAPSHOTS}" == "6 ${NEWID}" ]]
+	[[ "${LAST_WORKING_SNAPSHOTS}" == "8" ]]
+}
