@@ -243,6 +243,7 @@ debug() {
 		echo old > "${dir}/Dir7/ChangeInOld"
 		echo old > "${dir}/Dir7/ChangeInNew"
 		echo old > "${dir}/Dir7/noChange"
+		mkdir "${dir}/Dir9"
 	done
 	syncTimestamps "${mockdir_old_etc}"/** "${mockdir_new_etc}"/** "${mockdir_syncpoint}"/**
 
@@ -270,11 +271,18 @@ debug() {
 	rm -r "${mockdir_old_etc}/Dir6"
 	touch "${mockdir_new_etc}/Dir6/Subdir/NewFileInSubdir"
 
+	# Create a new directory in old only, and change the mode of an existing one there
+	mkdir "${mockdir_old_etc}/Dir8"
+	chmod 755 "${mockdir_old_etc}/Dir8"
+	chmod 750 "${mockdir_old_etc}/Dir9"
+
 	# Verify touching a directory doesn't trigger overwrite
 	echo -n new > "${mockdir_old_etc}/Dir7/ChangeInOld"
 	echo -n new > "${mockdir_new_etc}/Dir7/ChangeInNew"
 	touch "${mockdir_new_etc}"
 
+	# A stricter umask than the one the directories were created with
+	umask 027
 	run $totest "${mockdir_old_etc}" "${mockdir_new_etc}" "${mockdir_syncpoint}"
 
 	echo "# Verify new directory in old Dir2 directory was copied over"
@@ -299,6 +307,10 @@ debug() {
 	[ "$(cat "${mockdir_new_etc}/Dir7/ChangeInOld")" = "new" ]
 	[ "$(cat "${mockdir_new_etc}/Dir7/ChangeInNew")" = "new" ]
 	[ "$(cat "${mockdir_new_etc}/Dir7/noChange")" = "old" ]
+	echo "# Verify a directory created in old keeps its mode whatever the umask"
+	[ "$(stat --format="%a" "${mockdir_new_etc}/Dir8")" = "755" ]
+	echo "# Verify a mode changed in old is applied to an existing directory"
+	[ "$(stat --format="%a" "${mockdir_new_etc}/Dir9")" = "750" ]
 }
 
 @test "File type changes" {
