@@ -10,6 +10,7 @@
 #include "Log.hpp"
 #include "Snapshot/Snapper.hpp"
 #include "Snapshot/Podman.hpp"
+#include "Snapshot/Systemd.hpp"
 using namespace std;
 
 namespace TransactionalUpdate {
@@ -19,6 +20,8 @@ unique_ptr<SnapshotManager> SnapshotFactory::get() {
     if (sm == "auto") {
         if (filesystem::exists("/usr/bin/snapper"))
             sm = "snapper";
+        else if (filesystem::exists("/usr/bin/importctl") && filesystem::exists("/usr/bin/systemd-mstack"))
+            sm = "systemd";
         else if (filesystem::exists("/usr/bin/podman"))
             sm = "podman";
         else
@@ -30,6 +33,8 @@ unique_ptr<SnapshotManager> SnapshotFactory::get() {
         return make_unique<Snapper>();
     } else if (sm == "podman") {
         return make_unique<Podman>();
+    } else if (sm == "systemd") {
+        return make_unique<Systemd>();
     } else {
         throw runtime_error{"Unsupported snapshot manager '" + sm + "'."};
     }

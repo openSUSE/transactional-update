@@ -23,7 +23,7 @@ std::unique_ptr<Snapshot> Podman::create(std::string base, std::string descripti
     std::string oci_target = config.get("OCI_TARGET");
 
     try {
-        tulog.info("Pulling image from: " + oci_target);
+        tulog.info("Pulling image via podman from: " + oci_target);
         Util::exec("podman image pull " + oci_target);
         std::string ocimount = Util::exec("podman image mount " + oci_target);
         Util::rtrim(ocimount);

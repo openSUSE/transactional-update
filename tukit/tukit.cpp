@@ -80,7 +80,7 @@ void TUKit::displayHelp() {
     cout << "--version, -V                Display version and exit\n";
     cout << "\n";
     cout << "Important options (for use with -o=):\n";
-    cout << "SNAPSHOT_MANAGER=<MANAGER>   Force snapshot manager, e.g. podman or snapper\n";
+    cout << "SNAPSHOT_MANAGER=<MANAGER>   Force snapshot manager, e.g. systemd, podman or snapper\n";
     cout << "OCI_TARGET=<SOURCE>          Pull a custom image for updating with Podman\n";
     cout << endl;
 }
