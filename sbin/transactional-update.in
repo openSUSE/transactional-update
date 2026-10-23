@@ -723,7 +723,7 @@ parse_args() {
                 TUKIT_OPTS="${TUKIT_OPTS} --discard"
                 ;;
             apply-oci)
-                TUKIT_OPTS="${TUKIT_OPTS} --option SNAPSHOT_MANAGER=podman"
+                TUKIT_OPTS="${TUKIT_OPTS} --option SNAPSHOT_MANAGER=systemd"
                 REWRITE_GRUB_CFG=1
                 REWRITE_INITRD=1
                 REBUILD_KDUMP_INITRD=1
