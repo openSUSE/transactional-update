@@ -5,22 +5,22 @@
   systemd-mstack backend for snapshot handling
  */
 
-#ifndef T_U_SYSTEMD_H
-#define T_U_SYSTEMD_H
+#ifndef T_U_MSTACK_H
+#define T_U_MSTACK_H
 
 #include "Snapper.hpp"
 
 namespace TransactionalUpdate {
 
-class Systemd: public Snapper {
+class Mstack: public Snapper {
 public:
-    ~Systemd() = default;
+    ~Mstack() = default;
 
     // Snapshot
-    Systemd(std::string snap): Snapper(snap) {};
+    Mstack(std::string snap): Snapper(snap) {};
 
     // SnapshotManager
-    Systemd(): Snapper("") {};
+    Mstack(): Snapper("") {};
     std::unique_ptr<Snapshot> create(std::string base, std::string description) override;
 
     /**
@@ -31,4 +31,4 @@ public:
 
 } // namespace TransactionalUpdate
 
-#endif // T_U_SYSTEMD_H
+#endif // T_U_MSTACK_H

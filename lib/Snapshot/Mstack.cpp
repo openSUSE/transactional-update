@@ -5,7 +5,7 @@
   systemd-mstack backend for snapshot handling
  */
 
-#include "Systemd.hpp"
+#include "Mstack.hpp"
 #include "Configuration.hpp"
 #include "Exceptions.hpp"
 #include "Log.hpp"
@@ -18,11 +18,11 @@ namespace TransactionalUpdate {
 
 /* SnapshotManager methods */
 
-bool Systemd::available() {
+bool Mstack::available() {
     return std::filesystem::exists("/usr/bin/importctl") && std::filesystem::exists("/usr/bin/systemd-mstack");
 }
 
-std::unique_ptr<Snapshot> Systemd::create(std::string base, std::string description) {
+std::unique_ptr<Snapshot> Mstack::create(std::string base, std::string description) {
     if (! available()) {
         throw std::runtime_error{"'importctl' and 'systemd-mstack' are required for the systemd snapshot manager."};
     }
@@ -50,7 +50,7 @@ std::unique_ptr<Snapshot> Systemd::create(std::string base, std::string descript
         Util::exec("systemd-mstack --umount " + mountpoint);
         std::filesystem::remove(mountpoint);
         Util::exec("touch " + getRoot().string() + "/.autorelabel");
-        return std::make_unique<Systemd>(snapshotId);
+        return std::make_unique<Mstack>(snapshotId);
     } catch (const std::exception &e) {
         Snapper::deleteSnap(snap.get()->getUid());
         throw std::runtime_error{"Syncing systemd image failed."};

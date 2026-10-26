@@ -2,8 +2,8 @@
 /* SPDX-FileCopyrightText: Copyright SUSE LLC */
 
 /*
-  OCI backend selection; picks "systemd" or "podman", whichever is
-  available, with "systemd" taking priority
+  OCI backend selection; picks "mstack" or "podman", whichever is
+  available, with "mstack" taking priority
  */
 
 #ifndef T_U_OCI_H
@@ -17,12 +17,12 @@ namespace TransactionalUpdate {
 class Oci {
 public:
     /**
-     * @brief Checks whether an OCI-based snapshot manager (systemd or podman) is available
+     * @brief Checks whether an OCI-based snapshot manager (mstack or podman) is available
      */
     static bool available();
 
     /**
-     * @brief Returns the OCI-based snapshot manager to use; "systemd" has priority over "podman"
+     * @brief Returns the OCI-based snapshot manager to use; "mstack" has priority over "podman"
      */
     static std::unique_ptr<SnapshotManager> get();
 };

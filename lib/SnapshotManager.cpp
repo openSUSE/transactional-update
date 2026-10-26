@@ -12,7 +12,7 @@
 #include "Snapshot/Snapper.hpp"
 #include "Snapshot/Podman.hpp"
 #include "Snapshot/Directory.hpp"
-#include "Snapshot/Systemd.hpp"
+#include "Snapshot/Mstack.hpp"
 #include "StateStore.hpp"
 #include "Util.hpp"
 #include "oci.hpp"
@@ -42,8 +42,8 @@ unique_ptr<SnapshotManager> SnapshotFactory::get() {
         return make_unique<Podman>();
     } else if (sm == "directory") {
         return make_unique<Directory>();
-    } else if (sm == "systemd") {
-        return make_unique<Systemd>();
+    } else if (sm == "mstack") {
+        return make_unique<Mstack>();
     } else if (sm == "oci") {
         return Oci::get();
     } else {

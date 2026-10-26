@@ -6,7 +6,7 @@ lib_LTLIBRARIES = libtukit.la
 libtukit_la_SOURCES=Transaction.cpp \
         SnapshotManager.cpp Snapshot/Snapper.cpp \
         Snapshot/Podman.cpp \
-        Snapshot/Systemd.cpp \
+        Snapshot/Mstack.cpp \
         Snapshot/Directory.cpp \
         oci.cpp \
         Mount.cpp Reboot.cpp Configuration.cpp \
@@ -17,7 +17,7 @@ publicheaders_HEADERS=Transaction.hpp \
 	SnapshotManager.hpp Reboot.hpp \
 	Bindings/libtukit.h
 
-noinst_HEADERS=Snapshot/Snapper.hpp Snapshot/Podman.hpp Snapshot/Systemd.hpp Snapshot/Directory.hpp Snapshot.hpp \
+noinst_HEADERS=Snapshot/Snapper.hpp Snapshot/Podman.hpp Snapshot/Mstack.hpp Snapshot/Directory.hpp Snapshot.hpp \
         oci.hpp \
         Mount.hpp Log.hpp Configuration.hpp StateStore.hpp \
         Util.hpp Supplement.hpp Exceptions.hpp Plugins.hpp BlsEntry.hpp
