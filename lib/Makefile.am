@@ -7,7 +7,7 @@ libtukit_la_SOURCES=Transaction.cpp \
         SnapshotManager.cpp Snapshot/Snapper.cpp \
         Snapshot/Podman.cpp \
         Snapshot/Systemd.cpp \
-	Snapshot/Directory.cpp \
+        Snapshot/Directory.cpp \
         Mount.cpp Reboot.cpp Configuration.cpp \
         Util.cpp Supplement.cpp Plugins.cpp Bindings/CBindings.cpp \
         BlsEntry.cpp StateStore.cpp
