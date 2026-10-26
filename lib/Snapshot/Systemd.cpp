@@ -18,7 +18,15 @@ namespace TransactionalUpdate {
 
 /* SnapshotManager methods */
 
+bool Systemd::available() {
+    return std::filesystem::exists("/usr/bin/importctl") && std::filesystem::exists("/usr/bin/systemd-mstack");
+}
+
 std::unique_ptr<Snapshot> Systemd::create(std::string base, std::string description) {
+    if (! available()) {
+        throw std::runtime_error{"'importctl' and 'systemd-mstack' are required for the systemd snapshot manager."};
+    }
+
     auto snap = Snapper::create(base, description);
 
     std::string oci_target = config.get("OCI_TARGET");

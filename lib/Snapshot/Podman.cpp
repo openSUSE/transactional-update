@@ -11,13 +11,22 @@
 #include "Log.hpp"
 #include "Mount.hpp"
 #include "Util.hpp"
+#include <filesystem>
 #include <regex>
 
 namespace TransactionalUpdate {
 
 /* SnapshotManager methods */
 
+bool Podman::available() {
+    return std::filesystem::exists("/usr/bin/podman");
+}
+
 std::unique_ptr<Snapshot> Podman::create(std::string base, std::string description) {
+    if (! available()) {
+        throw std::runtime_error{"'podman' is required for the podman snapshot manager."};
+    }
+
     auto snap = Snapper::create(base, description);
 
     std::string oci_target = config.get("OCI_TARGET");

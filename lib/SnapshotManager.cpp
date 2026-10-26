@@ -12,9 +12,10 @@
 #include "Snapshot/Snapper.hpp"
 #include "Snapshot/Podman.hpp"
 #include "Snapshot/Directory.hpp"
-#include "Snapshot/Systemd.hpp"        
+#include "Snapshot/Systemd.hpp"
 #include "StateStore.hpp"
 #include "Util.hpp"
+#include "oci.hpp"
 #include <regex>
 
 using namespace std;
@@ -24,17 +25,17 @@ namespace TransactionalUpdate {
 unique_ptr<SnapshotManager> SnapshotFactory::get() {
     auto sm = config.get("SNAPSHOT_MANAGER");
     if (sm == "auto") {
-        if (filesystem::exists("/usr/bin/snapper"))
+        if (Snapper::available())
             sm = "snapper";
-        else if (filesystem::exists("/usr/bin/importctl") && filesystem::exists("/usr/bin/systemd-mstack"))
-            sm = "systemd";
-        else if (filesystem::exists("/usr/bin/podman"))
-            sm = "podman";
+        else if (Oci::available())
+            sm = "oci";
         else
             throw runtime_error{"No snapshot manager found using 'auto'."};
     }
 
-    tulog.info("Using '" + sm + "' as snapshot manager.");
+    if (sm != "oci") {
+        tulog.info("Using '" + sm + "' as snapshot manager.");
+    }
     if (sm == "snapper") {
         return make_unique<Snapper>();
     } else if (sm == "podman") {
@@ -43,6 +44,8 @@ unique_ptr<SnapshotManager> SnapshotFactory::get() {
         return make_unique<Directory>();
     } else if (sm == "systemd") {
         return make_unique<Systemd>();
+    } else if (sm == "oci") {
+        return Oci::get();
     } else {
         throw runtime_error{"Unsupported snapshot manager '" + sm + "'."};
     }

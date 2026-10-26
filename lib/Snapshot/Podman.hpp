@@ -22,6 +22,11 @@ public:
     // SnapshotManager
     Podman(): Snapper("") {};
     std::unique_ptr<Snapshot> create(std::string base, std::string description) override;
+
+    /**
+     * @brief Checks whether the tools required by this snapshot manager are installed
+     */
+    static bool available();
 };
 
 } // namespace TransactionalUpdate
