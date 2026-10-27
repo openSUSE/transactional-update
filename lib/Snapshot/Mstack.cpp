@@ -35,7 +35,7 @@ std::unique_ptr<Snapshot> Mstack::create(std::string base, std::string descripti
         char mountTemplate[] = "/tmp/transactional-update-XXXXXX";
         std::string mountpoint = mkdtemp(mountTemplate);
 
-        tulog.info("Pulling image via systemd from: " + oci_target);
+        tulog.info("Pulling image via mstack from: " + oci_target);
         Util::exec("importctl pull-oci " + oci_target + " -m --force");
         Util::exec("systemd-mstack --mount /var/lib/machines/bootable.mstack " + mountpoint);
         tulog.info("Writing contents of " + oci_target + " to snapshot directory " + getRoot().string() + "...");
