@@ -175,9 +175,19 @@ public:
      */
     std::filesystem::path getRoot();
 
-    friend class Plugins;
-protected:
+    /**
+     * @brief Return the path the transaction's mount namespace is set up in
+     * @return bind directory
+     *
+     * Unlike getRoot() this directory has everything mounted that is needed to run programs
+     * in the new snapshot, such as /dev, /proc, /sys and /boot/efi. Callers that run package
+     * manager scriptlets (e.g. kernel-install) in a chroot should use this path.
+     *
+     * Only valid while the Transaction is open, like getRoot().
+     */
     std::filesystem::path getBindDir();
+
+    friend class Plugins;
 private:
     class impl;
     std::unique_ptr<impl> pImpl;
