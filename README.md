@@ -50,6 +50,7 @@ Additionally the following components support transactional-update directly:
 * **Cockpit** can update transactional systems via the [cockpit-tukit](https://github.com/openSUSE/cockpit-tukit) plugin (tukitd).
 * **Salt** contains the [salt.executors.transactional\_update](https://docs.saltproject.io/en/latest/ref/executors/all/salt.executors.transactional_update.html) executor (transactional-update).
 * **Ansible** also supports transactional-update via the the [community.general.zypper](https://docs.ansible.com/ansible/latest/collections/community/general/zypper_module.html) module (transactional-update).
+* **mcp-tukit** is an openSUSE centric MCP interface for the tukit functionality and integration (tukitd)
 
 ## Caveats
 * A transactional system needs strict separation of applications, configuration and user data. Data in /var must not be available during the update, as changes in there would necessarily modify the state of the currently running system. For better handling of package and admin configuration files see the UAPI Group's [Configuration File Specification](https://uapi-group.org/specifications/specs/configuration_files_specification/).
