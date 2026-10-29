@@ -4,12 +4,16 @@
 #include "BlsEntry.hpp"
 #include "Util.hpp"
 #include <fstream>
+#include <stdexcept>
 #include <string>
 
 namespace TransactionalUpdate {
 
 std::pair<std::string, std::string> BlsEntry::parse_bls_entry(std::string path) {
     std::ifstream is(path);
+    if (!is.is_open()) {
+        throw std::runtime_error{"Could not read BLS entry '" + path + "'."};
+    }
     std::string str;
     std::string kernel;
     std::string initrd;
@@ -25,6 +29,9 @@ std::pair<std::string, std::string> BlsEntry::parse_bls_entry(std::string path) 
             initrd = str.substr(INITRD_NEEDLE.size(), std::string::npos);
             Util::trim(initrd);
         }
+    }
+    if (kernel.empty() || initrd.empty()) {
+        throw std::runtime_error{"BLS entry '" + path + "' has no 'linux' or 'initrd' key."};
     }
     return std::pair(kernel, initrd);
 }
