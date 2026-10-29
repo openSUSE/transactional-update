@@ -39,6 +39,11 @@ public:
     std::string getDefault() override;
     void deleteSnap(std::string id) override;
     std::string rollback(std::string id) override;
+
+    /**
+     * @brief Checks whether the tools required by this snapshot manager are installed
+     */
+    static bool available();
 private:
     std::string callSnapper(std::string);
 };

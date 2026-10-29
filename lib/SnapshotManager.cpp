@@ -12,8 +12,10 @@
 #include "Snapshot/Snapper.hpp"
 #include "Snapshot/Podman.hpp"
 #include "Snapshot/Directory.hpp"
+#include "Snapshot/Mstack.hpp"
 #include "StateStore.hpp"
 #include "Util.hpp"
+#include "oci.hpp"
 #include <regex>
 
 using namespace std;
@@ -23,21 +25,27 @@ namespace TransactionalUpdate {
 unique_ptr<SnapshotManager> SnapshotFactory::get() {
     auto sm = config.get("SNAPSHOT_MANAGER");
     if (sm == "auto") {
-        if (filesystem::exists("/usr/bin/snapper"))
+        if (Snapper::available())
             sm = "snapper";
-        else if (filesystem::exists("/usr/bin/podman"))
-            sm = "podman";
+        else if (Oci::available())
+            sm = "oci";
         else
             throw runtime_error{"No snapshot manager found using 'auto'."};
     }
 
-    tulog.info("Using '" + sm + "' as snapshot manager.");
+    if (sm != "oci") {
+        tulog.info("Using '" + sm + "' as snapshot manager.");
+    }
     if (sm == "snapper") {
         return make_unique<Snapper>();
     } else if (sm == "podman") {
         return make_unique<Podman>();
     } else if (sm == "directory") {
         return make_unique<Directory>();
+    } else if (sm == "mstack") {
+        return make_unique<Mstack>();
+    } else if (sm == "oci") {
+        return Oci::get();
     } else {
         throw runtime_error{"Unsupported snapshot manager '" + sm + "'."};
     }
