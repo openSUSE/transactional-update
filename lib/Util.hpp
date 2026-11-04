@@ -11,6 +11,7 @@
 #include <string>
 #include <array>
 #include <iostream>
+#include <vector>
 
 namespace TransactionalUpdate {
 
@@ -21,6 +22,7 @@ struct Util {
     static void stub(std::string option);
     static void trim(std::string &s);
     static void sanitize_quotes(std::string &s);
+    static std::string maskSensitiveArgs(const std::vector<std::string> &args);
 };
 
 struct CString {

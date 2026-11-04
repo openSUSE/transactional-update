@@ -405,15 +405,10 @@ int Transaction::impl::runCommand(char* argv[], bool inChroot, std::string* outp
         nftw(snapshot->getRoot().c_str(), inotifyAdd, 20, FTW_MOUNT | FTW_PHYS);
     }
 
-    std::string opts = "Executing `";
-    int i = 0;
-    while (argv[i]) {
-        if (i > 0)
-            opts.append(" ");
-        opts.append(argv[i]);
-        i++;
-    }
-    opts.append("`:");
+    std::vector<std::string> args;
+    for (int i = 0; argv[i]; i++)
+        args.push_back(argv[i]);
+    std::string opts = "Executing `" + Util::maskSensitiveArgs(args) + "`:";
     tulog.info(opts);
 
     int status = 1;
