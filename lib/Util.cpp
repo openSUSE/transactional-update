@@ -69,6 +69,39 @@ void Util::trim(string &s) {
     rtrim(s);
 }
 
+// Masks sensitive values (e.g. the SUSEConnect registration code) before
+// a command is written to the log; only applied if SUSEConnect is actually
+// being called
+string Util::maskSensitiveArgs(const vector<string> &args) {
+    bool hasSUSEConnect = false;
+    for (const auto &arg: args) {
+        if (arg == "SUSEConnect") {
+            hasSUSEConnect = true;
+            break;
+        }
+    }
+
+    string result;
+    for (size_t i = 0; i < args.size(); i++) {
+        if (i > 0)
+            result.append(" ");
+
+        if (hasSUSEConnect && (args[i] == "-r" || args[i] == "--regcode")) {
+            result.append(args[i]);
+            if (i + 1 < args.size()) {
+                result.append(" xxxxxxxxx");
+                i++;
+            }
+        } else if (hasSUSEConnect && args[i].rfind("--regcode=", 0) == 0) {
+            result.append("--regcode=xxxxxxxxx");
+        } else {
+            result.append(args[i]);
+        }
+    }
+
+    return result;
+}
+
 void Util::sanitize_quotes(string &s) {
     // Skip empty strings
     if (!s.length()) {

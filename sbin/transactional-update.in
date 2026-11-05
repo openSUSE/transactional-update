@@ -250,6 +250,47 @@ log_error() {
     echo -e "$@" 1>&2
 }
 
+# Masks sensitive values (e.g. the SUSEConnect registration code) before
+# arguments are written to the log
+mask_sensitive_args() {
+    local args=("$@")
+    local masked=()
+    local i
+    local is_register=0
+
+    for arg in "${args[@]}"; do
+        if [ "${arg}" = "register" ]; then
+            is_register=1
+            break
+        fi
+    done
+
+    if [ "${is_register}" -eq 0 ]; then
+        echo "${args[*]}"
+        return
+    fi
+
+    for ((i=0; i<${#args[@]}; i++)); do
+        case "${args[i]}" in
+            -r|--regcode)
+                masked+=("${args[i]}")
+                if (( i+1 < ${#args[@]} )); then
+                    masked+=("xxxxxxxxx")
+                    ((i++))
+                fi
+                ;;
+            --regcode=*)
+                masked+=("--regcode=xxxxxxxxx")
+                ;;
+            *)
+                masked+=("${args[i]}")
+                ;;
+        esac
+    done
+
+    echo "${masked[*]}"
+}
+
 bashlock() {
     echo "$$" >"$LOCKFILE.$$"
     if ! ln "$LOCKFILE.$$" "$LOCKFILE" 2>/dev/null; then
@@ -904,7 +945,7 @@ fi
 unset ZYPPER_FORCE_REFRESH
 
 log_info "transactional-update ${VERSION} started"
-log_info "Options: ${ORIG_ARGS[*]}"
+log_info "Options: $(mask_sensitive_args "${ORIG_ARGS[@]}")"
 
 SNAPPER_VERSION=$(snapper --version | head -1 | cut -d ' ' -f 2)
 if [ -n "${BASE_SNAPSHOT_ID}" ] && [ "$(zypper --terse versioncmp "${SNAPPER_VERSION}" 0.8.4)" -lt 0 ]; then
