@@ -244,7 +244,14 @@ debug() {
 		echo old > "${dir}/Dir7/ChangeInNew"
 		echo old > "${dir}/Dir7/noChange"
 	done
+	# Dir8 and Dir9 do not exist in the old snapshot, as if deleted there
+	for dir in "${mockdir_new_etc}" "${mockdir_syncpoint}"; do
+		mkdir "${dir}/Dir8"
+		touch "${dir}/Dir8/FileInDir"
+		mkdir "${dir}/Dir9"
+	done
 	syncTimestamps "${mockdir_old_etc}"/** "${mockdir_new_etc}"/** "${mockdir_syncpoint}"/**
+	syncTimestamps "${mockdir_new_etc}/Dir8/FileInDir" "${mockdir_syncpoint}/Dir8/FileInDir"
 
 	# Create a new directory in both old and new
 	mkdir "${mockdir_old_etc}/Dir2/DirInOld"
@@ -275,6 +282,9 @@ debug() {
 	echo -n new > "${mockdir_new_etc}/Dir7/ChangeInNew"
 	touch "${mockdir_new_etc}"
 
+	# Add a file to a directory in new which was deleted in old
+	touch "${mockdir_new_etc}/Dir9/added_in_new_snapshot.txt"
+
 	run $totest "${mockdir_old_etc}" "${mockdir_new_etc}" "${mockdir_syncpoint}"
 
 	echo "# Verify new directory in old Dir2 directory was copied over"
@@ -299,6 +309,10 @@ debug() {
 	[ "$(cat "${mockdir_new_etc}/Dir7/ChangeInOld")" = "new" ]
 	[ "$(cat "${mockdir_new_etc}/Dir7/ChangeInNew")" = "new" ]
 	[ "$(cat "${mockdir_new_etc}/Dir7/noChange")" = "old" ]
+	echo "# Verify directory deleted in old is deleted in new if unchanged there"
+	[ ! -e "${mockdir_new_etc}/Dir8" ]
+	echo "# Verify directory deleted in old is kept if it got files in new"
+	[ -e "${mockdir_new_etc}/Dir9/added_in_new_snapshot.txt" ]
 }
 
 @test "File type changes" {
