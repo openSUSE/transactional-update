@@ -475,7 +475,7 @@ parse_args() {
             break
         fi
 
-        if [[ $1 != --* ]]; then
+        if [[ $1 != -* ]]; then
             HAS_COMMAND=1
         fi
 
