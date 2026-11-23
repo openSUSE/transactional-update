@@ -2,6 +2,10 @@ transactional-update NEWS -- history of user-visible changes.
 
 Copyright (C) 2016-2024 Thorsten Kukuk, Ignaz Forster et al.
 
+Version 4.8.5 (2026-11-23)
+* Fix failing auto update detection when using no command and only
+  options with a single hyphen [bsc#1289270]
+
 Version 4.8.4 (2026-09-04)
 * libtukit: Fix --drop-if-no-change after `apply` [bsc#1276847]
 
