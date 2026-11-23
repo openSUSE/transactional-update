@@ -1,6 +1,6 @@
 dnl Process this file with autoconf to produce a configure script.
 # Semantic versioning, increase major version on incompatible interface change
-AC_INIT([transactional-update],[6.2.0])
+AC_INIT([transactional-update],[6.2.1])
 # Increase on any interface change and reset revision
 LIBTOOL_CURRENT=10
 # On interface change increase if backwards compatible, reset otherwise
