@@ -15,14 +15,17 @@ namespace TransactionalUpdate {
 
 using namespace std;
 
-string Util::exec(const string cmd) {
+string Util::exec(const string cmd, bool redirect_stderr) {
     array<char, 128> buffer;
     string result;
 
     tulog.debug("Executing `", cmd, "`:");
 
     // Ensure there is a sane path set
-    const string cmd_pathenv = "PATH='/usr/bin:/usr/sbin:/bin:/sbin' " + cmd;
+    string cmd_pathenv = "PATH='/usr/bin:/usr/sbin:/bin:/sbin' " + cmd;
+    if (redirect_stderr) {
+        cmd_pathenv += " 2>&1";
+    }
 
     auto pipe = popen(cmd_pathenv.c_str(), "r");
 

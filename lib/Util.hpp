@@ -15,7 +15,7 @@
 namespace TransactionalUpdate {
 
 struct Util {
-    static std::string exec(const std::string cmd);
+    static std::string exec(const std::string cmd, bool redirect_stderr = false);
     static void ltrim(std::string &s);
     static void rtrim(std::string &s);
     static void stub(std::string option);

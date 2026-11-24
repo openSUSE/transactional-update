@@ -65,13 +65,20 @@ void Plugins::run(string stage, string args) {
             cmd.append(" " + args);
 
         try {
-            output = Util::exec(cmd);
-            if (!output.empty())
+            output = Util::exec(cmd, true);
+            if (!output.empty()) {
+                if (output.back() != '\n')
+                    output.push_back('\n');
                 tulog.info("Output of plugin ", p, ":\n", output, "---");
+            }
         } catch (const ExecutionException &e) {
             tulog.error("ERROR: ", e.what());
-            if (!e.output.empty())
-                tulog.error("Output of plugin ", p, ":\n", e.output, "---");
+            if (!e.output.empty()) {
+                std::string err_output = e.output;
+                if (err_output.back() != '\n')
+                    err_output.push_back('\n');
+                tulog.error("Output of plugin ", p, ":\n", err_output, "---");
+            }
             if (!ignore_error)
                 if (WIFEXITED(e.returncode))
                     throw(WEXITSTATUS(e.returncode));

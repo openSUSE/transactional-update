@@ -5,6 +5,7 @@
   transactional-update - apply updates to the system in an atomic way
  */
 
+#include "Log.hpp"
 #include "tukit.hpp"
 #include <exception>
 #include <iostream>
@@ -16,7 +17,7 @@ int main(int argc, char *argv[]) {
     } catch (int e) {
         return e;
     } catch (const exception &e) {
-        cerr << "ERROR: " << e.what() << endl;
+        tulog.error("ERROR: ", e.what());
         return 1;
     }
     return 0;
