@@ -11,6 +11,7 @@
 #include "Transaction.hpp"
 #include "Reboot.hpp"
 #include "Log.hpp"
+#include "Util.hpp"
 #include <fcntl.h>
 #include <getopt.h>
 #include <unistd.h>
@@ -20,6 +21,7 @@
 
 using namespace std;
 using TransactionalUpdate::config;
+using TransactionalUpdate::Util;
 
 bool cancel;
 
@@ -338,9 +340,8 @@ TUKit::TUKit(int argc, char *argv[]) {
     Lock lock;
     tulog.info("tukit ", VERSION, " started");
 
-    string optionsline = "Options: ";
-    for(int i = 1; i < argc; ++i)
-        optionsline.append(argv[i]).append(" ");
+    vector<string> args(argv + 1, argv + argc);
+    string optionsline = "Options: " + Util::maskSensitiveArgs(args);
     tulog.info(optionsline);
 
     ret = processCommand(&argv[ret]);
